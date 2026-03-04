@@ -660,60 +660,63 @@ async function getCrypto() {
   }
 }
 
-// Stock fetch — multiple strategies with fast timeouts
+// Stock fetch — exact method from working v4
 async function getOneStock(sym) {
-  // Strategy 1: Yahoo via allorigins (most reliable)
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
-    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(8000)});
-    const j = await r.json();
-    const meta = JSON.parse(j.contents)?.chart?.result?.[0]?.meta;
-    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
-      const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
-      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/allorigins'};
-      return;
-    }
-  } catch(_){}
+  let got = false;
 
-  // Strategy 2: Yahoo via corsproxy.io
-  try {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
-    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(8000)});
-    const j = await r.json();
-    const meta = j?.chart?.result?.[0]?.meta;
-    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
-      const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
-      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/corsproxy'};
-      return;
-    }
-  } catch(_){}
+  // Method 1: Yahoo via allorigins — previousClose is the key (NOT regularMarketChangePercent)
+  if (!got) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`;
+      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(6000)});
+      const outer = await r.json();
+      const d = JSON.parse(outer.contents);
+      const meta = d?.chart?.result?.[0]?.meta;
+      if (meta) {
+        const prev = meta.previousClose || meta.chartPreviousClose;
+        const curr = meta.regularMarketPrice;
+        if (curr && prev) {
+          S.sp[sym] = {price:curr, prevClose:prev, change:((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow, src:'Yahoo'};
+          got = true;
+        }
+      }
+    } catch(_) {}
+  }
 
-  // Strategy 3: Yahoo via thingproxy
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
-    const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(8000)});
-    const j = await r.json();
-    const meta = j?.chart?.result?.[0]?.meta;
-    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
-      const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
-      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/thingproxy'};
-      return;
-    }
-  } catch(_){}
+  // Method 2: corsproxy.io fallback
+  if (!got) {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`;
+      const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(6000)});
+      const d = await r.json();
+      const meta = d?.chart?.result?.[0]?.meta;
+      if (meta) {
+        const prev = meta.previousClose || meta.chartPreviousClose;
+        const curr = meta.regularMarketPrice;
+        if (curr && prev) {
+          S.sp[sym] = {price:curr, prevClose:prev, change:((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow, src:'Yahoo2'};
+          got = true;
+        }
+      }
+    } catch(_) {}
+  }
 
-  // Strategy 4: Stooq CSV (no CORS issues on some browsers)
-  try {
-    const r = await fetch(`https://stooq.com/q/l/?s=${sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`, {signal:AbortSignal.timeout(6000)});
-    const txt = await r.text();
-    const lines = txt.trim().split('\n');
-    if (lines.length >= 2) {
-      const v = lines[1].split(',');
-      const close=parseFloat(v[6]),open=parseFloat(v[3]),high=parseFloat(v[4]),low=parseFloat(v[5]);
-      let prev=open;
-      if(lines.length>=3){const pc=parseFloat(lines[2].split(',')[6]);if(!isNaN(pc)&&pc>0)prev=pc;}
-      if(!isNaN(close)&&close>0){S.sp[sym]={price:close,prevClose:prev,change:((close-prev)/prev)*100,changeAmt:close-prev,high,low,src:'Stooq'};return;}
-    }
-  } catch(_){}
+  // Method 3: Stooq CSV
+  if (!got) {
+    try {
+      const r = await fetch(`https://stooq.com/q/l/?s=${sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`, {signal:AbortSignal.timeout(5000)});
+      const txt = await r.text();
+      const lines = txt.trim().split('\n');
+      if (lines.length >= 2) {
+        const v = lines[1].split(',');
+        const open=parseFloat(v[3]),high=parseFloat(v[4]),low=parseFloat(v[5]),close=parseFloat(v[6]);
+        if (!isNaN(close) && close > 0) {
+          S.sp[sym] = {price:close, prevClose:open, change:((close-open)/open)*100, changeAmt:close-open, high, low, src:'Stooq'};
+          got = true;
+        }
+      }
+    } catch(_) {}
+  }
 }
 
 async function getStocks() {
