@@ -74,12 +74,10 @@ body::before{content:'';position:fixed;inset:0;background:
   font-family:'Heebo',sans-serif;}
 .nav-item svg,.nav-item .nav-ico{font-size:20px;transition:transform .2s;}
 .nav-item .nav-lbl{font-size:10px;font-weight:600;transition:color .15s;}
-.nav-item.active{color:var(--ac);}
+.nav-item.active{color:var(--ac);border-top:2px solid var(--ac);margin-top:-1px;}
 .nav-item.active .nav-ico{transform:translateY(-1px);}
 .nav-item.active .nav-lbl{color:var(--ac);}
-.nav-bar{position:absolute;top:0;height:2px;background:var(--ac);
-  border-radius:0 0 2px 2px;transition:right .25s cubic-bezier(.4,0,.2,1),width .25s;
-  box-shadow:0 0 8px var(--ac);}
+.nav-item:not(.active){border-top:2px solid transparent;margin-top:-1px;}
 
 /* ── PAGES ── */
 .page{display:none;padding:16px 16px 8px;animation:fadeIn .2s ease;}
@@ -531,7 +529,6 @@ body::before{content:'';position:fixed;inset:0;background:
 
 <!-- BOTTOM NAV -->
 <nav class="nav" id="mainNav">
-  <div class="nav-bar" id="navBar"></div>
   <button class="nav-item active" data-page="dash" onclick="goPage('dash',this)">
     <span class="nav-ico">🏠</span>
     <span class="nav-lbl">דשבורד</span>
@@ -663,55 +660,60 @@ async function getCrypto() {
   }
 }
 
-// Stock fetch — Stooq first (no CORS, reliable), then Yahoo proxies
+// Stock fetch — multiple strategies with fast timeouts
 async function getOneStock(sym) {
-  const apis = [
-    () => fetchStooq(sym),
-    () => fetchYahooProxy(sym, 'https://api.allorigins.win/get?url='),
-    () => fetchYahooProxy(sym, 'https://corsproxy.io/?'),
-  ];
-  for (const api of apis) {
-    try {
-      const r = await api();
-      if (r && r.price > 0) { S.sp[sym] = r; return; }
-    } catch(_){}
-  }
-}
-
-async function fetchYahooProxy(sym, proxyBase) {
+  // Strategy 1: Yahoo via allorigins (most reliable)
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
-    const full = proxyBase.includes('allorigins') ? proxyBase + encodeURIComponent(url) : proxyBase + encodeURIComponent(url);
-    const r = await fetch(full, {signal:AbortSignal.timeout(6000)});
-    const raw = await r.json();
-    const d = proxyBase.includes('allorigins') ? JSON.parse(raw.contents) : raw;
-    const meta = d?.chart?.result?.[0]?.meta;
-    if (meta?.regularMarketPrice && meta?.regularMarketChangePercent != null) {
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(8000)});
+    const j = await r.json();
+    const meta = JSON.parse(j.contents)?.chart?.result?.[0]?.meta;
+    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
       const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
-      return {price:curr, prevClose:curr-chAmt, change:chPct, changeAmt:chAmt, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/allorigins'};
+      return;
     }
   } catch(_){}
-  return null;
-}
 
-async function fetchStooq(sym) {
+  // Strategy 2: Yahoo via corsproxy.io
   try {
-    // Request 5 days to get yesterday's real close
-    const r = await fetch(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d`,{signal:AbortSignal.timeout(6000)});
-    const txt = await r.text();
-    const lines = txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
-    if (lines.length < 1) return null;
-    // Latest row
-    const v = lines[0].split(',');
-    const close=parseFloat(v[4]),open=parseFloat(v[1]),high=parseFloat(v[2]),low=parseFloat(v[3]);
-    // Previous close = yesterday's close (line index 1)
-    let prevClose = lines.length >= 2 ? parseFloat(lines[1].split(',')[4]) : open;
-    if (isNaN(prevClose)||prevClose<=0) prevClose = open;
-    if (!isNaN(close)&&close>0) {
-      return {price:close, prevClose, change:((close-prevClose)/prevClose)*100, changeAmt:close-prevClose, high, low};
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(8000)});
+    const j = await r.json();
+    const meta = j?.chart?.result?.[0]?.meta;
+    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
+      const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
+      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/corsproxy'};
+      return;
     }
   } catch(_){}
-  return null;
+
+  // Strategy 3: Yahoo via thingproxy
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`;
+    const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(8000)});
+    const j = await r.json();
+    const meta = j?.chart?.result?.[0]?.meta;
+    if (meta?.regularMarketPrice && meta.regularMarketChangePercent != null) {
+      const curr=meta.regularMarketPrice, chPct=meta.regularMarketChangePercent, chAmt=meta.regularMarketChange||0;
+      S.sp[sym]={price:curr,prevClose:curr-chAmt,change:chPct,changeAmt:chAmt,high:meta.regularMarketDayHigh,low:meta.regularMarketDayLow,src:'Yahoo/thingproxy'};
+      return;
+    }
+  } catch(_){}
+
+  // Strategy 4: Stooq CSV (no CORS issues on some browsers)
+  try {
+    const r = await fetch(`https://stooq.com/q/l/?s=${sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`, {signal:AbortSignal.timeout(6000)});
+    const txt = await r.text();
+    const lines = txt.trim().split('\n');
+    if (lines.length >= 2) {
+      const v = lines[1].split(',');
+      const close=parseFloat(v[6]),open=parseFloat(v[3]),high=parseFloat(v[4]),low=parseFloat(v[5]);
+      let prev=open;
+      if(lines.length>=3){const pc=parseFloat(lines[2].split(',')[6]);if(!isNaN(pc)&&pc>0)prev=pc;}
+      if(!isNaN(close)&&close>0){S.sp[sym]={price:close,prevClose:prev,change:((close-prev)/prev)*100,changeAmt:close-prev,high,low,src:'Stooq'};return;}
+    }
+  } catch(_){}
 }
 
 async function getStocks() {
@@ -804,14 +806,6 @@ function goPage(id, btn) {
   if(btn) btn.classList.add('active');
   curPage = id;
   document.getElementById('app').scrollTop = 0;
-  // Move nav bar — RTL: use right instead of left
-  const items = document.querySelectorAll('.nav-item');
-  const idx = [...items].findIndex(b=>b.dataset.page===id);
-  const bar = document.getElementById('navBar');
-  const w = 100/items.length;
-  bar.style.width = w+'%';
-  // RTL: item 0 is rightmost, so right = idx * w
-  bar.style.right = (idx*w)+'%';
   // Render page content
   if(id==='stocks') renderStocksPage();
   if(id==='crypto') renderCryptoPage();
@@ -968,6 +962,7 @@ async function renderStocksPage() {
         <div style="font-size:9px;color:var(--t3);margin-top:2px">
           ${p?.price?`$${p.price.toFixed(2)}`:'טוען...'}
           ${p?.high?`| גבוה: $${p.high.toFixed(2)}`:''}
+          ${p?.src?`<span style="color:var(--t3);opacity:.6">· ${p.src}</span>`:''}
         </div>
       </div>
       <div>
