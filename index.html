@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#00e5b8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Portfolio">
+<title>הפורטפוליו שלי</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#04070f;--surface:#0b1220;--surface2:#0f1829;--surface3:#131f35;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --accent:#00e5b8;--blue:#4f8ef7;--gold:#f0b429;--red:#f43f5e;--green:#10d97e;
+  --text:#e2eaf7;--text2:#8899b4;--text3:#3d5070;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 15% 15%,rgba(0,229,184,0.04),transparent 60%),radial-gradient(ellipse 50% 40% at 85% 85%,rgba(79,142,247,0.04),transparent 60%);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,184,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,184,0.02) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0;}
+.wrap{position:relative;z-index:1;padding:24px 24px 60px;max-width:1400px;margin:0 auto;}
+
+/* HEADER */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#00b4d8);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#000;box-shadow:0 0 16px rgba(0,229,184,0.3);}
+.logo h1{font-size:19px;font-weight:800;letter-spacing:-0.4px;}
+.logo h1 span{color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(16,217,126,0.1);border:1px solid rgba(16,217,126,0.25);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;color:var(--green);}
+.dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3;transform:scale(1.3);}}
+.btn{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);padding:7px 14px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.accent-btn{background:var(--accent);border-color:var(--accent);color:#000;}
+.btn.accent-btn:hover{background:#00c9a3;border-color:#00c9a3;}
+.btn.spin svg{animation:spinSVG 0.7s linear;}
+@keyframes spinSVG{to{transform:rotate(360deg);}}
+#ts{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+
+/* TOTAL */
+.total-card{background:linear-gradient(135deg,#091522,#061018,#071a10);border:1px solid rgba(0,229,184,0.2);border-radius:20px;padding:28px;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:0 0 50px rgba(0,229,184,0.05),inset 0 1px 0 rgba(255,255,255,0.04);}
+.total-card::after{content:'';position:absolute;top:-80px;right:-80px;width:250px;height:250px;background:radial-gradient(circle,rgba(0,229,184,0.09),transparent 70%);pointer-events:none;}
+.total-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.total-val{font-size:50px;font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:14px;}
+.total-val .sym{font-size:26px;color:var(--accent);font-weight:700;}
+.total-meta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+.badge{display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:8px;font-size:14px;font-weight:800;}
+.badge.up{background:rgba(16,217,126,0.14);color:var(--green);}
+.badge.down{background:rgba(244,63,94,0.14);color:var(--red);}
+.meta-sub{font-size:12px;color:var(--text2);}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr);}}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;}
+.stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.stat-val{font-size:20px;font-weight:800;letter-spacing:-0.4px;}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:4px;}
+.bar{height:3px;border-radius:2px;background:var(--border2);margin-top:10px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width 1s ease;}
+
+/* SECTION */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sec-title{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:2px;}
+.sec-title i{width:3px;height:14px;background:var(--accent);border-radius:2px;display:inline-block;}
+.add-btn{display:flex;align-items:center;gap:4px;font-family:'Heebo',sans-serif;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-dim,rgba(0,229,184,0.08));border:1px solid rgba(0,229,184,0.2);padding:5px 12px;border-radius:8px;cursor:pointer;transition:all 0.15s;}
+.add-btn:hover{background:rgba(0,229,184,0.15);}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:14px;margin-bottom:28px;}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;cursor:pointer;transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;}
+.card:hover{transform:translateY(-2px);border-color:rgba(0,229,184,0.25);box-shadow:0 10px 36px rgba(0,0,0,0.4);}
+.card.selected{border-color:var(--accent)!important;box-shadow:0 0 0 1px var(--accent),0 10px 36px rgba(0,229,184,0.1);}
+.card-glow{position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 16px 0 60px;opacity:0.07;pointer-events:none;}
+.card-edit-btn{position:absolute;top:10px;left:10px;width:26px;height:26px;border-radius:7px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity 0.15s;z-index:5;}
+.card:hover .card-edit-btn{opacity:1;}
+.card-edit-btn:hover{color:var(--accent);border-color:var(--accent);}
+
+.card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.card-id{display:flex;align-items:center;gap:10px;}
+.icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.ticker{font-size:15px;font-weight:800;}
+.name-s{font-size:11px;color:var(--text2);margin-top:1px;}
+.tag{font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:0.7px;flex-shrink:0;}
+.t-c{background:rgba(0,229,184,0.1);color:var(--accent);border:1px solid rgba(0,229,184,0.18);}
+.t-s{background:rgba(79,142,247,0.1);color:var(--blue);border:1px solid rgba(79,142,247,0.18);}
+.spark{height:34px;margin:8px 0 10px;}
+.card-body{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px;}
+.vblock .val{font-size:21px;font-weight:900;letter-spacing:-0.5px;}
+.vblock .qty{font-size:11px;color:var(--text3);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.pblock{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.pct{font-size:15px;font-weight:800;}
+.pct.up{color:var(--green);}
+.pct.down{color:var(--red);}
+.pnl{font-size:12px;font-weight:700;}
+.pnl.up{color:var(--green);}
+.pnl.down{color:var(--red);}
+.pnl-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;}
+.card-foot{display:flex;justify-content:space-between;align-items:center;padding-top:9px;border-top:1px solid var(--border);}
+.pi{font-size:11px;color:var(--text2);}
+.pi span{color:var(--text);font-weight:600;font-family:'JetBrains Mono',monospace;}
+
+.loading-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;align-items:center;gap:10px;color:var(--text2);font-size:13px;}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spinSVG 0.8s linear infinite;flex-shrink:0;}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:3fr 2fr;gap:16px;}
+@media(max-width:750px){.charts-row{grid-template-columns:1fr;}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.chart-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:16px;}
+.chart-h{height:200px;position:relative;}
+
+/* ═══════════════════════════════
+   MODALS (shared base)
+═══════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(4,7,15,0.88);backdrop-filter:blur(14px);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.22s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surface2);border:1px solid var(--border2);border-radius:22px;width:min(860px,94vw);max-height:90vh;overflow-y:auto;padding:28px;position:relative;transform:translateY(18px) scale(0.97);transition:transform 0.22s cubic-bezier(.4,0,.2,1);box-shadow:0 40px 100px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.04);}
+.overlay.open .modal{transform:none;}
+.mc{position:absolute;top:16px;left:16px;width:32px;height:32px;border-radius:9px;background:var(--surface3);border:1px solid var(--border);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.mc:hover{background:rgba(244,63,94,0.12);color:var(--red);border-color:rgba(244,63,94,0.3);}
+
+/* DETAIL MODAL */
+.mhead{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.micon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;}
+.mhead h2{font-size:24px;font-weight:900;letter-spacing:-0.5px;}
+.mhead p{font-size:12px;color:var(--text2);margin-top:3px;}
+.mkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+@media(max-width:560px){.mkpis{grid-template-columns:repeat(2,1fr);}}
+.mkpi{background:var(--surface3);border:1px solid var(--border);border-radius:13px;padding:14px;}
+.mkpi-l{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.mkpi-v{font-size:18px;font-weight:800;letter-spacing:-0.3px;}
+.mkpi-v.up{color:var(--green);}
+.mkpi-v.dn{color:var(--red);}
+.mkpi-v.ac{color:var(--accent);}
+.mkpi-v.gl{color:var(--gold);}
+.mch-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.mch-lbl{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:1px;}
+.rbtns{display:flex;gap:5px;}
+.rb{font-family:'Heebo',sans-serif;font-size:10px;font-weight:700;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all 0.14s;letter-spacing:0.5px;}
+.rb.active{background:var(--accent);border-color:var(--accent);color:#000;}
+.mch-box{background:var(--surface3);border:1px solid var(--border);border-radius:13px;padding:18px;height:240px;position:relative;margin-bottom:20px;transition:opacity 0.2s;}
+.an{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:560px){.an{grid-template-columns:1fr;}}
+.an-card{background:var(--surface3);border:1px solid var(--border);border-radius:13px;padding:16px;}
+.an-t{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;}
+.ar{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
+.ar:last-child{border-bottom:none;}
+.ar-l{font-size:11px;color:var(--text2);}
+.ar-v{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ar-v.up{color:var(--green);}
+.ar-v.dn{color:var(--red);}
+.ar-v.gl{color:var(--gold);}
+.sig{display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:9px;margin-top:10px;}
+.sig.buy{background:rgba(16,217,126,0.08);border:1px solid rgba(16,217,126,0.2);}
+.sig.sell{background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);}
+.sig.hold{background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.2);}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sig.buy .sdot{background:var(--green);}
+.sig.sell .sdot{background:var(--red);}
+.sig.hold .sdot{background:var(--gold);}
+.stxt{font-size:11px;font-weight:700;}
+.sig.buy .stxt{color:var(--green);}
+.sig.sell .stxt{color:var(--red);}
+.sig.hold .stxt{color:var(--gold);}
+
+/* ═══════════════════════════════
+   EDITOR MODAL
+═══════════════════════════════ */
+.editor-modal{width:min(520px,94vw);max-height:88vh;}
+.editor-title{font-size:18px;font-weight:800;margin-bottom:6px;}
+.editor-sub{font-size:12px;color:var(--text2);margin-bottom:22px;}
+
+.asset-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;max-height:320px;overflow-y:auto;padding-right:4px;}
+.asset-row{display:flex;align-items:center;gap:10px;background:var(--surface3);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+.asset-row-icon{font-size:20px;flex-shrink:0;}
+.asset-row-info{flex:1;min-width:0;}
+.asset-row-sym{font-size:13px;font-weight:800;}
+.asset-row-name{font-size:11px;color:var(--text2);}
+.asset-row-qty{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;white-space:nowrap;}
+.asset-del-btn{width:28px;height:28px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--text3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;}
+.asset-del-btn:hover{background:rgba(244,63,94,0.1);color:var(--red);border-color:rgba(244,63,94,0.3);}
+.asset-edit-inline{width:80px;font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;color:var(--text);text-align:center;}
+.asset-edit-inline:focus{outline:none;border-color:var(--accent);}
+
+.add-form{background:var(--surface3);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;}
+.add-form-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:12px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;}
+.field input,.field select{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;color:var(--text);font-family:'Heebo',sans-serif;font-size:13px;transition:border-color 0.15s;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
+.field select option{background:var(--surface2);}
+.form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
+.form-add-btn{background:var(--accent);border:none;border-radius:9px;padding:9px 20px;color:#000;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;}
+.form-add-btn:hover{background:#00c9a3;}
+.form-cancel-btn{background:transparent;border:1px solid var(--border2);border-radius:9px;padding:9px 16px;color:var(--text2);font-family:'Heebo',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.editor-save-btn{width:100%;background:var(--accent);border:none;border-radius:12px;padding:13px;color:#000;font-family:'Heebo',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:background 0.15s;letter-spacing:0.3px;}
+.editor-save-btn:hover{background:#00c9a3;}
+
+.tab-row{display:flex;gap:6px;margin-bottom:16px;}
+.tab{font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;padding:7px 16px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all 0.15s;}
+.tab.active{background:var(--surface3);border-color:var(--border2);color:var(--text);}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+
+@media(max-width:480px){
+  .total-val{font-size:36px;}
+  .wrap{padding:14px 14px 30px;}
+  .mhead h2{font-size:20px;}
+}
+
+/* Install banner */
+.install-banner{
+  display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--surface2);border:1px solid rgba(0,229,184,0.3);border-radius:16px;
+  padding:14px 20px;z-index:500;align-items:center;gap:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:90vw;
+}
+.install-banner.show{display:flex;}
+.install-banner p{font-size:13px;font-weight:600;color:var(--text);}
+.install-banner span{font-size:11px;color:var(--text2);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">P</div>
+    <h1>הפורטפוליו <span>שלי</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="live-pill"><div class="dot"></div>LIVE</div>
+    <button class="btn" id="refreshBtn" onclick="doRefresh()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      רענן
+    </button>
+    <button class="btn accent-btn" onclick="openEditor()">
+      ✏️ ערוך נכסים
+    </button>
+    <span id="ts">טוען...</span>
+  </div>
+</div>
+
+<!-- TOTAL -->
+<div class="total-card">
+  <div class="total-label">שווי כולל פורטפוליו</div>
+  <div class="total-val"><span class="sym">₪</span><span id="grandNum">---</span></div>
+  <div class="total-meta">
+    <div class="badge up" id="chgBadge">---</div>
+    <div class="meta-sub" id="chgAbs">רווח יומי: ---</div>
+    <div class="meta-sub" id="usdVal">≈ $---</div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-lbl">🪙 קריפטו</div>
+    <div class="stat-val" id="cryptoKpi" style="color:var(--accent)">₪---</div>
+    <div class="stat-sub" id="cryptoPctLbl">---%</div>
+    <div class="bar"><div class="bar-fill" id="cryptoBarFill" style="background:var(--accent);width:0%"></div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">📈 מניות</div>
+    <div class="stat-val" id="stockKpi" style="color:var(--blue)">₪---</div>
+    <div class="stat-sub" id="stockPctLbl">---%</div>
+    <div class="bar"><div class="bar-fill" id="stockBarFill" style="background:var(--blue);width:0%"></div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">💱 USD/ILS</div>
+    <div class="stat-val" id="fxKpi" style="color:var(--gold)">₪---</div>
+    <div class="stat-sub">שער עדכני</div>
+  </div>
+  <div class="stat">
+    <div class="stat-lbl">🏆 הטוב היום</div>
+    <div class="stat-val" id="bestKpi" style="font-size:15px;color:var(--green)">---</div>
+    <div class="stat-sub" id="bestSub">24 שעות</div>
+  </div>
+</div>
+
+<!-- CRYPTO -->
+<div class="sec-head">
+  <div class="sec-title"><i></i>מטבעות קריפטו</div>
+  <button class="add-btn" onclick="openEditor('crypto')">+ הוסף מטבע</button>
+</div>
+<div class="grid" id="cryptoGrid"><div class="loading-card"><div class="spinner"></div>טוען מ-Binance...</div></div>
+
+<!-- STOCKS -->
+<div class="sec-head">
+  <div class="sec-title"><i></i>מניות</div>
+  <button class="add-btn" onclick="openEditor('stock')">+ הוסף מניה</button>
+</div>
+<div class="grid" id="stockGrid"><div class="loading-card"><div class="spinner"></div>טוען מחירי מניות...</div></div>
+
+<!-- CHARTS -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">התפלגות לפי נכס</div>
+    <div class="chart-h"><canvas id="allocChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">קריפטו vs מניות</div>
+    <div class="chart-h"><canvas id="splitChart"></canvas></div>
+  </div>
+</div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="overlay" onclick="ovClick(event)">
+  <div class="modal" id="modal">
+    <button class="mc" onclick="closeModal()">✕</button>
+    <div id="mContent"></div>
+  </div>
+</div>
+
+<!-- EDITOR MODAL -->
+<div class="overlay" id="editorOverlay" onclick="editorOvClick(event)">
+  <div class="modal editor-modal" id="editorModal">
+    <button class="mc" onclick="closeEditor()">✕</button>
+    <div id="editorContent"></div>
+  </div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="installBanner">
+  <span style="font-size:24px;">📲</span>
+  <div>
+    <p>התקן כאפליקציה</p>
+    <span>גישה מהירה מהמסך הראשי</span>
+  </div>
+  <button class="btn accent-btn" id="installBtn" style="white-space:nowrap;">התקן</button>
+  <button class="btn" onclick="document.getElementById('installBanner').classList.remove('show')" style="padding:7px 10px;">✕</button>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// DEFAULT DATA — overridden by localStorage
+// ════════════════════════════════════════
+const DEFAULT_CRYPTO = [
+  {id:'cardano',      sym:'ADA', name:'Cardano',   qty:1606.3841,  icon:'🔵',color:'#1a6bcc'},
+  {id:'dogecoin',     sym:'DOGE',name:'Dogecoin',  qty:1938.065,   icon:'🐶',color:'#c5a429'},
+  {id:'pepe',         sym:'PEPE',name:'Pepe',      qty:6719013.31, icon:'🐸',color:'#3a7d11'},
+  {id:'terra-luna-2', sym:'LUNA',name:'Terra',     qty:2.5519608,  icon:'🌕',color:'#e8a020'},
+  {id:'solana',       sym:'SOL', name:'Solana',    qty:12.854,     icon:'◎', color:'#9945ff'},
+  {id:'ethereum',     sym:'ETH', name:'Ethereum',  qty:0.3727269,  icon:'⟠', color:'#627eea'},
+  {id:'ripple',       sym:'XRP', name:'XRP',       qty:539.1264,   icon:'✕', color:'#00a3e0'},
+  {id:'avalanche-2',  sym:'AVAX',name:'Avalanche', qty:68.81112,   icon:'🔺',color:'#e84142'},
+];
+const DEFAULT_STOCKS = [
+  {sym:'MSFT',name:'Microsoft',baseILS:6283.36, icon:'🪟',color:'#00a4ef'},
+  {sym:'NVDA',name:'Nvidia',   baseILS:22609.9, icon:'🎮',color:'#76b900'},
+  {sym:'SNDK',name:'SanDisk',  baseILS:31301.24,icon:'💾',color:'#e2001a'},
+];
+
+// Binance symbol map (expandable)
+const BINANCE_MAP = {
+  BTC:'BTCUSDT',ETH:'ETHUSDT',BNB:'BNBUSDT',SOL:'SOLUSDT',XRP:'XRPUSDT',
+  ADA:'ADAUSDT',DOGE:'DOGEUSDT',AVAX:'AVAXUSDT',LINK:'LINKUSDT',DOT:'DOTUSDT',
+  MATIC:'MATICUSDT',UNI:'UNIUSDT',ATOM:'ATOMUSDT',LTC:'LTCUSDT',BCH:'BCHUSDT',
+  PEPE:'PEPEUSDT',SHIB:'SHIBUSDT',LUNA:'LUNAUSDT',NEAR:'NEARUSDT',APT:'APTUSDT',
+  ARB:'ARBUSDT',OP:'OPUSDT',INJ:'INJUSDT',SUI:'SUIUSDT',TIA:'TIAUSDT',
+  JUP:'JUPUSDT',WIF:'WIFUSDT',BONK:'BONKUSDT',FIL:'FILUSDT',SAND:'SANDUSDT',
+};
+
+// CoinGecko IDs for history charts
+const CG_IDS = {
+  BTC:'bitcoin',ETH:'ethereum',SOL:'solana',ADA:'cardano',DOGE:'dogecoin',
+  XRP:'ripple',AVAX:'avalanche-2',PEPE:'pepe',LUNA:'terra-luna-2',BNB:'binancecoin',
+  LINK:'chainlink',DOT:'polkadot',MATIC:'matic-network',LTC:'litecoin',
+  SHIB:'shiba-inu',NEAR:'near',ARB:'arbitrum',OP:'optimism',INJ:'injective-protocol',
+};
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+const S = {
+  usdIls: 3.65,
+  cp: {}, sp: {}, sparks: {},
+  dChart: null, aChart: null, sChart: null,
+  sel: null,
+  // Portfolios loaded from localStorage
+  crypto: loadData('portfolio_crypto', DEFAULT_CRYPTO),
+  stocks: loadData('portfolio_stocks', DEFAULT_STOCKS),
+};
+
+function loadData(key, def) {
+  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : JSON.parse(JSON.stringify(def)); }
+  catch(_) { return JSON.parse(JSON.stringify(def)); }
+}
+function saveData() {
+  try {
+    localStorage.setItem('portfolio_crypto', JSON.stringify(S.crypto));
+    localStorage.setItem('portfolio_stocks', JSON.stringify(S.stocks));
+  } catch(_) {}
+}
+
+// ════════════════════════════════════════
+// FETCH
+// ════════════════════════════════════════
+async function getFX() {
+  try {
+    const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    const d = await r.json(); if (d.rates?.ILS) S.usdIls = d.rates.ILS;
+  } catch(_) {
+    try { const r = await fetch('https://open.er-api.com/v6/latest/USD'); const d = await r.json(); if(d.rates?.ILS) S.usdIls=d.rates.ILS; } catch(_) {}
+  }
+  document.getElementById('fxKpi').textContent = '₪' + S.usdIls.toFixed(3);
+}
+
+async function getCrypto() {
+  const syms = [...new Set(S.crypto.map(a => BINANCE_MAP[a.sym]).filter(Boolean))];
+  if (!syms.length) return;
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(syms))}`);
+    const arr = await r.json();
+    const byS = {}; arr.forEach(t => { byS[t.symbol] = t; });
+    S.crypto.forEach(a => {
+      const t = byS[BINANCE_MAP[a.sym]];
+      if (t) S.cp[a.id] = { usd: parseFloat(t.lastPrice), usd_24h_change: parseFloat(t.priceChangePercent), usd_market_cap: null };
+    });
+  } catch(e) {
+    // Individual fallback
+    await Promise.all(S.crypto.map(async a => {
+      const bsym = BINANCE_MAP[a.sym]; if (!bsym) return;
+      try { const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${bsym}`); const t = await r.json(); S.cp[a.id]={usd:parseFloat(t.lastPrice),usd_24h_change:parseFloat(t.priceChangePercent),usd_market_cap:null}; } catch(_) {}
+    }));
+  }
+}
+
+async function getStocks() {
+  await Promise.all(S.stocks.map(async s => {
+    let got = false;
+    // Yahoo via allorigins
+    for (const q of ['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']) {
+      if (got) break;
+      for (const proxy of [`https://api.allorigins.win/get?url=`, `https://corsproxy.io/?`]) {
+        if (got) break;
+        try {
+          const url = `${q}/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
+          const full = proxy.includes('allorigins') ? proxy + encodeURIComponent(url) : proxy + encodeURIComponent(url);
+          const r = await fetch(full, {signal: AbortSignal.timeout(7000)});
+          const raw = await r.json();
+          const d = proxy.includes('allorigins') ? JSON.parse(raw.contents) : raw;
+          const meta = d?.chart?.result?.[0]?.meta;
+          if (meta?.regularMarketPrice && meta?.regularMarketChangePercent != null) {
+            const curr = meta.regularMarketPrice, chPct = meta.regularMarketChangePercent, chAmt = meta.regularMarketChange;
+            S.sp[s.sym] = { price: curr, prevClose: curr - chAmt, change: chPct, changeAmt: chAmt, high: meta.regularMarketDayHigh, low: meta.regularMarketDayLow };
+            got = true;
+          }
+        } catch(_) {}
+      }
+    }
+    // Stooq fallback
+    if (!got) {
+      try {
+        const r = await fetch(`https://stooq.com/q/l/?s=${s.sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`, {signal: AbortSignal.timeout(5000)});
+        const txt = await r.text(); const lines = txt.trim().split('\n');
+        if (lines.length >= 2) {
+          const v = lines[1].split(',');
+          const close = parseFloat(v[6]), open = parseFloat(v[3]), high = parseFloat(v[4]), low = parseFloat(v[5]);
+          let prevClose = open;
+          if (lines.length >= 3) { const p2 = parseFloat(lines[2].split(',')[6]); if(!isNaN(p2)&&p2>0) prevClose=p2; }
+          if (!isNaN(close) && close > 0) { S.sp[s.sym]={price:close,prevClose,change:((close-prevClose)/prevClose)*100,changeAmt:close-prevClose,high,low}; got=true; }
+        }
+      } catch(_) {}
+    }
+  }));
+}
+
+async function getCryptoHist(id, days) {
+  const a = S.crypto.find(c => c.id === id); const bsym = a ? BINANCE_MAP[a.sym] : null;
+  if (bsym) {
+    try {
+      const interval = days<=1?'1h':days<=7?'4h':days<=30?'1d':'3d';
+      const limit = days<=1?24:days<=7?42:30;
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bsym}&interval=${interval}&limit=${limit}`);
+      const arr = await r.json(); return arr.map(k => [k[0], parseFloat(k[4])]);
+    } catch(_) {}
+  }
+  const cgId = CG_IDS[a?.sym] || id;
+  try { const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}`); const d = await r.json(); return d.prices||[]; } catch(_) { return []; }
+}
+
+// ════════════════════════════════════════
+// CALC & FORMAT
+// ════════════════════════════════════════
+function cv(a){const p=S.cp[a.id];return p?p.usd*S.usdIls*a.qty:0;}
+function cc(a){return S.cp[a.id]?.usd_24h_change??null;}
+function cpnl(a){const v=cv(a),ch=cc(a);if(!v||ch==null)return null;return v*ch/100/(1+ch/100);}
+function sv(s){const p=S.sp[s.sym];if(p?.price&&p?.prevClose)return s.baseILS*(p.price/p.prevClose);return s.baseILS;}
+function spnl(s){const p=S.sp[s.sym];if(!p)return null;return sv(s)-s.baseILS;}
+function tots(){let c=0,st=0;S.crypto.forEach(a=>c+=cv(a));S.stocks.forEach(s=>st+=sv(s));return{c,st,g:c+st};}
+
+function fILS(n,dec=0){if(n==null||isNaN(n))return'₪---';if(Math.abs(n)>=1e6)return'₪'+(n/1e6).toFixed(2)+'M';return'₪'+n.toLocaleString('he-IL',{minimumFractionDigits:dec,maximumFractionDigits:dec});}
+function fPct(n,d=2){if(n==null||isNaN(n))return'---%';return(n>=0?'+':'')+n.toFixed(d)+'%';}
+function fNum(n){if(n==null)return'--';if(Math.abs(n)>=1e9)return(n/1e9).toFixed(2)+'B';if(Math.abs(n)>=1e6)return(n/1e6).toFixed(2)+'M';if(Math.abs(n)>=1e3)return(n/1e3).toFixed(1)+'K';return n.toLocaleString('en',{maximumFractionDigits:6});}
+function fP(p){if(!p&&p!==0)return'--';if(p<0.000001)return p.toExponential(2);if(p<0.001)return p.toFixed(8);if(p<1)return p.toFixed(4);return p.toFixed(2);}
+
+// ════════════════════════════════════════
+// SPARKLINES
+// ════════════════════════════════════════
+async function drawSpark(cid, key, isCrypto, isUp) {
+  const canvas = document.getElementById(cid); if (!canvas) return;
+  let prices = S.sparks[key];
+  if (!prices) {
+    if (isCrypto) { const h = await getCryptoHist(key, 7); prices = h.map(([,p])=>p); }
+    else { const p = S.sp[key]; prices = p ? [p.prevClose, p.prevClose+(p.price-p.prevClose)*0.5, p.price] : []; }
+    if (prices.length) S.sparks[key] = prices;
+  }
+  if (!prices?.length) return;
+  const col = isUp ? '#10d97e' : '#f43f5e';
+  const ex = Chart.getChart(canvas); if (ex) ex.destroy();
+  new Chart(canvas, {type:'line',data:{labels:prices.map((_,i)=>i),datasets:[{data:prices,borderColor:col,borderWidth:1.5,pointRadius:0,tension:0.4,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,34);g.addColorStop(0,col+'44');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:false,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function cardHTML(o) {
+  const {sym,name,icon,color,type,value,qtyLabel,priceStr,priceUSD,change,pnlDay,selected}=o;
+  const up=change>=0,pup=pnlDay>=0;
+  return `<div class="card ${up?'up':'down'} ${selected?'selected':''}" onclick="openDetail('${sym}','${type}')">
+    <div class="card-glow" style="background:${color};"></div>
+    <button class="card-edit-btn" onclick="event.stopPropagation();editAsset('${sym}','${type}')" title="ערוך">✏️</button>
+    <div class="card-top">
+      <div class="card-id">
+        <div class="icon" style="background:${color}22;">${icon}</div>
+        <div><div class="ticker">${sym}</div><div class="name-s">${name}</div></div>
+      </div>
+      <div class="tag ${type==='crypto'?'t-c':'t-s'}">${type==='crypto'?'CRYPTO':'STOCK'}</div>
+    </div>
+    <div class="spark"><canvas id="spark_${sym}" height="34"></canvas></div>
+    <div class="card-body">
+      <div class="vblock"><div class="val">${fILS(value)}</div><div class="qty">${qtyLabel}</div></div>
+      <div class="pblock">
+        <div class="pct ${up?'up':'down'}">${up?'▲':'▼'} ${change!=null?Math.abs(change).toFixed(2):'--'}%</div>
+        ${pnlDay!=null?`<div class="pnl ${pup?'up':'down'}">${pup?'+':''}${fILS(pnlDay)}</div>`:''}
+        <div class="pnl-lbl">רווח יומי</div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <div class="pi">${priceStr}</div>
+      ${priceUSD?`<div class="pi">$<span>${fP(priceUSD)}</span></div>`:''}
+    </div>
+  </div>`;
+}
+
+function renderCrypto() {
+  const grid = document.getElementById('cryptoGrid');
+  const sorted = [...S.crypto].sort((a,b)=>cv(b)-cv(a));
+  grid.innerHTML = sorted.map(a => {
+    const p=S.cp[a.id],priceUSD=p?.usd,priceILS=priceUSD?priceUSD*S.usdIls:null;
+    return cardHTML({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(a.qty)+' '+a.sym,priceStr:priceILS?`₪<span>${fP(priceILS)}</span>`:'<span style="color:var(--text3)">טוען...</span>',priceUSD,change:cc(a),pnlDay:cpnl(a),selected:S.sel===a.sym});
+  }).join('');
+  sorted.forEach(a => setTimeout(()=>drawSpark(`spark_${a.sym}`,a.id,true,cc(a)>=0),20));
+}
+
+function renderStocks() {
+  const grid = document.getElementById('stockGrid');
+  grid.innerHTML = S.stocks.map(s => {
+    const p=S.sp[s.sym],priceUSD=p?.price,priceILS=priceUSD?priceUSD*S.usdIls:null;
+    return cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ',priceStr:priceUSD?`$<span>${priceUSD.toFixed(2)}</span>`:'<span style="color:var(--text3)">טוען...</span>',priceUSD,change:p?.change??null,pnlDay:spnl(s),selected:S.sel===s.sym});
+  }).join('');
+  S.stocks.forEach(s=>{const p=S.sp[s.sym];if(p)setTimeout(()=>drawSpark(`spark_${s.sym}`,s.sym,false,p.change>=0),20);});
+}
+
+function updateKPIs() {
+  const{c,st,g}=tots();
+  document.getElementById('grandNum').textContent=g>0?g.toLocaleString('he-IL',{maximumFractionDigits:0}):'---';
+  document.getElementById('cryptoKpi').textContent=fILS(c);
+  document.getElementById('stockKpi').textContent=fILS(st);
+  const cp=g?(c/g*100):0,sp=g?(st/g*100):0;
+  document.getElementById('cryptoPctLbl').textContent=cp.toFixed(1)+'% מהתיק';
+  document.getElementById('stockPctLbl').textContent=sp.toFixed(1)+'% מהתיק';
+  document.getElementById('cryptoBarFill').style.width=cp+'%';
+  document.getElementById('stockBarFill').style.width=sp+'%';
+  document.getElementById('usdVal').textContent='≈ $'+(g/S.usdIls).toLocaleString('en',{maximumFractionDigits:0});
+  let wc=0,wt=0;
+  S.crypto.forEach(a=>{const v=cv(a),ch=cc(a);if(v&&ch!=null){wc+=ch*v;wt+=v;}});
+  const avg=wt?wc/wt:0;
+  const totalPnL=S.crypto.reduce((a,x)=>a+(cpnl(x)||0),0)+S.stocks.reduce((a,s)=>a+(spnl(s)||0),0);
+  const badge=document.getElementById('chgBadge');
+  badge.textContent=fPct(avg);badge.className='badge '+(avg>=0?'up':'down');
+  document.getElementById('chgAbs').textContent='רווח יומי: '+(totalPnL>=0?'+':'')+fILS(totalPnL);
+  let best=null,bc=-Infinity;
+  S.crypto.forEach(a=>{const ch=cc(a);if(ch!=null&&ch>bc){bc=ch;best=a.sym;}});
+  S.stocks.forEach(s=>{const ch=S.sp[s.sym]?.change;if(ch!=null&&ch>bc){bc=ch;best=s.sym;}});
+  if(best){document.getElementById('bestKpi').textContent=best+' '+fPct(bc);}
+  renderAlloc(c,st);
+}
+
+function renderAlloc(c,st) {
+  const lbs=[],vs=[],cls=[];
+  S.crypto.forEach(a=>{const v=cv(a);if(v>0){lbs.push(a.sym);vs.push(v);cls.push(a.color+'bb');}});
+  S.stocks.forEach(s=>{lbs.push(s.sym);vs.push(sv(s));cls.push(s.color+'bb');});
+  const opts={plugins:{legend:{position:'right',labels:{color:'#8899b4',font:{family:'Heebo',size:10},padding:8,boxWidth:9}}},cutout:'68%',animation:{duration:600}};
+  if(S.aChart)S.aChart.destroy();
+  S.aChart=new Chart(document.getElementById('allocChart'),{type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'#0b1220'}]},options:opts});
+  if(S.sChart)S.sChart.destroy();
+  S.sChart=new Chart(document.getElementById('splitChart'),{type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:['#00e5b8aa','#4f8ef7aa'],borderWidth:1,borderColor:'#0b1220'}]},options:opts});
+}
+
+// ════════════════════════════════════════
+// DETAIL MODAL
+// ════════════════════════════════════════
+function ovClick(e){if(e.target===document.getElementById('overlay'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeEditor();}});
+
+async function openDetail(sym, type) {
+  S.sel=sym;
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  if(S.dChart){S.dChart.destroy();S.dChart=null;}
+  const el=document.getElementById('mContent');
+  if(type==='crypto'){const a=S.crypto.find(x=>x.sym===sym);if(a)await renderCryptoModal(a,el);}
+  else{const s=S.stocks.find(x=>x.sym===sym);if(s)renderStockModal(s,el);}
+}
+
+async function renderCryptoModal(a,el) {
+  const p=S.cp[a.id];const priceUSD=p?.usd||0;const priceILS=priceUSD*S.usdIls;
+  const val=cv(a);const ch24=p?.usd_24h_change||0;const pnl=cpnl(a)||0;
+  const{g}=tots();const pct=g?(val/g*100):0;
+  const sig=ch24>5?'buy':ch24<-5?'sell':'hold';
+  const sigTxt=sig==='buy'?'🟢 מומנטום חיובי — ביצועים חזקים':sig==='sell'?'🔴 לחץ מכירה — בירידה':'🟡 ניטרלי — ממתין לאיתות';
+  el.innerHTML=`
+    <div class="mhead"><div class="micon" style="background:${a.color}22;">${a.icon}</div><div><h2>${a.sym} <span style="color:var(--text2);font-size:14px;font-weight:400">/ ILS</span></h2><p>${a.name} · ${fNum(a.qty)} יחידות</p></div></div>
+    <div class="mkpis">
+      <div class="mkpi"><div class="mkpi-l">שווי בתיק</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">מחיר כעת</div><div class="mkpi-v">$${fP(priceUSD)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}">${fPct(ch24)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
+    </div>
+    <div class="mch-head"><div class="mch-lbl">גרף מחיר</div>
+      <div class="rbtns">
+        <button class="rb active" onclick="loadCC('${a.id}',1,this)">24ש</button>
+        <button class="rb" onclick="loadCC('${a.id}',7,this)">7י</button>
+        <button class="rb" onclick="loadCC('${a.id}',30,this)">30י</button>
+        <button class="rb" onclick="loadCC('${a.id}',90,this)">3ח</button>
+      </div>
+    </div>
+    <div class="mch-box" id="mchBox"><canvas id="dCanvas"></canvas></div>
+    <div class="an">
+      <div class="an-card"><div class="an-t">📊 ניתוח פוזיציה</div>
+        <div class="ar"><span class="ar-l">כמות</span><span class="ar-v">${fNum(a.qty)} ${a.sym}</span></div>
+        <div class="ar"><span class="ar-l">מחיר ₪</span><span class="ar-v">${fILS(priceILS,priceILS<1?4:2)}</span></div>
+        <div class="ar"><span class="ar-l">שווי כולל</span><span class="ar-v ac">${fILS(val)}</span></div>
+        <div class="ar"><span class="ar-l">שווי $</span><span class="ar-v">$${(val/S.usdIls).toLocaleString('en',{maximumFractionDigits:0})}</span></div>
+        <div class="ar"><span class="ar-l">% מהתיק</span><span class="ar-v gl">${pct.toFixed(1)}%</span></div>
+      </div>
+      <div class="an-card"><div class="an-t">📈 ביצועים</div>
+        <div class="ar"><span class="ar-l">שינוי 24ש</span><span class="ar-v ${ch24>=0?'up':'dn'}">${fPct(ch24)}</span></div>
+        <div class="ar"><span class="ar-l">רווח יומי ₪</span><span class="ar-v ${pnl>=0?'up':'dn'}">${pnl>=0?'+':''}${fILS(pnl)}</span></div>
+        <div class="ar"><span class="ar-l">מחיר $</span><span class="ar-v">$${fP(priceUSD)}</span></div>
+        <div class="ar"><span class="ar-l">מחיר ₪</span><span class="ar-v">${fILS(priceILS,2)}</span></div>
+        <div class="ar"><span class="ar-l">עודכן</span><span class="ar-v" style="color:var(--text3);font-size:10px;">${new Date().toLocaleTimeString('he-IL')}</span></div>
+        <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
+      </div>
+    </div>`;
+  loadCC(a.id,1,document.querySelector('.rb.active'));
+}
+
+async function loadCC(id, days, btn) {
+  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');
+  const box=document.getElementById('mchBox');if(box)box.style.opacity='0.5';
+  const raw=await getCryptoHist(id,days);
+  if(box)box.style.opacity='1';
+  const c2=document.getElementById('dCanvas');if(!c2||!raw.length)return;
+  if(S.dChart){S.dChart.destroy();S.dChart=null;}
+  const prices=raw.map(([,p])=>p);
+  const labels=raw.map(([t])=>{const d=new Date(t);return days<=1?d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('he-IL',{month:'short',day:'numeric'});});
+  const up=prices[prices.length-1]>=prices[0];const col=up?'#10d97e':'#f43f5e';
+  S.dChart=new Chart(c2,{type:'line',data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:2,pointRadius:0,tension:0.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'30');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(c.raw<1?6:2)}}},scales:{x:{ticks:{color:'#3d5070',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',font:{size:9},callback:v=>'$'+fP(v)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}});
+}
+
+function renderStockModal(s,el) {
+  const p=S.sp[s.sym];const val=sv(s);const change=p?.change??null;const pnl=spnl(s);
+  const priceUSD=p?.price;const priceILS=priceUSD?priceUSD*S.usdIls:null;
+  const{g}=tots();const pct=g?(val/g*100):0;
+  const sig=change==null?'hold':change>2?'buy':change<-2?'sell':'hold';
+  const sigTxt=sig==='buy'?'🟢 מומנטום חיובי':sig==='sell'?'🔴 לחץ מכירה':'🟡 ניטרלי';
+  el.innerHTML=`
+    <div class="mhead"><div class="micon" style="background:${s.color}22;">${s.icon}</div><div><h2>${s.sym} <span style="color:var(--text2);font-size:14px;font-weight:400">NASDAQ</span></h2><p>${s.name}</p></div></div>
+    <div class="mkpis">
+      <div class="mkpi"><div class="mkpi-l">שווי בתיק</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">מחיר מניה</div><div class="mkpi-v">${priceUSD?'$'+priceUSD.toFixed(2):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${change>=0?'up':'dn'}">${change!=null?fPct(change):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
+    </div>
+    <div class="mch-head"><div class="mch-lbl">שינוי יומי</div></div>
+    <div class="mch-box" id="mchBox">${p?'<canvas id="dCanvas"></canvas>':'<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;">נתוני מחיר לא זמינים</div>'}</div>
+    <div class="an">
+      <div class="an-card"><div class="an-t">📊 פוזיציה</div>
+        <div class="ar"><span class="ar-l">שווי ₪</span><span class="ar-v ac">${fILS(val)}</span></div>
+        <div class="ar"><span class="ar-l">שווי $</span><span class="ar-v">$${(val/S.usdIls).toFixed(0)}</span></div>
+        <div class="ar"><span class="ar-l">מחיר מניה</span><span class="ar-v">${priceUSD?'$'+priceUSD.toFixed(2):'--'}</span></div>
+        <div class="ar"><span class="ar-l">מחיר ₪</span><span class="ar-v">${priceILS?fILS(priceILS,2):'--'}</span></div>
+        <div class="ar"><span class="ar-l">% מהתיק</span><span class="ar-v gl">${pct.toFixed(1)}%</span></div>
+      </div>
+      <div class="an-card"><div class="an-t">📈 ביצועים</div>
+        <div class="ar"><span class="ar-l">שינוי יומי</span><span class="ar-v ${change>=0?'up':'dn'}">${change!=null?fPct(change):'--'}</span></div>
+        <div class="ar"><span class="ar-l">רווח יומי ₪</span><span class="ar-v ${pnl>=0?'up':'dn'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</span></div>
+        <div class="ar"><span class="ar-l">סגירה קודמת</span><span class="ar-v">${p?.prevClose?'$'+p.prevClose.toFixed(2):'--'}</span></div>
+        <div class="ar"><span class="ar-l">גבוה יומי</span><span class="ar-v up">${p?.high?'$'+p.high.toFixed(2):'--'}</span></div>
+        <div class="ar"><span class="ar-l">נמוך יומי</span><span class="ar-v dn">${p?.low?'$'+p.low.toFixed(2):'--'}</span></div>
+        <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
+      </div>
+    </div>`;
+  if(p?.price&&p?.prevClose){
+    setTimeout(()=>{
+      const canvas=document.getElementById('dCanvas');if(!canvas)return;
+      const up=p.change>=0;const col=up?'#10d97e':'#f43f5e';
+      const pts=[p.prevClose,p.prevClose+(p.price-p.prevClose)*0.33,p.prevClose+(p.price-p.prevClose)*0.66,p.price];
+      S.dChart=new Chart(canvas,{type:'line',data:{labels:['פתיחה','','','כעת'],datasets:[{label:'$',data:pts,borderColor:col,borderWidth:2.5,pointRadius:[4,0,0,4],pointBackgroundColor:col,tension:0.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'30');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw?.toFixed(2)}}},scales:{x:{ticks:{color:'#3d5070'},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',callback:v=>'$'+v.toFixed(2)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}});
+    },50);
+  }
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow='';S.sel=null;
+  if(S.dChart){S.dChart.destroy();S.dChart=null;}
+}
+
+// ════════════════════════════════════════
+// EDITOR MODAL
+// ════════════════════════════════════════
+let editorTab = 'crypto';
+
+function openEditor(tab) {
+  editorTab = tab || 'crypto';
+  document.getElementById('editorOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderEditor();
+}
+function editorOvClick(e){if(e.target===document.getElementById('editorOverlay'))closeEditor();}
+function closeEditor(){document.getElementById('editorOverlay').classList.remove('open');document.body.style.overflow='';}
+
+function renderEditor() {
+  const el = document.getElementById('editorContent');
+  const isCrypto = editorTab === 'crypto';
+  const list = isCrypto ? S.crypto : S.stocks;
+
+  el.innerHTML = `
+    <div class="editor-title">✏️ ניהול נכסים</div>
+    <div class="editor-sub">ערוך כמויות, הוסף או הסר נכסים מהתיק שלך</div>
+
+    <div class="tab-row">
+      <button class="tab ${isCrypto?'active':''}" onclick="editorTab='crypto';renderEditor()">🪙 קריפטו (${S.crypto.length})</button>
+      <button class="tab ${!isCrypto?'active':''}" onclick="editorTab='stock';renderEditor()">📈 מניות (${S.stocks.length})</button>
+    </div>
+
+    <div class="asset-list">
+      ${list.map((a,i) => `
+        <div class="asset-row">
+          <div class="asset-row-icon">${a.icon}</div>
+          <div class="asset-row-info">
+            <div class="asset-row-sym">${a.sym}</div>
+            <div class="asset-row-name">${a.name}</div>
+          </div>
+          ${isCrypto
+            ? `<input class="asset-edit-inline" type="number" value="${a.qty}" step="any" onchange="updateQty(${i},this.value)" title="כמות">`
+            : `<input class="asset-edit-inline" type="number" value="${a.baseILS}" step="1" onchange="updateBaseILS(${i},this.value)" title="שווי ₪">`
+          }
+          <button class="asset-del-btn" onclick="deleteAsset(${i})" title="מחק">🗑️</button>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- ADD FORM -->
+    <div class="add-form">
+      <div class="add-form-title">+ הוסף ${isCrypto ? 'מטבע' : 'מניה'}</div>
+      ${isCrypto ? `
+        <div class="form-row">
+          <div class="field">
+            <label>סימבול (למשל: BTC)</label>
+            <input id="newSym" type="text" placeholder="BTC" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="field">
+            <label>שם</label>
+            <input id="newName" type="text" placeholder="Bitcoin">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>כמות</label>
+            <input id="newQty" type="number" placeholder="0.5" step="any">
+          </div>
+          <div class="field">
+            <label>אייקון</label>
+            <input id="newIcon" type="text" placeholder="🔶" maxlength="4">
+          </div>
+        </div>
+      ` : `
+        <div class="form-row">
+          <div class="field">
+            <label>טיקר (למשל: AAPL)</label>
+            <input id="newSym" type="text" placeholder="AAPL" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="field">
+            <label>שם</label>
+            <input id="newName" type="text" placeholder="Apple">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>שווי תיק בשקל ₪</label>
+            <input id="newBaseILS" type="number" placeholder="10000" step="1">
+          </div>
+          <div class="field">
+            <label>אייקון</label>
+            <input id="newIcon" type="text" placeholder="🍎" maxlength="4">
+          </div>
+        </div>
+      `}
+      <div class="form-actions">
+        <button class="form-add-btn" onclick="addAsset()">✅ הוסף</button>
+      </div>
+    </div>
+
+    <button class="editor-save-btn" onclick="saveAndClose()">💾 שמור ורענן</button>
+  `;
+}
+
+function updateQty(i, val) {
+  const n = parseFloat(val); if (isNaN(n) || n <= 0) return;
+  S.crypto[i].qty = n;
+}
+function updateBaseILS(i, val) {
+  const n = parseFloat(val); if (isNaN(n) || n <= 0) return;
+  S.stocks[i].baseILS = n;
+}
+function deleteAsset(i) {
+  if (editorTab === 'crypto') S.crypto.splice(i,1);
+  else S.stocks.splice(i,1);
+  renderEditor();
+}
+function editAsset(sym, type) {
+  openEditor(type);
+}
+
+function addAsset() {
+  const sym = document.getElementById('newSym')?.value?.trim()?.toUpperCase();
+  const name = document.getElementById('newName')?.value?.trim() || sym;
+  const icon = document.getElementById('newIcon')?.value?.trim() || (editorTab==='crypto'?'🪙':'📈');
+  const colors = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
+  const color = colors[Math.floor(Math.random()*colors.length)];
+
+  if (!sym) { alert('חובה להזין סימבול'); return; }
+
+  if (editorTab === 'crypto') {
+    const qty = parseFloat(document.getElementById('newQty')?.value);
+    if (isNaN(qty) || qty <= 0) { alert('חובה להזין כמות תקנית'); return; }
+    if (S.crypto.find(a=>a.sym===sym)) { alert('מטבע זה כבר קיים בתיק'); return; }
+    const cgId = CG_IDS[sym] || sym.toLowerCase();
+    S.crypto.push({id: cgId, sym, name, qty, icon, color});
+  } else {
+    const baseILS = parseFloat(document.getElementById('newBaseILS')?.value);
+    if (isNaN(baseILS) || baseILS <= 0) { alert('חובה להזין שווי תקני'); return; }
+    if (S.stocks.find(s=>s.sym===sym)) { alert('מניה זו כבר קיימת בתיק'); return; }
+    S.stocks.push({sym, name, baseILS, icon, color});
+  }
+  renderEditor();
+}
+
+function saveAndClose() {
+  saveData();
+  S.sparks = {}; // Clear spark cache
+  closeEditor();
+  doRefresh();
+}
+
+// ════════════════════════════════════════
+// MAIN
+// ════════════════════════════════════════
+async function doRefresh() {
+  const btn=document.getElementById('refreshBtn');btn.classList.add('spin');
+  await Promise.allSettled([getFX(),getCrypto(),getStocks()]);
+  renderCrypto();renderStocks();updateKPIs();
+  document.getElementById('ts').textContent=new Date().toLocaleTimeString('he-IL');
+  btn.classList.remove('spin');
+}
+
+// ════════════════════════════════════════
+// PWA
+// ════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('SW registered:', reg.scope);
+    }).catch(err => console.log('SW error:', err));
+  });
+}
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// Init
+doRefresh();
+setInterval(doRefresh, 30000);
+</script>
+</body>
+</html>
