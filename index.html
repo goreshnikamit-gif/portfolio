@@ -78,7 +78,7 @@ body::before{content:'';position:fixed;inset:0;background:
 .nav-item.active .nav-ico{transform:translateY(-1px);}
 .nav-item.active .nav-lbl{color:var(--ac);}
 .nav-bar{position:absolute;top:0;height:2px;background:var(--ac);
-  border-radius:0 0 2px 2px;transition:left .25s cubic-bezier(.4,0,.2,1),width .25s;
+  border-radius:0 0 2px 2px;transition:right .25s cubic-bezier(.4,0,.2,1),width .25s;
   box-shadow:0 0 8px var(--ac);}
 
 /* ── PAGES ── */
@@ -663,35 +663,19 @@ async function getCrypto() {
   }
 }
 
-// Stock fetch — using Finnhub free sandbox (reliable, no CORS issues)
+// Stock fetch — Stooq first (no CORS, reliable), then Yahoo proxies
 async function getOneStock(sym) {
-  // Try multiple free APIs
   const apis = [
-    () => fetchFinnhub(sym),
+    () => fetchStooq(sym),
     () => fetchYahooProxy(sym, 'https://api.allorigins.win/get?url='),
     () => fetchYahooProxy(sym, 'https://corsproxy.io/?'),
-    () => fetchStooq(sym),
   ];
   for (const api of apis) {
-    const r = await api();
-    if (r) { S.sp[sym] = r; return; }
-  }
-}
-
-async function fetchFinnhub(sym) {
-  // Finnhub sandbox token — works for basic quotes without auth
-  const tokens = ['sandbox_c9n8o22ad3if5ad5rlq0','d1i8c5pr01qhkp0es82gd1i8c5pr01qhkp0es82h'];
-  for (const tk of tokens) {
     try {
-      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${tk}`,{signal:AbortSignal.timeout(4000)});
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (d.c && d.c > 0 && d.pc && d.pc > 0) {
-        return {price:d.c, prevClose:d.pc, change:((d.c-d.pc)/d.pc)*100, changeAmt:d.c-d.pc, high:d.h, low:d.l};
-      }
+      const r = await api();
+      if (r && r.price > 0) { S.sp[sym] = r; return; }
     } catch(_){}
   }
-  return null;
 }
 
 async function fetchYahooProxy(sym, proxyBase) {
@@ -712,14 +696,20 @@ async function fetchYahooProxy(sym, proxyBase) {
 
 async function fetchStooq(sym) {
   try {
-    const r = await fetch(`https://stooq.com/q/l/?s=${sym.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`,{signal:AbortSignal.timeout(5000)});
-    const txt = await r.text(); const lines = txt.trim().split('\n');
-    if (lines.length < 2) return null;
-    const v = lines[1].split(',');
-    const close=parseFloat(v[6]),open=parseFloat(v[3]),high=parseFloat(v[4]),low=parseFloat(v[5]);
-    let prev = open;
-    if (lines.length >= 3) { const pc=parseFloat(lines[2].split(',')[6]); if(!isNaN(pc)&&pc>0) prev=pc; }
-    if (!isNaN(close)&&close>0) return {price:close,prevClose:prev,change:((close-prev)/prev)*100,changeAmt:close-prev,high,low};
+    // Request 5 days to get yesterday's real close
+    const r = await fetch(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&i=d`,{signal:AbortSignal.timeout(6000)});
+    const txt = await r.text();
+    const lines = txt.trim().split('\n').filter(l=>l&&!l.startsWith('Date'));
+    if (lines.length < 1) return null;
+    // Latest row
+    const v = lines[0].split(',');
+    const close=parseFloat(v[4]),open=parseFloat(v[1]),high=parseFloat(v[2]),low=parseFloat(v[3]);
+    // Previous close = yesterday's close (line index 1)
+    let prevClose = lines.length >= 2 ? parseFloat(lines[1].split(',')[4]) : open;
+    if (isNaN(prevClose)||prevClose<=0) prevClose = open;
+    if (!isNaN(close)&&close>0) {
+      return {price:close, prevClose, change:((close-prevClose)/prevClose)*100, changeAmt:close-prevClose, high, low};
+    }
   } catch(_){}
   return null;
 }
@@ -814,13 +804,14 @@ function goPage(id, btn) {
   if(btn) btn.classList.add('active');
   curPage = id;
   document.getElementById('app').scrollTop = 0;
-  // Move nav bar
+  // Move nav bar — RTL: use right instead of left
   const items = document.querySelectorAll('.nav-item');
   const idx = [...items].findIndex(b=>b.dataset.page===id);
   const bar = document.getElementById('navBar');
   const w = 100/items.length;
   bar.style.width = w+'%';
-  bar.style.left = (idx*w)+'%';
+  // RTL: item 0 is rightmost, so right = idx * w
+  bar.style.right = (idx*w)+'%';
   // Render page content
   if(id==='stocks') renderStocksPage();
   if(id==='crypto') renderCryptoPage();
