@@ -363,15 +363,6 @@ window.fbListen = (cb) => {
 };
 window.fbSignOut = () => signOut(auth);
 
-window.fbSave = async (data) => {
-  try { await setDoc(DOC, data, {merge:true}); } catch(e) { console.warn('FB save:', e); }
-};
-window.fbLoad = async () => {
-  try { const s = await getDoc(DOC); return s.exists() ? s.data() : null; } catch(e) { return null; }
-};
-window.fbListen = (cb) => onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); });
-window.fbSignOut = () => signOut(auth);
-
 // ── AUTH LOGIC ──────────────────────────────────────────
 const handleUser = (user) => {
   DOC = getDoc2(user.uid);
@@ -408,22 +399,19 @@ window.checkAuthAndShow = () => {
   const bioTs = parseInt(sessionStorage.getItem('bio_ts') || '0');
   const now = Date.now();
 
-  const googleValid = googleEmail === ALLOWED_EMAIL && (now - googleTs) < SESSION_24H;
+  const googleValid = !!googleEmail && (now - googleTs) < SESSION_24H;
   const bioValid = (now - bioTs) < SESSION_BIO;
 
-  const lockScreen = document.getElementById('lockScreen');
   const googleBtn = document.getElementById('googleBtn');
   const bioBtn = document.getElementById('bioBtn');
   const authTitle = document.getElementById('authTitle');
 
   if (googleValid && bioValid) {
-    // Both valid — go straight in
     window.proceedToApp();
     return;
   }
 
   if (googleValid && !bioValid) {
-    // Google OK but need biometric
     authTitle.textContent = 'אמת טביעת אצבע';
     googleBtn.style.display = 'none';
     bioBtn.style.display = 'flex';
