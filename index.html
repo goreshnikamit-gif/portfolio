@@ -792,25 +792,9 @@ async function getStocks() {
       const result = d?.chart?.result?.[0];
       if (!result) return null;
       const meta = result.meta;
-      const closes = result.indicators?.quote?.[0]?.close?.filter(x=>x!=null);
-      // Use last 2 real closes for accurate daily change
-      if (closes && closes.length >= 2) {
-        const curr = closes[closes.length-1];
-        const prev = closes[closes.length-2];
-        if (curr && prev) {
-          return {
-            price: curr,
-            prevClose: prev,
-            change: ((curr-prev)/prev)*100,
-            changeAmt: curr-prev,
-            high: meta.regularMarketDayHigh,
-            low: meta.regularMarketDayLow
-          };
-        }
-      }
-      // Fallback to meta fields
+      // Always use meta fields for accurate current price and previous close
       const curr = meta.regularMarketPrice;
-      const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
+      const prev = meta.chartPreviousClose || meta.regularMarketPreviousClose || meta.previousClose;
       if (curr && prev) {
         return {
           price: curr,
