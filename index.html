@@ -318,6 +318,7 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     </button>
     <button class="ibtn" onclick="openEditor()">✏️</button>
+    <button class="ibtn" title="התנתק" onclick="doLogout()">🚪</button>
     <span id="ts">--:--</span>
   </div>
 </div>
@@ -476,7 +477,16 @@ window.doBiometric = async () => {
   }
 };
 
-window.firebaseReady = true;
+window.doLogout = async () => {
+  if (!confirm('להתנתק?')) return;
+  localStorage.removeItem('google_auth_ts');
+  localStorage.removeItem('google_auth_email');
+  localStorage.removeItem('google_auth_uid');
+  localStorage.removeItem('bio_cred');
+  sessionStorage.removeItem('bio_ts');
+  if (window.fbSignOut) await window.fbSignOut();
+  location.reload();
+};
 document.dispatchEvent(new Event('firebaseReady'));
 
 // Handle iOS redirect result
