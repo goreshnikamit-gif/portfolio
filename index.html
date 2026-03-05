@@ -627,6 +627,16 @@ if (localStorage.getItem('google_pending_redirect')) {
   <div class="page" id="page-insights">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>תובנות חכמות</div></div>
     <div class="ins-card"><div class="ins-title">📊 סיכום כולל</div><div id="insSummary"></div></div>
+
+    <!-- PNL HISTORY -->
+    <div class="ins-card">
+      <div class="ins-title">📅 היסטוריה יומית</div>
+      <button onclick="saveDailyPnL()" style="width:100%;padding:10px;background:var(--ac);color:#000;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:10px;font-family:Heebo">
+        📸 שמור P&L של היום
+      </button>
+      <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:4px">טוען היסטוריה...</div></div>
+    </div>
+
     <div class="ins-card"><div class="ins-title">🏆 מניבים ביותר היום</div><div id="insTop"></div></div>
     <div class="ins-card"><div class="ins-title">📉 מפסידים ביותר היום</div><div id="insBot"></div></div>
     <div class="ins-card"><div class="ins-title">🥧 התפלגות תיק</div><div id="insDist"></div></div>
@@ -960,7 +970,7 @@ function goPage(id, btn) {
   document.getElementById('app').scrollTop = 0;
   if (id==='stocks') renderStocksPage();
   if (id==='crypto') renderCryptoPage();
-  if (id==='insights') renderInsights();
+  if (id==='insights') { renderInsights(); loadPnLHistory(); }
 }
 
 // ═══════════════════════════════════════════
@@ -1233,8 +1243,60 @@ function renderInsights() {
 }
 
 // ═══════════════════════════════════════════
-// DETAIL MODAL
+// PNL HISTORY
 // ═══════════════════════════════════════════
+async function saveDailyPnL() {
+  const uid = localStorage.getItem('google_auth_uid');
+  if (!uid) { alert('יש להתחבר עם Google תחילה'); return; }
+
+  const {g} = tots();
+  const pnlTotal = S.crypto.reduce((a,x)=>a+(cpnl(x)||0),0) + S.stocks.reduce((a,s)=>a+(spnl(s)||0),0);
+  const pct = g ? (pnlTotal/g*100) : 0;
+  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+
+  try {
+    const {getFirestore, doc, setDoc} = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
+    const db = getFirestore();
+    await setDoc(doc(db, 'pnl_history', `${uid}_${today}`), {
+      uid, date: today,
+      totalValue: Math.round(g),
+      dailyPnL: Math.round(pnlTotal),
+      dailyPct: parseFloat(pct.toFixed(2)),
+      savedAt: Date.now()
+    });
+    alert(`✅ נשמר! ${today}\nשווי: ${fILS(g)}\nP&L: ${pnlTotal>=0?'+':''}${fILS(pnlTotal)}`);
+    loadPnLHistory();
+  } catch(e) { alert('שגיאה בשמירה: ' + e.message); }
+}
+
+async function loadPnLHistory() {
+  const uid = localStorage.getItem('google_auth_uid');
+  const el = document.getElementById('pnlHistory');
+  if (!uid || !el) return;
+
+  try {
+    const {getFirestore, collection, query, where, orderBy, getDocs} = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
+    const db = getFirestore();
+    const q = query(collection(db, 'pnl_history'), where('uid','==',uid), orderBy('date','desc'));
+    const snap = await getDocs(q);
+
+    if (snap.empty) { el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:4px">אין היסטוריה עדיין</div>'; return; }
+
+    let html = '';
+    snap.forEach(d => {
+      const r = d.data();
+      const up = r.dailyPnL >= 0;
+      html += `<div class="ir" style="border-bottom:1px solid rgba(255,255,255,0.05);padding:6px 0">
+        <span class="ir-l" style="font-size:12px">${r.date}</span>
+        <span style="font-size:11px;color:var(--t2)">${fILS(r.totalValue)}</span>
+        <span class="ir-v ${up?'up':'dn'}" style="font-size:12px">${up?'+':''}${fILS(r.dailyPnL)} (${up?'+':''}${r.dailyPct}%)</span>
+      </div>`;
+    });
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">שגיאה בטעינה</div>'; }
+}
+
+
 async function openDet(sym, type) {
   S.sel=sym;
   document.getElementById('detOv').classList.add('open');
