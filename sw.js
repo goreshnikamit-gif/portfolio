@@ -1,4 +1,4 @@
-const CACHE = 'portfolio-v4';
+const CACHE = 'portfolio-v5';
 const SHELL = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
