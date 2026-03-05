@@ -811,7 +811,7 @@ async function getStocks() {
     // Method 1: corsproxy + query1 — range=5d gives us real closes
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
         const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
@@ -823,7 +823,7 @@ async function getStocks() {
     // Method 2: corsproxy + query2
     if (!got) {
       try {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
+        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
         const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
@@ -835,7 +835,7 @@ async function getStocks() {
     // Method 3: thingproxy
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
         const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
@@ -1632,6 +1632,8 @@ async function doRefresh(){
   if(S.curPage==='stocks')renderStocksPage();
   if(S.curPage==='crypto')renderCryptoPage();
   if(S.curPage==='insights')renderInsights();
+  // Extra render after short delay to catch late-arriving data
+  setTimeout(()=>{renderDashCrypto();renderDashStocks();updateKPIs();},3000);
   document.getElementById('ts').textContent=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   btn.classList.remove('spin');
 }
