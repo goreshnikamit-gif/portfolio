@@ -274,8 +274,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .ibanner{display:none;position:fixed;bottom:calc(var(--nav) + var(--safe) + 10px);left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid rgba(0,229,184,0.25);border-radius:13px;padding:11px 15px;z-index:150;align-items:center;gap:9px;box-shadow:0 8px 28px rgba(0,0,0,0.5);max-width:calc(100vw - 28px);}
 .ibanner.show{display:flex;}
 
-::-webkit-scrollbar{width:3px;}
-::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px;}
+body.light{
+  --bg:#f0f4f8;--s1:#ffffff;--s2:#f8fafc;--s3:#edf2f7;
+  --b1:rgba(0,0,0,0.07);--b2:rgba(0,0,0,0.12);
+  --t1:#1a202c;--t2:#4a5568;--t3:#a0aec0;
+}
+body.light .topbar{background:rgba(240,244,248,0.95);}
+body.light .nav{background:rgba(255,255,255,0.97);}
+body.light .total{background:linear-gradient(135deg,#e8f4fd,#edfaf5,#e8f0fd);}
+body.light .modal{background:#f8fafc;}
+body.light .card{background:#fff;}
+body.light .arow{background:#fff;}
+body.light .ins-card{background:#fff;}
+body.light .cc{background:#fff;}
+body.light .stat{background:#fff;}
+body.light input[type=date]{background:#fff;color:#1a202c;}
 @media(max-width:400px){.t-val{font-size:32px;}.s-val{font-size:16px;}}
 </style>
 </head>
@@ -289,6 +302,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
   <div class="topbar-r">
     <div class="live"><div class="dot"></div>LIVE</div>
+    <button class="ibtn" id="themeBtn" onclick="toggleTheme()" title="מצב תצוגה">🌙</button>
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     </button>
@@ -451,9 +465,9 @@ const DEF_C = [
   {id:'avalanche-2',  sym:'AVAX',name:'Avalanche', qty:68.81112,   icon:'🔺',color:'#e84142'},
 ];
 const DEF_S = [
-  {sym:'MSFT',name:'Microsoft',baseILS:6283.36, icon:'🪟',color:'#00a4ef'},
-  {sym:'NVDA',name:'Nvidia',   baseILS:22609.9, icon:'🎮',color:'#76b900'},
-  {sym:'SNDK',name:'SanDisk',  baseILS:31301.24,icon:'💾',color:'#e2001a'},
+  {sym:'MSFT',name:'Microsoft',shares:4.9886, icon:'🪟',color:'#00a4ef'},
+  {sym:'NVDA',name:'Nvidia',   shares:39.9091,icon:'🎮',color:'#76b900'},
+  {sym:'SNDK',name:'SanDisk',  shares:16.9614,icon:'💾',color:'#e2001a'},
 ];
 
 // Binance map
@@ -469,7 +483,24 @@ const CG_ID = {
   ETH:'ethereum',XRP:'ripple',AVAX:'avalanche-2',BTC:'bitcoin',BNB:'binancecoin',
 };
 
-function loadLS(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):JSON.parse(JSON.stringify(d));}catch(_){return JSON.parse(JSON.stringify(d));}}
+function loadLS(k,d){
+  try {
+    const v=localStorage.getItem(k);
+    if (!v) return JSON.parse(JSON.stringify(d));
+    const parsed = JSON.parse(v);
+    // Migrate old baseILS stocks to shares
+    if (k==='ps') {
+      return parsed.map(s => {
+        if (s.baseILS && !s.shares) {
+          // Can't calculate without price, keep baseILS as fallback marker
+          return {...s, shares: null, _legacy: true};
+        }
+        return s;
+      });
+    }
+    return parsed;
+  } catch(_) { return JSON.parse(JSON.stringify(d)); }
+}
 function saveLS(){try{localStorage.setItem('pc',JSON.stringify(S.crypto));localStorage.setItem('ps',JSON.stringify(S.stocks));}catch(_){}}
 
 const S = {
@@ -672,8 +703,20 @@ async function getCryptoPeriodChange(a, period) {
 const cv=(a)=>{const p=S.cp[a.id];return p?p.usd*S.fx*a.qty:0;};
 const cc=(a)=>S.cp[a.id]?.ch24??null;
 const cpnl=(a)=>{const v=cv(a),ch=cc(a);if(!v||ch==null)return null;return v*ch/100/(1+ch/100);};
-const sv=(s)=>{const p=S.sp[s.sym];if(p?.price&&p?.prevClose)return s.baseILS*(p.price/p.prevClose);return s.baseILS;};
-const spnl=(s)=>{const p=S.sp[s.sym];if(!p)return null;return sv(s)-s.baseILS;};
+const sv=(s)=>{
+  const p=S.sp[s.sym];
+  if(p?.price && s.shares) return s.shares*p.price*S.fx;
+  if(p?.price && s.baseILS && p.prevClose) return s.baseILS*(p.price/p.prevClose);
+  if(s.baseILS) return s.baseILS;
+  return 0;
+};
+const spnl=(s)=>{
+  const p=S.sp[s.sym];
+  if(!p?.price) return null;
+  if(s.shares && p.prevClose) return s.shares*(p.price-p.prevClose)*S.fx;
+  if(s.baseILS && p.prevClose) return s.baseILS*((p.price-p.prevClose)/p.prevClose);
+  return null;
+};
 const tots=()=>{let c=0,st=0;S.crypto.forEach(a=>c+=cv(a));S.stocks.forEach(s=>st+=sv(s));return{c,st,g:c+st};};
 
 const fILS=(n,d=0)=>{if(n==null||isNaN(n))return'₪---';if(Math.abs(n)>=1e6)return'₪'+(n/1e6).toFixed(2)+'M';return'₪'+n.toLocaleString('he-IL',{minimumFractionDigits:d,maximumFractionDigits:d});};
@@ -1098,7 +1141,7 @@ function renderEd(){
           <div class="erow-ico">${a.icon}</div>
           <div class="erow-info"><div class="erow-sym">${a.sym}</div><div class="erow-name">${a.name}</div></div>
           ${iC?`<input class="einput" type="number" value="${a.qty}" step="any" oninput="S.crypto[${i}].qty=parseFloat(this.value)||0">`:
-               `<input class="einput" type="number" value="${a.baseILS}" step="1" oninput="S.stocks[${i}].baseILS=parseFloat(this.value)||0">`}
+               `<input class="einput" type="number" value="${a.shares||a.qty||0}" step="any" placeholder="מניות" oninput="S.stocks[${i}].shares=parseFloat(this.value)||0">`}
           <button class="edel" onclick="delA(${i})">🗑️</button>
         </div>`).join('')}
     </div>
@@ -1108,12 +1151,13 @@ function renderEd(){
         <div class="ff"><label>סימבול</label><input id="nS" type="text" placeholder="${iC?'BTC':'AAPL'}" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="ff"><label>שם</label><input id="nN" type="text" placeholder="${iC?'Bitcoin':'Apple'}"></div>
         ${iC?`<div class="ff"><label>כמות</label><input id="nQ" type="number" placeholder="0.5" step="any"></div>`:
-             `<div class="ff"><label>שווי ₪ בתיק</label><input id="nB" type="number" placeholder="10000"></div>`}
+             `<div class="ff"><label>מס' מניות</label><input id="nQ" type="number" placeholder="10.5" step="any"></div>`}
         <div class="ff"><label>אייקון</label><input id="nI" type="text" placeholder="${iC?'🔶':'📊'}" maxlength="4"></div>
       </div>
       <button class="fadd" onclick="addA()">✅ הוסף לתיק</button>
     </div>
     <button class="fsave" onclick="saveClose()">💾 שמור ורענן</button>
+    <button style="width:100%;background:transparent;border:1px solid var(--b2);border-radius:11px;padding:10px;color:var(--t3);font-family:Heebo;font-size:12px;cursor:pointer;margin-top:7px" onclick="if(confirm('למחוק את כל הנתונים השמורים ולטעון ברירת מחדל?')){localStorage.removeItem('pc');localStorage.removeItem('ps');location.reload();}">🗑️ אפס לברירת מחדל</button>
   `;
 }
 
@@ -1132,10 +1176,10 @@ function addA(){
     if(S.crypto.find(a=>a.sym===sym)){alert('מטבע זה כבר קיים');return;}
     S.crypto.push({id:CG_ID[sym]||sym.toLowerCase(),sym,name,qty,icon,color});
   } else {
-    const base=parseFloat(document.getElementById('nB')?.value);
-    if(isNaN(base)||base<=0){alert('חובה להזין שווי');return;}
+    const shares=parseFloat(document.getElementById('nQ')?.value);
+    if(isNaN(shares)||shares<=0){alert('חובה להזין מספר מניות');return;}
     if(S.stocks.find(s=>s.sym===sym)){alert('מניה זו כבר קיימת');return;}
-    S.stocks.push({sym,name,baseILS:base,icon,color});
+    S.stocks.push({sym,name,shares,icon,color});
   }
   renderEd();
 }
@@ -1268,6 +1312,21 @@ if('serviceWorker' in navigator){
 let dp;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;document.getElementById('installBanner').classList.add('show');});
 document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;document.getElementById('installBanner').classList.remove('show');});
+
+// Theme toggle
+function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('themeBtn').textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight?'light':'dark');
+}
+// Load saved theme
+if(localStorage.getItem('theme')==='light'){
+  document.body.classList.add('light');
+  document.addEventListener('DOMContentLoaded',()=>{
+    const btn=document.getElementById('themeBtn');
+    if(btn) btn.textContent='☀️';
+  });
+}
 
 // Default dates
 const today=new Date();const monthAgo=new Date(today);monthAgo.setMonth(monthAgo.getMonth()-1);
