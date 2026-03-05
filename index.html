@@ -111,6 +111,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .pp{font-size:13px;font-weight:800;}
 .pp.up{color:var(--gr);}
 .pp.dn{color:var(--rd);}
+.up{color:var(--gr);}
+.dn{color:var(--rd);}
 .pn{font-size:11px;font-weight:700;}
 .pn.up{color:var(--gr);}
 .pn.dn{color:var(--rd);}
@@ -640,11 +642,15 @@ if (localStorage.getItem('google_pending_redirect')) {
 
     <!-- PNL HISTORY -->
     <div class="ins-card">
-      <div class="ins-title">📅 היסטוריה יומית</div>
-      <button onclick="saveDailyPnL()" style="width:100%;padding:10px;background:var(--ac);color:#000;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:10px;font-family:Heebo">
-        📸 שמור P&L של היום
-      </button>
-      <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:4px">טוען היסטוריה...</div></div>
+      <div class="ins-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📅 היסטוריה יומית</span>
+        <select id="histDays" onchange="buildHistoryTable()" style="background:var(--c2);color:var(--t1);border:1px solid var(--b1);border-radius:8px;padding:4px 8px;font-size:12px;font-family:Heebo">
+          <option value="7">7 ימים</option>
+          <option value="30" selected>30 ימים</option>
+          <option value="90">3 חודשים</option>
+        </select>
+      </div>
+      <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">⏳ טוען היסטוריה...</div></div>
     </div>
 
     <div class="ins-card"><div class="ins-title">🏆 מניבים ביותר היום</div><div id="insTop"></div></div>
@@ -924,7 +930,7 @@ function goPage(id, btn) {
   document.getElementById('app').scrollTop = 0;
   if (id==='stocks') renderStocksPage();
   if (id==='crypto') renderCryptoPage();
-  if (id==='insights') { renderInsights(); loadPnLHistory(); }
+  if (id==='insights') { renderInsights(); buildHistoryTable(); }
 }
 
 // ═══════════════════════════════════════════
@@ -1197,58 +1203,112 @@ function renderInsights() {
 }
 
 // ═══════════════════════════════════════════
-// PNL HISTORY
+// HISTORICAL P&L TABLE
 // ═══════════════════════════════════════════
-async function saveDailyPnL() {
-  const uid = localStorage.getItem('google_auth_uid');
-  if (!uid) { alert('יש להתחבר עם Google תחילה'); return; }
-
-  const {g} = tots();
-  const pnlTotal = S.crypto.reduce((a,x)=>a+(cpnl(x)||0),0) + S.stocks.reduce((a,s)=>a+(spnl(s)||0),0);
-  const pct = g ? (pnlTotal/g*100) : 0;
-  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
-
-  try {
-    const {getFirestore, doc, setDoc} = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
-    const db = getFirestore();
-    await setDoc(doc(db, 'pnl_history', `${uid}_${today}`), {
-      uid, date: today,
-      totalValue: Math.round(g),
-      dailyPnL: Math.round(pnlTotal),
-      dailyPct: parseFloat(pct.toFixed(2)),
-      savedAt: Date.now()
-    });
-    alert(`✅ נשמר! ${today}\nשווי: ${fILS(g)}\nP&L: ${pnlTotal>=0?'+':''}${fILS(pnlTotal)}`);
-    loadPnLHistory();
-  } catch(e) { alert('שגיאה בשמירה: ' + e.message); }
-}
-
-async function loadPnLHistory() {
-  const uid = localStorage.getItem('google_auth_uid');
+async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
-  if (!uid || !el) return;
+  el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">⏳ טוען נתונים...</div>';
+  const days = parseInt(document.getElementById('histDays')?.value || '30');
 
   try {
-    const {getFirestore, collection, query, where, orderBy, getDocs} = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
-    const db = getFirestore();
-    const q = query(collection(db, 'pnl_history'), where('uid','==',uid), orderBy('date','desc'));
-    const snap = await getDocs(q);
+    // Get date range
+    const toDate = Math.floor(Date.now()/1000);
+    const fromDate = toDate - (days * 24 * 60 * 60);
 
-    if (snap.empty) { el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:4px">אין היסטוריה עדיין</div>'; return; }
+    // Fetch historical candles for each stock from Finnhub
+    const stockHist = {};
+    await Promise.all(S.stocks.map(async s => {
+      try {
+        const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${s.sym}&resolution=D&from=${fromDate}&to=${toDate}&token=${FINNHUB_KEY}`);
+        const d = await r.json();
+        if (d.s === 'ok') stockHist[s.sym] = { t: d.t, o: d.o, c: d.c };
+      } catch(_) {}
+    }));
 
-    let html = '';
-    snap.forEach(d => {
-      const r = d.data();
-      const up = r.dailyPnL >= 0;
-      html += `<div class="ir" style="border-bottom:1px solid rgba(255,255,255,0.05);padding:6px 0">
-        <span class="ir-l" style="font-size:12px">${r.date}</span>
-        <span style="font-size:11px;color:var(--t2)">${fILS(r.totalValue)}</span>
-        <span class="ir-v ${up?'up':'dn'}" style="font-size:12px">${up?'+':''}${fILS(r.dailyPnL)} (${up?'+':''}${r.dailyPct}%)</span>
-      </div>`;
-    });
+    // Fetch historical prices for each crypto from Binance
+    const cryptoHist = {};
+    await Promise.all(S.crypto.map(async a => {
+      const bs = BN[a.sym];
+      if (!bs) return;
+      try {
+        const limit = Math.min(days + 1, 90);
+        const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
+        const arr = await r.json();
+        cryptoHist[a.sym] = arr.map(k => ({ t: Math.floor(k[0]/1000), o: parseFloat(k[1]), c: parseFloat(k[4]) }));
+      } catch(_) {}
+    }));
+
+    // Build list of trading days
+    const allTimestamps = new Set();
+    Object.values(stockHist).forEach(h => h.t?.forEach(t => allTimestamps.add(t)));
+    Object.values(cryptoHist).forEach(arr => arr?.forEach(d => allTimestamps.add(d.t)));
+    const sortedDays = [...allTimestamps].sort((a,b) => b-a).slice(0, days);
+
+    if (!sortedDays.length) {
+      el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">אין נתונים היסטוריים</div>';
+      return;
+    }
+
+    // Build table
+    let html = `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead>
+        <tr style="color:var(--t3);border-bottom:1px solid var(--b1)">
+          <th style="text-align:right;padding:6px 4px">תאריך</th>
+          <th style="text-align:left;padding:6px 4px">פתיחה</th>
+          <th style="text-align:left;padding:6px 4px">סגירה</th>
+          <th style="text-align:left;padding:6px 4px">P&L יומי</th>
+        </tr>
+      </thead><tbody>`;
+
+    for (const ts of sortedDays) {
+      const date = new Date(ts * 1000);
+      const dateStr = date.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
+
+      let openVal = 0, closeVal = 0;
+
+      // Stocks
+      S.stocks.forEach(s => {
+        const h = stockHist[s.sym];
+        if (!h) return;
+        const idx = h.t.indexOf(ts);
+        if (idx === -1) return;
+        openVal  += (h.o[idx] || 0) * s.shares * S.fx;
+        closeVal += (h.c[idx] || 0) * s.shares * S.fx;
+      });
+
+      // Crypto
+      S.crypto.forEach(a => {
+        const arr = cryptoHist[a.sym];
+        if (!arr) return;
+        const d = arr.find(x => Math.abs(x.t - ts) < 86400);
+        if (!d) return;
+        openVal  += (d.o || 0) * a.qty * S.fx;
+        closeVal += (d.c || 0) * a.qty * S.fx;
+      });
+
+      if (!openVal && !closeVal) continue;
+
+      const pnl = closeVal - openVal;
+      const pct = openVal ? (pnl/openVal*100) : 0;
+      const up = pnl >= 0;
+
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+        <td style="padding:6px 4px;color:var(--t2)">${dateStr}</td>
+        <td style="padding:6px 4px">${fILS(openVal)}</td>
+        <td style="padding:6px 4px">${fILS(closeVal)}</td>
+        <td style="padding:6px 4px" class="${up?'up':'dn'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
+      </tr>`;
+    }
+
+    html += '</tbody></table></div>';
     el.innerHTML = html;
-  } catch(e) { el.innerHTML = '<div style="color:var(--t3);font-size:12px">שגיאה בטעינה</div>'; }
+
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--t3);font-size:12px;padding:8px">שגיאה: ${e.message}</div>`;
+  }
 }
+
 
 
 async function openDet(sym, type) {
