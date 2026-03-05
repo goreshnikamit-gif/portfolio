@@ -326,6 +326,7 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -336,42 +337,157 @@ const firebaseConfig = {
   appId: "1:1007321762168:web:1cef4087246add2732608d"
 };
 
+const ALLOWED_EMAIL = "goreshnikamit@gmail.com";
+const SESSION_24H = 24 * 60 * 60 * 1000;
+const SESSION_BIO = 30 * 60 * 1000; // 30 min biometric session
+
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
 const DOC = doc(db, 'portfolio', 'main');
 
-// Expose to global scope
 window.fbSave = async (data) => {
-  try {
-    await setDoc(DOC, data, {merge: true});
-  } catch(e) { console.warn('Firebase save error:', e); }
+  try { await setDoc(DOC, data, {merge:true}); } catch(e) { console.warn('FB save:', e); }
 };
-
 window.fbLoad = async () => {
+  try { const s = await getDoc(DOC); return s.exists() ? s.data() : null; } catch(e) { return null; }
+};
+window.fbListen = (cb) => onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); });
+window.fbSignOut = () => signOut(auth);
+
+// ── AUTH LOGIC ──────────────────────────────────────────
+window.doGoogleLogin = async () => {
+  const err = document.getElementById('lockErr');
+  const lbl = document.getElementById('authLbl');
+  const ico = document.getElementById('authIco');
+  err.textContent = '';
+  ico.textContent = '⏳'; lbl.textContent = 'מתחבר לגוגל...';
   try {
-    const snap = await getDoc(DOC);
-    return snap.exists() ? snap.data() : null;
-  } catch(e) { console.warn('Firebase load error:', e); return null; }
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const email = result.user.email;
+    if (email !== ALLOWED_EMAIL) {
+      await signOut(auth);
+      ico.textContent = '🔐'; lbl.textContent = 'התחבר עם Google';
+      err.textContent = '❌ אין גישה למייל זה';
+      return;
+    }
+    // Save Google auth timestamp (24h)
+    localStorage.setItem('google_auth_ts', Date.now().toString());
+    localStorage.setItem('google_auth_email', email);
+    ico.textContent = '✅'; lbl.textContent = 'מחובר!';
+    setTimeout(() => window.proceedToApp(), 500);
+  } catch(e) {
+    ico.textContent = '🔐'; lbl.textContent = 'התחבר עם Google';
+    err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
+  }
 };
 
-// Real-time listener — updates app when data changes from another device
-window.fbListen = (callback) => {
-  onSnapshot(DOC, (snap) => {
-    if (snap.exists()) callback(snap.data());
-  });
+window.checkAuthAndShow = () => {
+  const googleTs = parseInt(localStorage.getItem('google_auth_ts') || '0');
+  const googleEmail = localStorage.getItem('google_auth_email');
+  const bioTs = parseInt(sessionStorage.getItem('bio_ts') || '0');
+  const now = Date.now();
+
+  const googleValid = googleEmail === ALLOWED_EMAIL && (now - googleTs) < SESSION_24H;
+  const bioValid = (now - bioTs) < SESSION_BIO;
+
+  const lockScreen = document.getElementById('lockScreen');
+  const googleBtn = document.getElementById('googleBtn');
+  const bioBtn = document.getElementById('bioBtn');
+  const authTitle = document.getElementById('authTitle');
+
+  if (googleValid && bioValid) {
+    // Both valid — go straight in
+    window.proceedToApp();
+    return;
+  }
+
+  if (googleValid && !bioValid) {
+    // Google OK but need biometric
+    authTitle.textContent = 'אמת טביעת אצבע';
+    googleBtn.style.display = 'none';
+    bioBtn.style.display = 'flex';
+    document.getElementById('authIco').textContent = '👆';
+    document.getElementById('authLbl').textContent = 'טביעת אצבע / זיהוי פנים';
+    return;
+  }
+
+  // Need Google login
+  authTitle.textContent = 'כניסה יומית';
+  googleBtn.style.display = 'flex';
+  bioBtn.style.display = 'none';
+};
+
+window.doBiometric = async () => {
+  const ico = document.getElementById('authIco');
+  const lbl = document.getElementById('authLbl');
+  const err = document.getElementById('lockErr');
+  err.textContent = '';
+
+  if (!window.PublicKeyCredential) {
+    // No biometric support — just let in if Google is valid
+    sessionStorage.setItem('bio_ts', Date.now().toString());
+    window.proceedToApp(); return;
+  }
+
+  ico.textContent = '⏳'; lbl.textContent = 'ממתין לאימות...';
+  try {
+    const credId = localStorage.getItem('bio_cred');
+    if (!credId) {
+      // Register
+      const cred = await navigator.credentials.create({publicKey:{
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp:{name:'פורטפוליו שלי', id:location.hostname},
+        user:{id:crypto.getRandomValues(new Uint8Array(16)), name:'amit', displayName:'Amit'},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+        timeout:60000
+      }});
+      localStorage.setItem('bio_cred', JSON.stringify(Array.from(new Uint8Array(cred.rawId))));
+    } else {
+      await navigator.credentials.get({publicKey:{
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials:[{type:'public-key', id:new Uint8Array(JSON.parse(credId))}],
+        userVerification:'required', timeout:60000
+      }});
+    }
+    sessionStorage.setItem('bio_ts', Date.now().toString());
+    ico.textContent = '✅'; lbl.textContent = 'אומת!';
+    setTimeout(() => window.proceedToApp(), 400);
+  } catch(e) {
+    ico.textContent = '👆'; lbl.textContent = 'טביעת אצבע / זיהוי פנים';
+    if (e.name === 'NotAllowedError') err.textContent = 'האימות נכשל — נסה שוב';
+    else if (e.name === 'InvalidStateError') { localStorage.removeItem('bio_cred'); err.textContent = 'מכשיר חדש — לחץ שוב'; }
+    else err.textContent = 'שגיאה: ' + e.message;
+  }
 };
 
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
+
+// Check auth state on load
+onAuthStateChanged(auth, user => {
+  window.checkAuthAndShow();
+});
 </script>
 <div id="lockScreen">
   <div class="lock-logo">P</div>
   <div class="lock-title">פורטפוליו שלי</div>
-  <div class="lock-sub">אמת זהות כדי להמשיך</div>
-  <button class="lock-btn" onclick="doAuth()">
-    <div class="lock-btn-ico" id="authIco">🔐</div>
+  <div class="lock-sub" id="authTitle">כניסה יומית</div>
+
+  <!-- Google Login -->
+  <button class="lock-btn" id="googleBtn" onclick="doGoogleLogin()" style="display:none">
+    <div class="lock-btn-ico">🔑</div>
+    <div class="lock-btn-lbl">התחבר עם Google</div>
+  </button>
+
+  <!-- Biometric -->
+  <button class="lock-btn" id="bioBtn" onclick="doBiometric()" style="display:none">
+    <div class="lock-btn-ico" id="authIco">👆</div>
     <div class="lock-btn-lbl" id="authLbl">טביעת אצבע / זיהוי פנים</div>
   </button>
+
   <div class="lock-err" id="lockErr"></div>
   <button class="lock-skip" onclick="skipAuth()">כניסה ללא אימות</button>
 </div>
@@ -1458,23 +1574,8 @@ document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)
 // BIOMETRIC AUTH
 // ═══════════════════════════════════════════
 const AUTH_KEY = 'portfolio_auth_cred';
-const SESSION_KEY = 'portfolio_session';
 
-function isSessionValid() {
-  try {
-    const s = sessionStorage.getItem(SESSION_KEY);
-    if (!s) return false;
-    const {ts} = JSON.parse(s);
-    // Session valid for 30 minutes
-    return (Date.now() - ts) < 30 * 60 * 1000;
-  } catch(_) { return false; }
-}
-
-function setSession() {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ts: Date.now()}));
-}
-
-async function unlockApp() {
+window.proceedToApp = async function() {
   setSession();
   document.getElementById('lockScreen').classList.add('hidden');
   document.getElementById('app').style.display = '';
@@ -1520,106 +1621,10 @@ async function unlockApp() {
   }
 }
 
+// Auth handled by Firebase module above
 function skipAuth() {
-  if (confirm('כניסה ללא אימות ביומטרי — בטוח?')) unlockApp();
+  if (confirm('כניסה ללא אימות ביומטרי — בטוח?')) proceedToApp();
 }
-
-async function doAuth() {
-  const ico = document.getElementById('authIco');
-  const lbl = document.getElementById('authLbl');
-  const err = document.getElementById('lockErr');
-  err.textContent = '';
-
-  // Check WebAuthn support
-  if (!window.PublicKeyCredential) {
-    err.textContent = 'הדפדפן אינו תומך באימות ביומטרי';
-    return;
-  }
-
-  ico.textContent = '⏳';
-  lbl.textContent = 'ממתין לאימות...';
-
-  try {
-    const credId = localStorage.getItem(AUTH_KEY);
-
-    if (!credId) {
-      // First time — register biometric
-      lbl.textContent = 'רישום ראשוני...';
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-      const userId = crypto.getRandomValues(new Uint8Array(16));
-
-      const cred = await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp: { name: 'פורטפוליו שלי', id: location.hostname },
-          user: { id: userId, name: 'user', displayName: 'משתמש' },
-          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            userVerification: 'required',
-          },
-          timeout: 60000,
-        }
-      });
-
-      // Save credential ID
-      const idArr = new Uint8Array(cred.rawId);
-      localStorage.setItem(AUTH_KEY, JSON.stringify(Array.from(idArr)));
-      ico.textContent = '✅';
-      lbl.textContent = 'נרשמת בהצלחה!';
-      setTimeout(unlockApp, 600);
-
-    } else {
-      // Returning — verify biometric
-      const rawIdArr = new Uint8Array(JSON.parse(credId));
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-
-      await navigator.credentials.get({
-        publicKey: {
-          challenge,
-          allowCredentials: [{ type: 'public-key', id: rawIdArr }],
-          userVerification: 'required',
-          timeout: 60000,
-        }
-      });
-
-      ico.textContent = '✅';
-      lbl.textContent = 'אומת בהצלחה!';
-      setTimeout(unlockApp, 400);
-    }
-
-  } catch(e) {
-    ico.textContent = '🔐';
-    lbl.textContent = 'טביעת אצבע / זיהוי פנים';
-    if (e.name === 'NotAllowedError') {
-      err.textContent = 'האימות בוטל או נכשל — נסה שוב';
-    } else if (e.name === 'InvalidStateError') {
-      // Cred exists but changed device — reset
-      localStorage.removeItem(AUTH_KEY);
-      err.textContent = 'מכשיר חדש — לחץ שוב לרישום מחדש';
-    } else {
-      err.textContent = 'שגיאה: ' + e.message;
-    }
-  }
-}
-
-// On load — check session or show lock
-(function initAuth() {
-  const topbar = document.querySelector('.topbar');
-  const nav = document.querySelector('.nav');
-  if (topbar) topbar.style.display = 'none';
-  if (nav) nav.style.display = 'none';
-
-  if (isSessionValid()) {
-    unlockApp();
-  } else {
-    // Auto-trigger auth after short delay
-    setTimeout(() => {
-      const ico = document.getElementById('authIco');
-      if (ico) ico.textContent = window.PublicKeyCredential ? '🔐' : '🔓';
-    }, 300);
-  }
-})();
 
 // Theme toggle
 function toggleTheme(){
@@ -1646,6 +1651,9 @@ document.getElementById('dashDateTo').value=todayStr;
 document.getElementById('dashDateFrom').value=monthAgoStr;
 
 // App starts after auth (see initAuth above)
+// Hide UI until authenticated
+document.querySelector('.topbar').style.display = 'none';
+document.querySelector('.nav').style.display = 'none';
 </script>
 </body>
 </html>
