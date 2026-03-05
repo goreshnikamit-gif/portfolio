@@ -339,20 +339,26 @@ const firebaseConfig = {
 
 const SESSION_24H = 24 * 60 * 60 * 1000;
 const SESSION_BIO = 30 * 60 * 1000;
-const ALLOWED_EMAIL = "goreshnikamit@gmail.com";
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
-const DOC = doc(db, 'portfolio', 'main');
+
+// Per-user document — set after login
+let DOC = null;
 
 window.fbSave = async (data) => {
+  if (!DOC) return;
   try { await setDoc(DOC, data, {merge:true}); } catch(e) { console.warn('FB save:', e); }
 };
 window.fbLoad = async () => {
+  if (!DOC) return null;
   try { const s = await getDoc(DOC); return s.exists() ? s.data() : null; } catch(e) { return null; }
 };
-window.fbListen = (cb) => { onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); }); };
+window.fbListen = (cb) => {
+  if (!DOC) return;
+  onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); });
+};
 window.fbSignOut = () => signOut(auth);
 
 window.doGoogleLogin = async () => {
@@ -364,15 +370,11 @@ window.doGoogleLogin = async () => {
   try {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    const email = result.user.email;
-    if (email !== ALLOWED_EMAIL) {
-      await signOut(auth);
-      ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
-      err.textContent = '❌ אין גישה למייל זה';
-      return;
-    }
+    const uid = result.user.uid;
+    DOC = doc(db, 'portfolio', uid);
     localStorage.setItem('google_auth_ts', Date.now().toString());
-    localStorage.setItem('google_auth_email', email);
+    localStorage.setItem('google_auth_email', result.user.email);
+    localStorage.setItem('google_auth_uid', uid);
     ico.textContent = '✅'; lbl.textContent = 'מחובר!';
     setTimeout(() => window.proceedToApp(), 500);
   } catch(e) {
@@ -384,10 +386,17 @@ window.doGoogleLogin = async () => {
 window.checkAuthAndShow = () => {
   const googleTs = parseInt(localStorage.getItem('google_auth_ts') || '0');
   const googleEmail = localStorage.getItem('google_auth_email');
+  const googleUid = localStorage.getItem('google_auth_uid');
   const bioTs = parseInt(sessionStorage.getItem('bio_ts') || '0');
   const now = Date.now();
-  const googleValid = googleEmail === ALLOWED_EMAIL && (now - googleTs) < SESSION_24H;
+  const googleValid = !!googleEmail && (now - googleTs) < SESSION_24H;
   const bioValid = (now - bioTs) < SESSION_BIO;
+
+  // Restore DOC for returning users
+  if (googleValid && googleUid) {
+    DOC = doc(db, 'portfolio', googleUid);
+  }
+
   const googleBtn = document.getElementById('googleBtn');
   const bioBtn = document.getElementById('bioBtn');
   const authTitle = document.getElementById('authTitle');
