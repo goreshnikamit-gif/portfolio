@@ -337,14 +337,31 @@ const firebaseConfig = {
   appId: "1:1007321762168:web:1cef4087246add2732608d"
 };
 
-const ALLOWED_EMAIL = "goreshnikamit@gmail.com";
+const ALLOWED_EMAIL = null; // כל מייל מורשה
 const SESSION_24H = 24 * 60 * 60 * 1000;
-const SESSION_BIO = 30 * 60 * 1000; // 30 min biometric session
+const SESSION_BIO = 30 * 60 * 1000;
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
-const DOC = doc(db, 'portfolio', 'main');
+
+// Dynamic doc per user — set after login
+let DOC = null;
+const getDoc2 = (uid) => doc(db, 'portfolio', uid);
+
+window.fbSave = async (data) => {
+  if (!DOC) return;
+  try { await setDoc(DOC, data, {merge:true}); } catch(e) { console.warn('FB save:', e); }
+};
+window.fbLoad = async () => {
+  if (!DOC) return null;
+  try { const s = await getDoc(DOC); return s.exists() ? s.data() : null; } catch(e) { return null; }
+};
+window.fbListen = (cb) => {
+  if (!DOC) return;
+  onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); });
+};
+window.fbSignOut = () => signOut(auth);
 
 window.fbSave = async (data) => {
   try { await setDoc(DOC, data, {merge:true}); } catch(e) { console.warn('FB save:', e); }
@@ -356,6 +373,12 @@ window.fbListen = (cb) => onSnapshot(DOC, s => { if(s.exists()) cb(s.data()); })
 window.fbSignOut = () => signOut(auth);
 
 // ── AUTH LOGIC ──────────────────────────────────────────
+const handleUser = (user) => {
+  DOC = getDoc2(user.uid);
+  localStorage.setItem('google_auth_ts', Date.now().toString());
+  localStorage.setItem('google_auth_email', user.email);
+};
+
 window.doGoogleLogin = async () => {
   const err = document.getElementById('lockErr');
   const lbl = document.getElementById('authLbl');
@@ -367,18 +390,9 @@ window.doGoogleLogin = async () => {
     const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
     if (isMobile) {
       await signInWithRedirect(auth, provider);
-      // Page will redirect — code below won't run
     } else {
       const result = await signInWithPopup(auth, provider);
-      const email = result.user.email;
-      if (email !== ALLOWED_EMAIL) {
-        await signOut(auth);
-        ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
-        err.textContent = '❌ אין גישה למייל זה';
-        return;
-      }
-      localStorage.setItem('google_auth_ts', Date.now().toString());
-      localStorage.setItem('google_auth_email', email);
+      handleUser(result.user);
       ico.textContent = '✅'; lbl.textContent = 'מחובר!';
       setTimeout(() => window.proceedToApp(), 500);
     }
@@ -474,20 +488,14 @@ document.dispatchEvent(new Event('firebaseReady'));
 // Handle redirect result (mobile Google login return)
 getRedirectResult(auth).then(result => {
   if (result?.user) {
-    const email = result.user.email;
-    if (email !== ALLOWED_EMAIL) {
-      signOut(auth);
-      document.getElementById('lockErr').textContent = '❌ אין גישה למייל זה';
-      return;
-    }
-    localStorage.setItem('google_auth_ts', Date.now().toString());
-    localStorage.setItem('google_auth_email', email);
+    handleUser(result.user);
     window.proceedToApp();
   }
 }).catch(e => console.warn('Redirect result error:', e));
 
-// Check auth state on load
+// Check auth state on load — restore DOC for returning users
 onAuthStateChanged(auth, user => {
+  if (user) DOC = getDoc2(user.uid);
   window.checkAuthAndShow();
 });
 </script>
@@ -1605,12 +1613,19 @@ window.proceedToApp = async function() {
   const loadAndStart = async () => {
     if (window.fbLoad) {
       const fbData = await window.fbLoad();
-      if (fbData?.crypto?.length) S.crypto = fbData.crypto;
-      if (fbData?.stocks?.length) S.stocks = fbData.stocks;
-      try {
-        localStorage.setItem('pc', JSON.stringify(S.crypto));
-        localStorage.setItem('ps', JSON.stringify(S.stocks));
-      } catch(_) {}
+      if (fbData?.crypto?.length || fbData?.stocks?.length) {
+        // Existing user — load their data
+        if (fbData.crypto?.length) S.crypto = fbData.crypto;
+        if (fbData.stocks?.length) S.stocks = fbData.stocks;
+        try {
+          localStorage.setItem('pc', JSON.stringify(S.crypto));
+          localStorage.setItem('ps', JSON.stringify(S.stocks));
+        } catch(_) {}
+      } else {
+        // New user — start with empty portfolio
+        S.crypto = [];
+        S.stocks = [];
+      }
     }
     doRefresh();
     setInterval(doRefresh, 30000);
