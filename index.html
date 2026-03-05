@@ -326,7 +326,7 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -364,21 +364,26 @@ window.doGoogleLogin = async () => {
   ico.textContent = '⏳'; lbl.textContent = 'מתחבר לגוגל...';
   try {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const email = result.user.email;
-    if (email !== ALLOWED_EMAIL) {
-      await signOut(auth);
-      ico.textContent = '🔐'; lbl.textContent = 'התחבר עם Google';
-      err.textContent = '❌ אין גישה למייל זה';
-      return;
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (isMobile) {
+      await signInWithRedirect(auth, provider);
+      // Page will redirect — code below won't run
+    } else {
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user.email;
+      if (email !== ALLOWED_EMAIL) {
+        await signOut(auth);
+        ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
+        err.textContent = '❌ אין גישה למייל זה';
+        return;
+      }
+      localStorage.setItem('google_auth_ts', Date.now().toString());
+      localStorage.setItem('google_auth_email', email);
+      ico.textContent = '✅'; lbl.textContent = 'מחובר!';
+      setTimeout(() => window.proceedToApp(), 500);
     }
-    // Save Google auth timestamp (24h)
-    localStorage.setItem('google_auth_ts', Date.now().toString());
-    localStorage.setItem('google_auth_email', email);
-    ico.textContent = '✅'; lbl.textContent = 'מחובר!';
-    setTimeout(() => window.proceedToApp(), 500);
   } catch(e) {
-    ico.textContent = '🔐'; lbl.textContent = 'התחבר עם Google';
+    ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
     err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
   }
 };
@@ -465,6 +470,21 @@ window.doBiometric = async () => {
 
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
+
+// Handle redirect result (mobile Google login return)
+getRedirectResult(auth).then(result => {
+  if (result?.user) {
+    const email = result.user.email;
+    if (email !== ALLOWED_EMAIL) {
+      signOut(auth);
+      document.getElementById('lockErr').textContent = '❌ אין גישה למייל זה';
+      return;
+    }
+    localStorage.setItem('google_auth_ts', Date.now().toString());
+    localStorage.setItem('google_auth_email', email);
+    window.proceedToApp();
+  }
+}).catch(e => console.warn('Redirect result error:', e));
 
 // Check auth state on load
 onAuthStateChanged(auth, user => {
