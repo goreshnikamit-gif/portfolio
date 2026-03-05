@@ -326,7 +326,7 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -359,6 +359,29 @@ window.fbListen = (cb) => {
 };
 window.fbSignOut = () => signOut(auth);
 
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
+
+// If iOS WebView (WhatsApp/Telegram etc) — show message to open in Safari
+if (isWebView) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const ls = document.getElementById('lockScreen');
+    if (ls) {
+      ls.innerHTML = `
+        <div class="lock-logo">P</div>
+        <div class="lock-title">פורטפוליו שלי</div>
+        <div class="lock-sub" style="text-align:center;padding:0 20px">
+          לפתיחה נכונה באייפון,<br>לחץ על הכפתור למטה<br>ופתח ב-Safari
+        </div>
+        <button class="lock-btn" onclick="window.open(location.href, '_blank')" style="margin-top:8px">
+          <div class="lock-btn-ico">🧭</div>
+          <div class="lock-btn-lbl">פתח ב-Safari</div>
+        </button>
+      `;
+    }
+  });
+}
+
 window.doGoogleLogin = async () => {
   const err = document.getElementById('lockErr');
   const lbl = document.getElementById('authLbl');
@@ -367,14 +390,20 @@ window.doGoogleLogin = async () => {
   ico.textContent = '⏳'; lbl.textContent = 'מתחבר לגוגל...';
   try {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const uid = result.user.uid;
-    DOC = doc(db, 'portfolio', uid);
-    localStorage.setItem('google_auth_ts', Date.now().toString());
-    localStorage.setItem('google_auth_email', result.user.email);
-    localStorage.setItem('google_auth_uid', uid);
-    ico.textContent = '✅'; lbl.textContent = 'מחובר!';
-    setTimeout(() => window.proceedToApp(), 500);
+    if (isIOS) {
+      // Save pending state for after redirect
+      localStorage.setItem('google_pending_redirect', '1');
+      await signInWithRedirect(auth, provider);
+    } else {
+      const result = await signInWithPopup(auth, provider);
+      const uid = result.user.uid;
+      DOC = doc(db, 'portfolio', uid);
+      localStorage.setItem('google_auth_ts', Date.now().toString());
+      localStorage.setItem('google_auth_email', result.user.email);
+      localStorage.setItem('google_auth_uid', uid);
+      ico.textContent = '✅'; lbl.textContent = 'מחובר!';
+      setTimeout(() => window.proceedToApp(), 500);
+    }
   } catch(e) {
     ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
     err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
@@ -450,7 +479,26 @@ window.doBiometric = async () => {
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
 
-onAuthStateChanged(auth, () => { window.checkAuthAndShow(); });
+// Handle iOS redirect result
+if (localStorage.getItem('google_pending_redirect')) {
+  localStorage.removeItem('google_pending_redirect');
+  getRedirectResult(auth).then(result => {
+    if (result?.user) {
+      const uid = result.user.uid;
+      DOC = doc(db, 'portfolio', uid);
+      localStorage.setItem('google_auth_ts', Date.now().toString());
+      localStorage.setItem('google_auth_email', result.user.email);
+      localStorage.setItem('google_auth_uid', uid);
+      window.proceedToApp();
+    } else {
+      onAuthStateChanged(auth, () => window.checkAuthAndShow());
+    }
+  }).catch(() => {
+    onAuthStateChanged(auth, () => window.checkAuthAndShow());
+  });
+} else {
+  onAuthStateChanged(auth, () => window.checkAuthAndShow());
+}
 </script>
 
 <div id="lockScreen">
