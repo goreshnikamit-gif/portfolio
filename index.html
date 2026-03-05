@@ -326,7 +326,7 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -378,15 +378,10 @@ window.doGoogleLogin = async () => {
   ico.textContent = '⏳'; lbl.textContent = 'מתחבר לגוגל...';
   try {
     const provider = new GoogleAuthProvider();
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    if (isMobile) {
-      await signInWithRedirect(auth, provider);
-    } else {
-      const result = await signInWithPopup(auth, provider);
-      handleUser(result.user);
-      ico.textContent = '✅'; lbl.textContent = 'מחובר!';
-      setTimeout(() => window.proceedToApp(), 500);
-    }
+    const result = await signInWithPopup(auth, provider);
+    handleUser(result.user);
+    ico.textContent = '✅'; lbl.textContent = 'מחובר!';
+    setTimeout(() => window.proceedToApp(), 500);
   } catch(e) {
     ico.textContent = '🔑'; lbl.textContent = 'התחבר עם Google';
     err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
@@ -473,25 +468,13 @@ window.doBiometric = async () => {
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
 
-// Handle redirect result FIRST (mobile Google login return)
-getRedirectResult(auth).then(result => {
-  if (result?.user) {
-    handleUser(result.user);
-    window.proceedToApp();
-  } else {
-    // No redirect result — check auth state normally
-    onAuthStateChanged(auth, user => {
-      if (user) DOC = getDoc2(user.uid);
-      window.checkAuthAndShow();
-    });
+// Check auth state on load
+onAuthStateChanged(auth, user => {
+  if (user) {
+    DOC = getDoc2(user.uid);
+    handleUser(user);
   }
-}).catch(e => {
-  console.warn('Redirect result error:', e);
-  // On error, still check auth state
-  onAuthStateChanged(auth, user => {
-    if (user) DOC = getDoc2(user.uid);
-    window.checkAuthAndShow();
-  });
+  window.checkAuthAndShow();
 });
 </script>
 <div id="lockScreen">
