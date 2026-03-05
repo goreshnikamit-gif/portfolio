@@ -512,10 +512,10 @@ async function getStocks() {
             const d = JSON.parse(contents);
             const meta = d?.chart?.result?.[0]?.meta;
             if (meta) {
-              const prev = meta.previousClose || meta.chartPreviousClose;
+              const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
               const curr = meta.regularMarketPrice;
               if (curr && prev) {
-                S.sp[s.sym] = {price:curr, prevClose:prev, change:((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+                S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
                 got = true;
               }
             }
@@ -534,10 +534,10 @@ async function getStocks() {
           const d = await r.json();
           const meta = d?.chart?.result?.[0]?.meta;
           if (meta) {
-            const prev = meta.previousClose || meta.chartPreviousClose;
+            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
             const curr = meta.regularMarketPrice;
             if (curr && prev) {
-              S.sp[s.sym] = {price:curr, prevClose:prev, change:((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
               got = true;
             }
           }
@@ -558,10 +558,10 @@ async function getStocks() {
             const d = JSON.parse(contents);
             const meta = d?.chart?.result?.[0]?.meta;
             if (meta) {
-              const prev = meta.previousClose || meta.chartPreviousClose;
+              const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
               const curr = meta.regularMarketPrice;
               if (curr && prev) {
-                S.sp[s.sym] = {price:curr, prevClose:prev, change:((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+                S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
                 got = true;
               }
             }
