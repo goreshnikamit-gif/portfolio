@@ -1576,7 +1576,6 @@ document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)
 const AUTH_KEY = 'portfolio_auth_cred';
 
 window.proceedToApp = async function() {
-  setSession();
   document.getElementById('lockScreen').classList.add('hidden');
   document.getElementById('app').style.display = '';
   document.querySelector('.topbar').style.display = '';
@@ -1588,7 +1587,6 @@ window.proceedToApp = async function() {
       const fbData = await window.fbLoad();
       if (fbData?.crypto?.length) S.crypto = fbData.crypto;
       if (fbData?.stocks?.length) S.stocks = fbData.stocks;
-      // Also update localStorage
       try {
         localStorage.setItem('pc', JSON.stringify(S.crypto));
         localStorage.setItem('ps', JSON.stringify(S.stocks));
@@ -1597,7 +1595,6 @@ window.proceedToApp = async function() {
     doRefresh();
     setInterval(doRefresh, 30000);
 
-    // Real-time listener for changes from other devices
     if (window.fbListen) {
       window.fbListen((data) => {
         if (data?.crypto?.length) S.crypto = data.crypto;
@@ -1609,12 +1606,10 @@ window.proceedToApp = async function() {
     }
   };
 
-  // Wait for Firebase if not ready yet
   if (window.firebaseReady) {
     await loadAndStart();
   } else {
     document.addEventListener('firebaseReady', loadAndStart, {once: true});
-    // Fallback after 3s if Firebase doesn't load
     setTimeout(() => {
       if (!window.firebaseReady) { doRefresh(); setInterval(doRefresh, 30000); }
     }, 3000);
@@ -1623,7 +1618,7 @@ window.proceedToApp = async function() {
 
 // Auth handled by Firebase module above
 function skipAuth() {
-  if (confirm('כניסה ללא אימות ביומטרי — בטוח?')) proceedToApp();
+  if (confirm('כניסה ללא אימות — בטוח?')) window.proceedToApp();
 }
 
 // Theme toggle
