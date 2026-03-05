@@ -343,8 +343,6 @@ const SESSION_BIO = 30 * 60 * 1000;
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
-
-// Per-user document — set after login
 let DOC = null;
 
 window.fbSave = async (data) => {
@@ -391,12 +389,7 @@ window.checkAuthAndShow = () => {
   const now = Date.now();
   const googleValid = !!googleEmail && (now - googleTs) < SESSION_24H;
   const bioValid = (now - bioTs) < SESSION_BIO;
-
-  // Restore DOC for returning users
-  if (googleValid && googleUid) {
-    DOC = doc(db, 'portfolio', googleUid);
-  }
-
+  if (googleValid && googleUid) DOC = doc(db, 'portfolio', googleUid);
   const googleBtn = document.getElementById('googleBtn');
   const bioBtn = document.getElementById('bioBtn');
   const authTitle = document.getElementById('authTitle');
@@ -1583,8 +1576,11 @@ window.proceedToApp = async function() {
           localStorage.setItem('ps', JSON.stringify(S.stocks));
         } catch(_) {}
       } else {
-        // Firebase empty — use defaults from code (don't override with empty)
-        // S.crypto and S.stocks already loaded from localStorage or DEF_S/DEF_C
+        // משתמש חדש — תיק ריק
+        S.crypto = [];
+        S.stocks = [];
+        localStorage.removeItem('pc');
+        localStorage.removeItem('ps');
       }
     }
     doRefresh();
