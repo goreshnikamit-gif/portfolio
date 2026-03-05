@@ -784,65 +784,25 @@ async function getCrypto() {
 }
 
 // *** STOCK FETCH — uses last 2 closes from history for accurate daily change ***
+const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
+
 async function getStocks() {
   await Promise.all(S.stocks.map(async s => {
-    let got = false;
-
-    const parseYahoo = (d) => {
-      const result = d?.chart?.result?.[0];
-      if (!result) return null;
-      const meta = result.meta;
-      // Always use meta fields for accurate current price and previous close
-      const curr = meta.regularMarketPrice;
-      const prev = meta.chartPreviousClose || meta.regularMarketPreviousClose || meta.previousClose;
-      if (curr && prev) {
-        return {
-          price: curr,
-          prevClose: prev,
-          change: ((curr-prev)/prev)*100,
-          changeAmt: curr-prev,
-          high: meta.regularMarketDayHigh,
-          low: meta.regularMarketDayLow
+    try {
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.sym}&token=${FINNHUB_KEY}`, {signal:AbortSignal.timeout(9000)});
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.c && d.pc) {
+        S.sp[s.sym] = {
+          price: d.c,
+          prevClose: d.pc,
+          change: ((d.c - d.pc) / d.pc) * 100,
+          changeAmt: d.c - d.pc,
+          high: d.h,
+          low: d.l
         };
       }
-      return null;
-    };
-
-    // Method 1: corsproxy + query1 — range=5d gives us real closes
-    if (!got) {
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
-        const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
-        if (r.ok) {
-          const res = parseYahoo(await r.json());
-          if (res) { S.sp[s.sym] = res; got = true; }
-        }
-      } catch(_) {}
-    }
-
-    // Method 2: corsproxy + query2
-    if (!got) {
-      try {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
-        const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
-        if (r.ok) {
-          const res = parseYahoo(await r.json());
-          if (res) { S.sp[s.sym] = res; got = true; }
-        }
-      } catch(_) {}
-    }
-
-    // Method 3: thingproxy
-    if (!got) {
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d&_=${Date.now()}`;
-        const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(9000)});
-        if (r.ok) {
-          const res = parseYahoo(await r.json());
-          if (res) { S.sp[s.sym] = res; got = true; }
-        }
-      } catch(_) {}
-    }
+    } catch(_) {}
   }));
 }
 
