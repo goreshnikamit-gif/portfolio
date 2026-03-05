@@ -311,6 +311,30 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="t-sub" id="usdVal">≈ $---</div>
       </div>
     </div>
+
+    <!-- DATE FILTER BAR -->
+    <div style="background:var(--s1);border:1px solid var(--b1);border-radius:13px;padding:12px 14px;margin-bottom:12px;">
+      <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:10px;">📅 פילטר תקופה</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="dashPeriodRow">
+        <button class="pb2 active" onclick="setDashPeriod('live',this)">עכשיו</button>
+        <button class="pb2" onclick="setDashPeriod('1w',this)">שבוע</button>
+        <button class="pb2" onclick="setDashPeriod('1m',this)">חודש</button>
+        <button class="pb2" onclick="setDashPeriod('3m',this)">3 חודשים</button>
+        <button class="pb2" onclick="setDashPeriod('ytd',this)">YTD</button>
+        <button class="pb2" onclick="setDashPeriod('custom',this)">📅 טווח</button>
+      </div>
+      <div id="dashDateRow" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:10px;color:var(--t3);font-weight:600;">מ:</label>
+        <input type="date" id="dashDateFrom" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:5px 9px;color:var(--t1);font-family:Heebo;font-size:12px;">
+        <label style="font-size:10px;color:var(--t3);font-weight:600;">עד:</label>
+        <input type="date" id="dashDateTo" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:5px 9px;color:var(--t1);font-family:Heebo;font-size:12px;">
+        <button class="date-go" onclick="applyDashCustom()">חשב</button>
+      </div>
+      <div id="dashPeriodResult" style="display:none;margin-top:10px;display:none;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;" id="dashPeriodGrid"></div>
+      </div>
+    </div>
+
     <div class="stat-g">
       <div class="stat"><div class="s-lbl">🪙 קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">₪---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
       <div class="stat"><div class="s-lbl">📈 מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">₪---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
@@ -1107,6 +1131,109 @@ function addA(){
 function saveClose(){saveLS();S.sparks={};S.sChg={};S.cChg={};closeEd();doRefresh();}
 
 // ═══════════════════════════════════════════
+// DASHBOARD DATE FILTER
+// ═══════════════════════════════════════════
+let dashPeriod = 'live';
+
+function setDashPeriod(p, btn) {
+  dashPeriod = p;
+  document.querySelectorAll('#dashPeriodRow .pb2').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const dateRow = document.getElementById('dashDateRow');
+  dateRow.style.display = p==='custom' ? 'flex' : 'none';
+  if (p !== 'custom') renderDashPeriod(p);
+}
+
+async function applyDashCustom() {
+  const from = document.getElementById('dashDateFrom').value;
+  const to = document.getElementById('dashDateTo').value;
+  if (!from || !to) { alert('בחר תאריך התחלה וסוף'); return; }
+  renderDashPeriod('custom', from, to);
+}
+
+async function renderDashPeriod(period, customFrom, customTo) {
+  if (period === 'live') {
+    document.getElementById('dashPeriodResult').style.display = 'none';
+    return;
+  }
+
+  const grid = document.getElementById('dashPeriodGrid');
+  const result = document.getElementById('dashPeriodResult');
+  result.style.display = 'block';
+  grid.innerHTML = '<div style="color:var(--t2);font-size:12px;padding:8px;grid-column:1/-1"><div class="spinner" style="display:inline-block;margin-left:6px"></div>מחשב שינויים...</div>';
+
+  const rangeMap = {'1w':'5d','1m':'1mo','3m':'3mo','ytd':'ytd'};
+  const labelMap = {'1w':'שבוע אחרון','1m':'חודש אחרון','3m':'3 חודשים','ytd':'מתחילת השנה'};
+
+  // Get all assets changes for the period
+  const allAssets = [
+    ...S.crypto.map(a=>({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',val:cv(a),asset:a})),
+    ...S.stocks.map(s=>({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',val:sv(s),asset:s})),
+  ];
+
+  const changes = await Promise.all(allAssets.map(async x => {
+    if (x.type === 'crypto') {
+      if (period === 'custom') {
+        const from = new Date(customFrom).getTime();
+        const to = new Date(customTo).getTime();
+        const diffDays = Math.ceil((to-from)/86400000);
+        const hist = await getCryptoHist(x.sym, diffDays);
+        if (!hist.length) return null;
+        const filtered = hist.filter(([t])=>t>=from&&t<=to);
+        if (filtered.length < 2) return null;
+        return ((filtered[filtered.length-1][1]-filtered[0][1])/filtered[0][1])*100;
+      } else {
+        return getCryptoPeriodChange(x.asset, period);
+      }
+    } else {
+      if (period === 'custom') {
+        const fromTs = new Date(customFrom).getTime()/1000;
+        const toTs = new Date(customTo).getTime()/1000;
+        const diffDays = Math.ceil((toTs-fromTs)/86400);
+        const range = diffDays<=5?'5d':diffDays<=31?'1mo':diffDays<=93?'3mo':'1y';
+        const data = await getStockHist(x.sym, range);
+        if (!data || data.length < 2) return null;
+        const filtered = data.filter(d=>d.t/1000>=fromTs&&d.t/1000<=toTs);
+        if (filtered.length < 2) return null;
+        return ((filtered[filtered.length-1].p-filtered[0].p)/filtered[0].p)*100;
+      } else {
+        return getStockPeriodChange(x.sym, period);
+      }
+    }
+  }));
+
+  const periodLabel = period==='custom' ? `${customFrom} → ${customTo}` : labelMap[period];
+  let totalStart = 0, totalEnd = 0;
+
+  grid.innerHTML = allAssets.map((x,i) => {
+    const chg = changes[i];
+    const up = (chg||0) >= 0;
+    const pnl = chg!=null ? x.val*chg/100/(1+chg/100) : null;
+    if (chg!=null) { totalEnd += x.val; totalStart += x.val/(1+chg/100); }
+    return `<div style="background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:11px;cursor:pointer" onclick="openDet('${x.sym}','${x.type}')">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:${x.color}22;display:flex;align-items:center;justify-content:center;font-size:14px">${x.icon}</div>
+        <div><div style="font-size:12px;font-weight:800">${x.sym}</div><div style="font-size:9px;color:var(--t2)">${x.name}</div></div>
+      </div>
+      <div style="font-size:16px;font-weight:900;margin-bottom:3px">${chg!=null?`<span style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(chg)}</span>`:'<span style="color:var(--t3)">אין נתונים</span>'}</div>
+      <div style="font-size:11px;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${pnl!=null?(up?'+':'')+fILS(pnl):''}</div>
+    </div>`;
+  }).join('');
+
+  // Add summary row
+  const totalChg = totalStart ? ((totalEnd-totalStart)/totalStart)*100 : 0;
+  const totalPnl = totalEnd - totalStart;
+  const summaryHTML = `<div style="background:linear-gradient(135deg,rgba(0,229,184,0.08),rgba(79,142,247,0.05));border:1px solid rgba(0,229,184,0.2);border-radius:10px;padding:11px;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:10px;color:var(--t2);font-weight:700">סה"כ תיק — ${periodLabel}</div>
+    <div style="text-align:left">
+      <div style="font-size:16px;font-weight:900;color:${totalChg>=0?'var(--gr)':'var(--rd)'}">${fPct(totalChg)}</div>
+      <div style="font-size:12px;font-weight:700;color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div>
+    </div>
+  </div>`;
+  grid.innerHTML += summaryHTML;
+}
+
+// ═══════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════
 async function doRefresh(){
@@ -1130,10 +1257,14 @@ let dp;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;document.getElementById('installBanner').classList.add('show');});
 document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;document.getElementById('installBanner').classList.remove('show');});
 
-// Set default dates for date picker
+// Default dates
 const today=new Date();const monthAgo=new Date(today);monthAgo.setMonth(monthAgo.getMonth()-1);
-document.getElementById('dateTo').value=today.toISOString().split('T')[0];
-document.getElementById('dateFrom').value=monthAgo.toISOString().split('T')[0];
+const todayStr=today.toISOString().split('T')[0];
+const monthAgoStr=monthAgo.toISOString().split('T')[0];
+document.getElementById('dateTo').value=todayStr;
+document.getElementById('dateFrom').value=monthAgoStr;
+document.getElementById('dashDateTo').value=todayStr;
+document.getElementById('dashDateFrom').value=monthAgoStr;
 
 doRefresh();
 setInterval(doRefresh,30000);
