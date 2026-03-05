@@ -494,42 +494,16 @@ async function getCrypto() {
   }
 }
 
-// *** EXACT V4 STOCK FETCH — DO NOT CHANGE THIS ***
+// *** STOCK FETCH — corsproxy.io first (allorigins blocked on GitHub Pages) ***
 async function getStocks() {
   await Promise.all(S.stocks.map(async s => {
     let got = false;
 
-    // Method 1: Yahoo via allorigins
+    // Method 1: corsproxy.io + query1
     if (!got) {
       try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const r = await fetch(proxy, {signal:AbortSignal.timeout(9000)});
-        if (r.ok) {
-          const outer = await r.json();
-          const contents = outer?.contents;
-          if (contents) {
-            const d = JSON.parse(contents);
-            const meta = d?.chart?.result?.[0]?.meta;
-            if (meta) {
-              const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
-              const curr = meta.regularMarketPrice;
-              if (curr && prev) {
-                S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
-                got = true;
-              }
-            }
-          }
-        }
-      } catch(_) {}
-    }
-
-    // Method 2: corsproxy.io
-    if (!got) {
-      try {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const r = await fetch(proxy, {signal:AbortSignal.timeout(9000)});
+        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const d = await r.json();
           const meta = d?.chart?.result?.[0]?.meta;
@@ -545,25 +519,40 @@ async function getStocks() {
       } catch(_) {}
     }
 
-    // Method 3: allorigins with query2 (different endpoint)
+    // Method 2: corsproxy.io + query2
     if (!got) {
       try {
         const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const r = await fetch(proxy, {signal:AbortSignal.timeout(9000)});
+        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
-          const outer = await r.json();
-          const contents = outer?.contents;
-          if (contents) {
-            const d = JSON.parse(contents);
-            const meta = d?.chart?.result?.[0]?.meta;
-            if (meta) {
-              const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
-              const curr = meta.regularMarketPrice;
-              if (curr && prev) {
-                S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
-                got = true;
-              }
+          const d = await r.json();
+          const meta = d?.chart?.result?.[0]?.meta;
+          if (meta) {
+            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
+            const curr = meta.regularMarketPrice;
+            if (curr && prev) {
+              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+              got = true;
+            }
+          }
+        }
+      } catch(_) {}
+    }
+
+    // Method 3: thingproxy (different CORS proxy service)
+    if (!got) {
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
+        const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(9000)});
+        if (r.ok) {
+          const d = await r.json();
+          const meta = d?.chart?.result?.[0]?.meta;
+          if (meta) {
+            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
+            const curr = meta.regularMarketPrice;
+            if (curr && prev) {
+              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
+              got = true;
             }
           }
         }
@@ -597,13 +586,15 @@ async function getStockHist(sym, range) {
   const key = sym+'_'+range;
   if (S.sChg[key]) return S.sChg[key];
 
-  for (const proxyBase of ['https://api.allorigins.win/get?url=','https://corsproxy.io/?']) {
+  for (const proxyFn of [
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  ]) {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-      const full = proxyBase.includes('allorigins') ? proxyBase+encodeURIComponent(url) : proxyBase+encodeURIComponent(url);
+      const full = proxyFn(url);
       const r = await fetch(full, {signal:AbortSignal.timeout(7000)});
-      const raw = await r.json();
-      const d = proxyBase.includes('allorigins') ? JSON.parse(raw.contents) : raw;
+      const d = await r.json();
       const result = d?.chart?.result?.[0];
       if (result?.indicators?.quote?.[0]?.close && result?.timestamp) {
         const closes = result.indicators.quote[0].close;
