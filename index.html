@@ -828,7 +828,7 @@ async function getStocks() {
     if (!got) {
       try {
         const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
-        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
+        const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
           if (res) { S.sp[s.sym] = res; got = true; }
@@ -840,7 +840,7 @@ async function getStocks() {
     if (!got) {
       try {
         const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
-        const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
+        const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
           if (res) { S.sp[s.sym] = res; got = true; }
@@ -888,7 +888,7 @@ async function getStockHist(sym, range) {
   if (S.sChg[key]) return S.sChg[key];
 
   for (const proxyFn of [
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://corsproxy.io/?${url}`,
     url => `https://thingproxy.freeboard.io/fetch/${url}`,
   ]) {
     try {
