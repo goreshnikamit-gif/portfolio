@@ -270,7 +270,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .fadd{width:100%;background:var(--ac);border:none;border-radius:8px;padding:9px;color:#000;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
 .fsave{width:100%;background:var(--ac);border:none;border-radius:11px;padding:12px;color:#000;font-family:'Heebo',sans-serif;font-size:14px;font-weight:800;cursor:pointer;}
 
-/* Install banner */
+/* LOCK SCREEN */
+#lockScreen{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+#lockScreen.hidden{display:none;}
+.lock-logo{width:72px;height:72px;background:linear-gradient(135deg,var(--ac),#00b4d8);border-radius:20px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:32px;color:#000;box-shadow:0 0 40px rgba(0,229,184,0.3);margin-bottom:8px;}
+.lock-title{font-size:22px;font-weight:900;letter-spacing:-.5px;}
+.lock-sub{font-size:13px;color:var(--t2);text-align:center;max-width:260px;line-height:1.5;}
+.lock-btn{display:flex;flex-direction:column;align-items:center;gap:8px;background:transparent;border:2px solid rgba(0,229,184,0.3);border-radius:18px;padding:20px 32px;cursor:pointer;transition:all .2s;font-family:Heebo;}
+.lock-btn:hover{border-color:var(--ac);background:rgba(0,229,184,0.05);}
+.lock-btn-ico{font-size:42px;}
+.lock-btn-lbl{font-size:13px;font-weight:700;color:var(--ac);}
+.lock-err{font-size:12px;color:var(--rd);text-align:center;min-height:18px;}
+.lock-skip{font-size:11px;color:var(--t3);cursor:pointer;text-decoration:underline;margin-top:4px;background:none;border:none;font-family:Heebo;}
 .ibanner{display:none;position:fixed;bottom:calc(var(--nav) + var(--safe) + 10px);left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid rgba(0,229,184,0.25);border-radius:13px;padding:11px 15px;z-index:150;align-items:center;gap:9px;box-shadow:0 8px 28px rgba(0,0,0,0.5);max-width:calc(100vw - 28px);}
 .ibanner.show{display:flex;}
 
@@ -311,8 +322,62 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
   </div>
 </div>
 
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
+  authDomain: "portfolio-d3745.firebaseapp.com",
+  projectId: "portfolio-d3745",
+  storageBucket: "portfolio-d3745.firebasestorage.app",
+  messagingSenderId: "1007321762168",
+  appId: "1:1007321762168:web:1cef4087246add2732608d"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const DOC = doc(db, 'portfolio', 'main');
+
+// Expose to global scope
+window.fbSave = async (data) => {
+  try {
+    await setDoc(DOC, data, {merge: true});
+  } catch(e) { console.warn('Firebase save error:', e); }
+};
+
+window.fbLoad = async () => {
+  try {
+    const snap = await getDoc(DOC);
+    return snap.exists() ? snap.data() : null;
+  } catch(e) { console.warn('Firebase load error:', e); return null; }
+};
+
+// Real-time listener — updates app when data changes from another device
+window.fbListen = (callback) => {
+  onSnapshot(DOC, (snap) => {
+    if (snap.exists()) callback(snap.data());
+  });
+};
+
+window.firebaseReady = true;
+document.dispatchEvent(new Event('firebaseReady'));
+</script>
+<div id="lockScreen">
+  <div class="lock-logo">P</div>
+  <div class="lock-title">פורטפוליו שלי</div>
+  <div class="lock-sub">אמת זהות כדי להמשיך</div>
+  <button class="lock-btn" onclick="doAuth()">
+    <div class="lock-btn-ico" id="authIco">🔐</div>
+    <div class="lock-btn-lbl" id="authLbl">טביעת אצבע / זיהוי פנים</div>
+  </button>
+  <div class="lock-err" id="lockErr"></div>
+  <button class="lock-skip" onclick="skipAuth()">כניסה ללא אימות</button>
+</div>
+
 <!-- APP -->
-<div id="app">
+<div id="app" style="display:none">
 
   <!-- DASHBOARD -->
   <div class="page active" id="page-dash">
@@ -501,7 +566,20 @@ function loadLS(k,d){
     return parsed;
   } catch(_) { return JSON.parse(JSON.stringify(d)); }
 }
-function saveLS(){try{localStorage.setItem('pc',JSON.stringify(S.crypto));localStorage.setItem('ps',JSON.stringify(S.stocks));}catch(_){}}
+function saveLS(){
+  try{
+    localStorage.setItem('pc',JSON.stringify(S.crypto));
+    localStorage.setItem('ps',JSON.stringify(S.stocks));
+  }catch(_){}
+  // Save to Firebase
+  if(window.fbSave) {
+    window.fbSave({
+      crypto: S.crypto,
+      stocks: S.stocks,
+      updatedAt: Date.now()
+    });
+  }
+}
 
 const S = {
   fx: 3.65,
@@ -1376,6 +1454,173 @@ let dp;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;document.getElementById('installBanner').classList.add('show');});
 document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;document.getElementById('installBanner').classList.remove('show');});
 
+// ═══════════════════════════════════════════
+// BIOMETRIC AUTH
+// ═══════════════════════════════════════════
+const AUTH_KEY = 'portfolio_auth_cred';
+const SESSION_KEY = 'portfolio_session';
+
+function isSessionValid() {
+  try {
+    const s = sessionStorage.getItem(SESSION_KEY);
+    if (!s) return false;
+    const {ts} = JSON.parse(s);
+    // Session valid for 30 minutes
+    return (Date.now() - ts) < 30 * 60 * 1000;
+  } catch(_) { return false; }
+}
+
+function setSession() {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ts: Date.now()}));
+}
+
+async function unlockApp() {
+  setSession();
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').style.display = '';
+  document.querySelector('.topbar').style.display = '';
+  document.querySelector('.nav').style.display = '';
+
+  // Try loading from Firebase first
+  const loadAndStart = async () => {
+    if (window.fbLoad) {
+      const fbData = await window.fbLoad();
+      if (fbData?.crypto?.length) S.crypto = fbData.crypto;
+      if (fbData?.stocks?.length) S.stocks = fbData.stocks;
+      // Also update localStorage
+      try {
+        localStorage.setItem('pc', JSON.stringify(S.crypto));
+        localStorage.setItem('ps', JSON.stringify(S.stocks));
+      } catch(_) {}
+    }
+    doRefresh();
+    setInterval(doRefresh, 30000);
+
+    // Real-time listener for changes from other devices
+    if (window.fbListen) {
+      window.fbListen((data) => {
+        if (data?.crypto?.length) S.crypto = data.crypto;
+        if (data?.stocks?.length) S.stocks = data.stocks;
+        renderDashCrypto();
+        renderDashStocks();
+        updateKPIs();
+      });
+    }
+  };
+
+  // Wait for Firebase if not ready yet
+  if (window.firebaseReady) {
+    await loadAndStart();
+  } else {
+    document.addEventListener('firebaseReady', loadAndStart, {once: true});
+    // Fallback after 3s if Firebase doesn't load
+    setTimeout(() => {
+      if (!window.firebaseReady) { doRefresh(); setInterval(doRefresh, 30000); }
+    }, 3000);
+  }
+}
+
+function skipAuth() {
+  if (confirm('כניסה ללא אימות ביומטרי — בטוח?')) unlockApp();
+}
+
+async function doAuth() {
+  const ico = document.getElementById('authIco');
+  const lbl = document.getElementById('authLbl');
+  const err = document.getElementById('lockErr');
+  err.textContent = '';
+
+  // Check WebAuthn support
+  if (!window.PublicKeyCredential) {
+    err.textContent = 'הדפדפן אינו תומך באימות ביומטרי';
+    return;
+  }
+
+  ico.textContent = '⏳';
+  lbl.textContent = 'ממתין לאימות...';
+
+  try {
+    const credId = localStorage.getItem(AUTH_KEY);
+
+    if (!credId) {
+      // First time — register biometric
+      lbl.textContent = 'רישום ראשוני...';
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const userId = crypto.getRandomValues(new Uint8Array(16));
+
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'פורטפוליו שלי', id: location.hostname },
+          user: { id: userId, name: 'user', displayName: 'משתמש' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+          },
+          timeout: 60000,
+        }
+      });
+
+      // Save credential ID
+      const idArr = new Uint8Array(cred.rawId);
+      localStorage.setItem(AUTH_KEY, JSON.stringify(Array.from(idArr)));
+      ico.textContent = '✅';
+      lbl.textContent = 'נרשמת בהצלחה!';
+      setTimeout(unlockApp, 600);
+
+    } else {
+      // Returning — verify biometric
+      const rawIdArr = new Uint8Array(JSON.parse(credId));
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{ type: 'public-key', id: rawIdArr }],
+          userVerification: 'required',
+          timeout: 60000,
+        }
+      });
+
+      ico.textContent = '✅';
+      lbl.textContent = 'אומת בהצלחה!';
+      setTimeout(unlockApp, 400);
+    }
+
+  } catch(e) {
+    ico.textContent = '🔐';
+    lbl.textContent = 'טביעת אצבע / זיהוי פנים';
+    if (e.name === 'NotAllowedError') {
+      err.textContent = 'האימות בוטל או נכשל — נסה שוב';
+    } else if (e.name === 'InvalidStateError') {
+      // Cred exists but changed device — reset
+      localStorage.removeItem(AUTH_KEY);
+      err.textContent = 'מכשיר חדש — לחץ שוב לרישום מחדש';
+    } else {
+      err.textContent = 'שגיאה: ' + e.message;
+    }
+  }
+}
+
+// On load — check session or show lock
+(function initAuth() {
+  const topbar = document.querySelector('.topbar');
+  const nav = document.querySelector('.nav');
+  if (topbar) topbar.style.display = 'none';
+  if (nav) nav.style.display = 'none';
+
+  if (isSessionValid()) {
+    unlockApp();
+  } else {
+    // Auto-trigger auth after short delay
+    setTimeout(() => {
+      const ico = document.getElementById('authIco');
+      if (ico) ico.textContent = window.PublicKeyCredential ? '🔐' : '🔓';
+    }, 300);
+  }
+})();
+
 // Theme toggle
 function toggleTheme(){
   const isLight = document.body.classList.toggle('light');
@@ -1400,8 +1645,7 @@ document.getElementById('dateFrom').value=monthAgoStr;
 document.getElementById('dashDateTo').value=todayStr;
 document.getElementById('dashDateFrom').value=monthAgoStr;
 
-doRefresh();
-setInterval(doRefresh,30000);
+// App starts after auth (see initAuth above)
 </script>
 </body>
 </html>
