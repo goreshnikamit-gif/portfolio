@@ -485,18 +485,25 @@ window.doBiometric = async () => {
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
 
-// Handle redirect result (mobile Google login return)
+// Handle redirect result FIRST (mobile Google login return)
 getRedirectResult(auth).then(result => {
   if (result?.user) {
     handleUser(result.user);
     window.proceedToApp();
+  } else {
+    // No redirect result — check auth state normally
+    onAuthStateChanged(auth, user => {
+      if (user) DOC = getDoc2(user.uid);
+      window.checkAuthAndShow();
+    });
   }
-}).catch(e => console.warn('Redirect result error:', e));
-
-// Check auth state on load — restore DOC for returning users
-onAuthStateChanged(auth, user => {
-  if (user) DOC = getDoc2(user.uid);
-  window.checkAuthAndShow();
+}).catch(e => {
+  console.warn('Redirect result error:', e);
+  // On error, still check auth state
+  onAuthStateChanged(auth, user => {
+    if (user) DOC = getDoc2(user.uid);
+    window.checkAuthAndShow();
+  });
 });
 </script>
 <div id="lockScreen">
