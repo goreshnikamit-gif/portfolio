@@ -827,7 +827,7 @@ async function getStocks() {
     // Method 1: corsproxy + query1 — range=5d gives us real closes
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
         const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
@@ -839,7 +839,7 @@ async function getStocks() {
     // Method 2: corsproxy + query2
     if (!got) {
       try {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
+        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
         const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
@@ -851,7 +851,7 @@ async function getStocks() {
     // Method 3: thingproxy
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1m&range=1d`;
         const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
           const res = parseYahoo(await r.json());
