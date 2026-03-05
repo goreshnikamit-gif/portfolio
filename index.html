@@ -448,10 +448,9 @@ window.doBiometric = async () => {
 window.firebaseReady = true;
 document.dispatchEvent(new Event('firebaseReady'));
 
-onAuthStateChanged(auth, user => {
-  window.checkAuthAndShow();
-});
+onAuthStateChanged(auth, () => { window.checkAuthAndShow(); });
 </script>
+
 <div id="lockScreen">
   <div class="lock-logo">P</div>
   <div class="lock-title">פורטפוליו שלי</div>
@@ -1575,9 +1574,8 @@ window.proceedToApp = async function() {
           localStorage.setItem('ps', JSON.stringify(S.stocks));
         } catch(_) {}
       } else {
-        // New user — start with empty portfolio
-        S.crypto = [];
-        S.stocks = [];
+        // Firebase empty — use defaults from code (don't override with empty)
+        // S.crypto and S.stocks already loaded from localStorage or DEF_S/DEF_C
       }
     }
     doRefresh();
