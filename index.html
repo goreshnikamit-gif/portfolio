@@ -1245,13 +1245,21 @@ async function buildHistoryTable() {
       } catch(_) {}
     }));
 
-    // Build list of trading days
-    const allTimestamps = new Set();
-    Object.values(stockHist).forEach(h => h.t?.forEach(t => allTimestamps.add(t)));
-    Object.values(cryptoHist).forEach(arr => arr?.forEach(d => allTimestamps.add(d.t)));
-    const sortedDays = [...allTimestamps].sort((a,b) => b-a).slice(0, days);
+    // Build list of unique trading days grouped by date string
+    const dayMap = {}; // dateStr -> { openVal, closeVal }
 
-    if (!sortedDays.length) {
+    // Helper to get date string from timestamp
+    const toDateStr = (ts) => new Date(ts * 1000).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
+    const toDateKey = (ts) => new Date(ts * 1000).toISOString().slice(0,10);
+
+    // Collect all unique date keys
+    const dateKeys = new Set();
+    Object.values(stockHist).forEach(h => h.t?.forEach(t => dateKeys.add(toDateKey(t))));
+    Object.values(cryptoHist).forEach(arr => arr?.forEach(d => dateKeys.add(toDateKey(d.t))));
+
+    const sortedKeys = [...dateKeys].sort((a,b) => b.localeCompare(a)).slice(0, days);
+
+    if (!sortedKeys.length) {
       el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">אין נתונים היסטוריים</div>';
       return;
     }
@@ -1268,27 +1276,25 @@ async function buildHistoryTable() {
         </tr>
       </thead><tbody>`;
 
-    for (const ts of sortedDays) {
-      const date = new Date(ts * 1000);
-      const dateStr = date.toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
-
+    for (const dateKey of sortedKeys) {
+      const dateStr = new Date(dateKey).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
       let openVal = 0, closeVal = 0;
 
-      // Stocks
+      // Stocks — find by matching date key
       S.stocks.forEach(s => {
         const h = stockHist[s.sym];
         if (!h) return;
-        const idx = h.t.indexOf(ts);
+        const idx = h.t.findIndex(t => toDateKey(t) === dateKey);
         if (idx === -1) return;
         openVal  += (h.o[idx] || 0) * s.shares * S.fx;
         closeVal += (h.c[idx] || 0) * s.shares * S.fx;
       });
 
-      // Crypto
+      // Crypto — find by matching date key
       S.crypto.forEach(a => {
         const arr = cryptoHist[a.sym];
         if (!arr) return;
-        const d = arr.find(x => Math.abs(x.t - ts) < 86400);
+        const d = arr.find(x => toDateKey(x.t) === dateKey);
         if (!d) return;
         openVal  += (d.o || 0) * a.qty * S.fx;
         closeVal += (d.c || 0) * a.qty * S.fx;
