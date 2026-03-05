@@ -1089,13 +1089,22 @@ function renderStockModal(s,el){
       <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}">${chg!=null?fPct(chg):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
     </div>
-    <div class="mch"><div class="mchl">שינוי יומי</div></div>
-    <div class="mchb" id="mchBox">${p?'<canvas id="dCanvas"></canvas>':'<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px">נתוני מחיר לא זמינים</div>'}</div>
+    <div class="mch"><div class="mchl">גרף מחיר</div>
+      <div class="rbtns">
+        <button class="rb active" onclick="loadSC('${s.sym}','1d',this)">יום</button>
+        <button class="rb" onclick="loadSC('${s.sym}','5d',this)">5י</button>
+        <button class="rb" onclick="loadSC('${s.sym}','1mo',this)">חודש</button>
+        <button class="rb" onclick="loadSC('${s.sym}','3mo',this)">3ח</button>
+        <button class="rb" onclick="loadSC('${s.sym}','1y',this)">שנה</button>
+        <button class="rb" onclick="loadSC('${s.sym}','5y',this)">5ש</button>
+      </div>
+    </div>
+    <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
     <div class="man">
       <div class="manc"><div class="mant">📊 פוזיציה</div>
+        <div class="mr"><span class="mrl">מניות</span><span class="mrv ac">${s.shares?s.shares.toFixed(3):'--'}</span></div>
         <div class="mr"><span class="mrl">שווי ₪</span><span class="mrv ac">${fILS(val)}</span></div>
         <div class="mr"><span class="mrl">שווי $</span><span class="mrv">$${(val/S.fx).toFixed(0)}</span></div>
-        <div class="mr"><span class="mrl">מחיר מניה</span><span class="mrv">${pu?'$'+pu.toFixed(2):'--'}</span></div>
         <div class="mr"><span class="mrl">% תיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
       </div>
       <div class="manc"><div class="mant">📈 ביצועים</div>
@@ -1107,14 +1116,68 @@ function renderStockModal(s,el){
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>`;
-  if(p?.price&&p?.prevClose){
-    setTimeout(()=>{
-      const canvas=document.getElementById('dCanvas');if(!canvas)return;
-      const up=p.change>=0;const col=up?'#10d97e':'#f43f5e';
-      const pts=[p.prevClose,p.prevClose+(p.price-p.prevClose)*.33,p.prevClose+(p.price-p.prevClose)*.66,p.price];
-      S.dChart=new Chart(canvas,{type:'line',data:{labels:['פתיחה','','','כעת'],datasets:[{label:'$',data:pts,borderColor:col,borderWidth:2,pointRadius:[3,0,0,3],pointBackgroundColor:col,tension:.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw?.toFixed(2)}}},scales:{x:{ticks:{color:'#3d5070'},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',callback:v=>'$'+v.toFixed(2)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}});
-    },50);
+  // Load daily chart by default
+  loadSC(s.sym,'1d',el.querySelector('.rb.active'));
+}
+
+async function loadSC(sym, range, btn){
+  document.querySelectorAll('#detContent .rb').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const box=document.getElementById('mchBox');
+  if(box) box.style.opacity='.5';
+
+  let prices=[], labels=[];
+
+  if(range==='1d'){
+    // Daily: use prevClose → price line
+    const p=S.sp[sym];
+    if(p?.price&&p?.prevClose){
+      prices=[p.prevClose,p.prevClose+(p.price-p.prevClose)*.25,p.prevClose+(p.price-p.prevClose)*.5,p.prevClose+(p.price-p.prevClose)*.75,p.price];
+      labels=['פתיחה','','','','כעת'];
+    }
+    if(box) box.style.opacity='1';
+    drawSChart(prices,labels,sym);
+    return;
   }
+
+  // Historical ranges via Yahoo proxy
+  const data = await getStockHist(sym, range);
+  if(box) box.style.opacity='1';
+  if(!data||!data.length){
+    const c=document.getElementById('dCanvas');
+    if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
+    return;
+  }
+  prices = data.map(d=>d.p);
+  labels = data.map(d=>{
+    const dt=new Date(d.t);
+    if(range==='5d') return dt.toLocaleDateString('he-IL',{weekday:'short'});
+    if(range==='1mo'||range==='3mo') return dt.toLocaleDateString('he-IL',{month:'short',day:'numeric'});
+    return dt.toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
+  });
+  drawSChart(prices,labels,sym);
+}
+
+function drawSChart(prices,labels,sym){
+  const canvas=document.getElementById('dCanvas'); if(!canvas||!prices.length) return;
+  if(S.dChart){S.dChart.destroy();S.dChart=null;}
+  const up=prices[prices.length-1]>=prices[0];
+  const col=up?'#10d97e':'#f43f5e';
+  const pct=prices[0]?((prices[prices.length-1]-prices[0])/prices[0]*100).toFixed(2):0;
+  S.dChart=new Chart(canvas,{
+    type:'line',
+    data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:2,pointRadius:0,tension:.3,fill:true,
+      backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(2)}},
+        title:{display:true,text:`${up?'+':''}${pct}% לתקופה`,color:col,font:{size:11,family:'Heebo'}}},
+      scales:{
+        x:{ticks:{color:'#3d5070',font:{size:8},maxTicksLimit:7},grid:{color:'rgba(255,255,255,0.02)'}},
+        y:{ticks:{color:'#3d5070',font:{size:8},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}
+      }
+    }
+  });
 }
 
 // ═══════════════════════════════════════════
