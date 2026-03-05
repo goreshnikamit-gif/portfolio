@@ -1211,15 +1211,14 @@ async function buildHistoryTable() {
   const days = parseInt(document.getElementById('histDays')?.value || '30');
 
   try {
-    // Get date range
-    const toDate = Math.floor(Date.now()/1000);
-    const fromDate = toDate - (days * 24 * 60 * 60);
+    const toDateKey = (ts) => new Date(ts * 1000).toISOString().slice(0,10);
 
     // Fetch historical candles for each stock from Yahoo Finance
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=${days <= 7 ? '7d' : days <= 30 ? '1mo' : '3mo'}`;
+        const range = days <= 7 ? '7d' : days <= 30 ? '1mo' : '3mo';
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=${range}`;
         const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
         if (!r.ok) return;
         const d = await r.json();
@@ -1228,7 +1227,12 @@ async function buildHistoryTable() {
         const t = result.timestamp;
         const o = result.indicators?.quote?.[0]?.open;
         const c = result.indicators?.quote?.[0]?.close;
-        if (t && o && c) stockHist[s.sym] = { t, o, c };
+        if (t && o && c) {
+          // Build map dateKey -> {o, c}
+          const map = {};
+          t.forEach((ts,i) => { if(o[i]&&c[i]) map[toDateKey(ts)] = {o:o[i], c:c[i]}; });
+          stockHist[s.sym] = map;
+        }
       } catch(_) {}
     }));
 
@@ -1238,34 +1242,74 @@ async function buildHistoryTable() {
       const bs = BN[a.sym];
       if (!bs) return;
       try {
-        const limit = Math.min(days + 1, 90);
+        const limit = Math.min(days + 2, 100);
         const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
         const arr = await r.json();
-        cryptoHist[a.sym] = arr.map(k => ({ t: Math.floor(k[0]/1000), o: parseFloat(k[1]), c: parseFloat(k[4]) }));
+        const map = {};
+        arr.forEach(k => { map[toDateKey(Math.floor(k[0]/1000))] = {o:parseFloat(k[1]), c:parseFloat(k[4])}; });
+        cryptoHist[a.sym] = map;
       } catch(_) {}
     }));
 
-    // Build list of unique trading days grouped by date string
-    const dayMap = {}; // dateStr -> { openVal, closeVal }
+    // Build all calendar days in range
+    const allDays = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      allDays.push(d.toISOString().slice(0,10));
+    }
 
-    // Helper to get date string from timestamp
-    const toDateStr = (ts) => new Date(ts * 1000).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
-    const toDateKey = (ts) => new Date(ts * 1000).toISOString().slice(0,10);
+    // Track last known stock prices for carry-forward on closed days
+    const lastStockClose = {};
 
-    // Collect all unique date keys
-    const dateKeys = new Set();
-    Object.values(stockHist).forEach(h => h.t?.forEach(t => dateKeys.add(toDateKey(t))));
-    Object.values(cryptoHist).forEach(arr => arr?.forEach(d => dateKeys.add(toDateKey(d.t))));
+    // Build rows for each day
+    const rows = [];
+    for (const dateKey of [...allDays].reverse()) {
+      let openVal = 0, closeVal = 0, hasData = false;
 
-    const sortedKeys = [...dateKeys].sort((a,b) => b.localeCompare(a)).slice(0, days);
+      S.stocks.forEach(s => {
+        const map = stockHist[s.sym];
+        if (!map) return;
+        if (map[dateKey]) {
+          lastStockClose[s.sym] = map[dateKey].c;
+          openVal  += map[dateKey].o * s.shares * S.fx;
+          closeVal += map[dateKey].c * s.shares * S.fx;
+          hasData = true;
+        } else if (lastStockClose[s.sym]) {
+          // Market closed — use last known price for both open and close
+          openVal  += lastStockClose[s.sym] * s.shares * S.fx;
+          closeVal += lastStockClose[s.sym] * s.shares * S.fx;
+        }
+      });
 
-    if (!sortedKeys.length) {
+      S.crypto.forEach(a => {
+        const map = cryptoHist[a.sym];
+        if (!map) return;
+        if (map[dateKey]) {
+          openVal  += map[dateKey].o * a.qty * S.fx;
+          closeVal += map[dateKey].c * a.qty * S.fx;
+          hasData = true;
+        }
+      });
+
+      if (!openVal && !closeVal) continue;
+      rows.push({ dateKey, openVal, closeVal, hasData });
+    }
+
+    rows.reverse(); // newest first
+
+    if (!rows.length) {
       el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">אין נתונים היסטוריים</div>';
       return;
     }
 
-    // Build table
-    let html = `<div style="overflow-x:auto">
+    // Build chart data (chronological)
+    const chartLabels = [...rows].reverse().map(r => r.dateKey.slice(5).replace('-','/'));
+    const chartData   = [...rows].reverse().map(r => Math.round(r.closeVal));
+
+    // Build chart canvas + table
+    let html = `
+    <canvas id="histChart" style="width:100%;height:160px;margin-bottom:12px"></canvas>
+    <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead>
         <tr style="color:var(--t3);border-bottom:1px solid var(--b1)">
@@ -1276,38 +1320,16 @@ async function buildHistoryTable() {
         </tr>
       </thead><tbody>`;
 
-    for (const dateKey of sortedKeys) {
+    for (const row of rows) {
+      const { dateKey, openVal, closeVal, hasData } = row;
       const dateStr = new Date(dateKey).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
-      let openVal = 0, closeVal = 0;
-
-      // Stocks — find by matching date key
-      S.stocks.forEach(s => {
-        const h = stockHist[s.sym];
-        if (!h) return;
-        const idx = h.t.findIndex(t => toDateKey(t) === dateKey);
-        if (idx === -1) return;
-        openVal  += (h.o[idx] || 0) * s.shares * S.fx;
-        closeVal += (h.c[idx] || 0) * s.shares * S.fx;
-      });
-
-      // Crypto — find by matching date key
-      S.crypto.forEach(a => {
-        const arr = cryptoHist[a.sym];
-        if (!arr) return;
-        const d = arr.find(x => toDateKey(x.t) === dateKey);
-        if (!d) return;
-        openVal  += (d.o || 0) * a.qty * S.fx;
-        closeVal += (d.c || 0) * a.qty * S.fx;
-      });
-
-      if (!openVal && !closeVal) continue;
-
       const pnl = closeVal - openVal;
       const pct = openVal ? (pnl/openVal*100) : 0;
       const up = pnl >= 0;
+      const closedStyle = hasData ? '' : 'opacity:0.45';
 
-      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-        <td style="padding:6px 4px;color:var(--t2)">${dateStr}</td>
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${closedStyle}">
+        <td style="padding:6px 4px;color:var(--t2)">${dateStr}${hasData?'':' 🔒'}</td>
         <td style="padding:6px 4px">${fILS(openVal)}</td>
         <td style="padding:6px 4px">${fILS(closeVal)}</td>
         <td style="padding:6px 4px" class="${up?'up':'dn'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
@@ -1316,6 +1338,36 @@ async function buildHistoryTable() {
 
     html += '</tbody></table></div>';
     el.innerHTML = html;
+
+    // Draw chart
+    const ctx = document.getElementById('histChart')?.getContext('2d');
+    if (ctx && window.Chart) {
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            data: chartData,
+            borderColor: '#00e5b8',
+            backgroundColor: 'rgba(0,229,184,0.08)',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: ctx => '₪' + ctx.parsed.y.toLocaleString() }
+          }},
+          scales: {
+            x: { ticks: { color: '#666', maxTicksLimit: 6, font:{size:9} }, grid:{display:false} },
+            y: { ticks: { color: '#666', font:{size:9}, callback: v => '₪'+(v/1000).toFixed(0)+'K' }, grid:{color:'rgba(255,255,255,0.05)'} }
+          }
+        }
+      });
+    }
 
   } catch(e) {
     el.innerHTML = `<div style="color:var(--t3);font-size:12px;padding:8px">שגיאה: ${e.message}</div>`;
