@@ -518,67 +518,79 @@ async function getCrypto() {
   }
 }
 
-// *** STOCK FETCH — corsproxy.io first (allorigins blocked on GitHub Pages) ***
+// *** STOCK FETCH — uses last 2 closes from history for accurate daily change ***
 async function getStocks() {
   await Promise.all(S.stocks.map(async s => {
     let got = false;
 
-    // Method 1: corsproxy.io + query1
+    const parseYahoo = (d) => {
+      const result = d?.chart?.result?.[0];
+      if (!result) return null;
+      const meta = result.meta;
+      const closes = result.indicators?.quote?.[0]?.close?.filter(x=>x!=null);
+      // Use last 2 real closes for accurate daily change
+      if (closes && closes.length >= 2) {
+        const curr = closes[closes.length-1];
+        const prev = closes[closes.length-2];
+        if (curr && prev) {
+          return {
+            price: curr,
+            prevClose: prev,
+            change: ((curr-prev)/prev)*100,
+            changeAmt: curr-prev,
+            high: meta.regularMarketDayHigh,
+            low: meta.regularMarketDayLow
+          };
+        }
+      }
+      // Fallback to meta fields
+      const curr = meta.regularMarketPrice;
+      const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
+      if (curr && prev) {
+        return {
+          price: curr,
+          prevClose: prev,
+          change: ((curr-prev)/prev)*100,
+          changeAmt: curr-prev,
+          high: meta.regularMarketDayHigh,
+          low: meta.regularMarketDayLow
+        };
+      }
+      return null;
+    };
+
+    // Method 1: corsproxy + query1 — range=5d gives us real closes
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
         const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
-          const d = await r.json();
-          const meta = d?.chart?.result?.[0]?.meta;
-          if (meta) {
-            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
-            const curr = meta.regularMarketPrice;
-            if (curr && prev) {
-              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
-              got = true;
-            }
-          }
+          const res = parseYahoo(await r.json());
+          if (res) { S.sp[s.sym] = res; got = true; }
         }
       } catch(_) {}
     }
 
-    // Method 2: corsproxy.io + query2
+    // Method 2: corsproxy + query2
     if (!got) {
       try {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
+        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
         const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
-          const d = await r.json();
-          const meta = d?.chart?.result?.[0]?.meta;
-          if (meta) {
-            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
-            const curr = meta.regularMarketPrice;
-            if (curr && prev) {
-              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
-              got = true;
-            }
-          }
+          const res = parseYahoo(await r.json());
+          if (res) { S.sp[s.sym] = res; got = true; }
         }
       } catch(_) {}
     }
 
-    // Method 3: thingproxy (different CORS proxy service)
+    // Method 3: thingproxy
     if (!got) {
       try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=2d`;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=5d`;
         const r = await fetch(`https://thingproxy.freeboard.io/fetch/${url}`, {signal:AbortSignal.timeout(9000)});
         if (r.ok) {
-          const d = await r.json();
-          const meta = d?.chart?.result?.[0]?.meta;
-          if (meta) {
-            const prev = meta.regularMarketPreviousClose || meta.previousClose || meta.chartPreviousClose;
-            const curr = meta.regularMarketPrice;
-            if (curr && prev) {
-              S.sp[s.sym] = {price:curr, prevClose:prev, change:meta.regularMarketChangePercent ?? ((curr-prev)/prev)*100, changeAmt:curr-prev, high:meta.regularMarketDayHigh, low:meta.regularMarketDayLow};
-              got = true;
-            }
-          }
+          const res = parseYahoo(await r.json());
+          if (res) { S.sp[s.sym] = res; got = true; }
         }
       } catch(_) {}
     }

@@ -1,4 +1,4 @@
-const CACHE = 'portfolio-v3';
+const CACHE = 'portfolio-v4';
 const SHELL = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -15,17 +15,14 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  // Skip non-http (chrome-extension, etc.)
   if (!url.startsWith('http')) return;
-  // Network-first for APIs
   if (url.includes('binance') || url.includes('allorigins') ||
       url.includes('corsproxy') || url.includes('yahoo') ||
       url.includes('exchangerate') || url.includes('coingecko') ||
-      url.includes('fonts.g')) {
+      url.includes('thingproxy') || url.includes('fonts.g')) {
     e.respondWith(fetch(e.request).catch(() => new Response('',{status:503})));
     return;
   }
-  // Cache-first for shell
   e.respondWith(
     caches.match(e.request).then(c => c || fetch(e.request).then(r => {
       if (r.ok) caches.open(CACHE).then(cache => cache.put(e.request, r.clone()));
