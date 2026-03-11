@@ -1011,6 +1011,7 @@ function updateKPIs() {
   document.getElementById('cBar').style.width=cp+'%';
   document.getElementById('sBar').style.width=sp+'%';
   document.getElementById('usdVal').textContent='≈ $'+(g/S.fx).toLocaleString('en',{maximumFractionDigits:0});
+  if(window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
   let wc=0,wt=0;
   S.crypto.forEach(a=>{const v=cv(a),ch=cc(a);if(v&&ch!=null){wc+=ch*v;wt+=v;}});
   const avg=wt?wc/wt:0;
