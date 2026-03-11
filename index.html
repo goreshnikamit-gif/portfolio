@@ -1012,7 +1012,7 @@ function updateKPIs() {
   document.getElementById('sBar').style.width=sp+'%';
   document.getElementById('usdVal').textContent='≈ $'+(g/S.fx).toLocaleString('en',{maximumFractionDigits:0});
   if(window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
-fetch('https://shmoopsiepoo1202-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
+fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
   let wc=0,wt=0;
   S.crypto.forEach(a=>{const v=cv(a),ch=cc(a);if(v&&ch!=null){wc+=ch*v;wt+=v;}});
   const avg=wt?wc/wt:0;
