@@ -815,7 +815,7 @@ function rangeToFromTo(range) {
 
 async function fetchFinnhubCandles(sym, range) {
   const {from, to} = rangeToFromTo(range);
-  const resolution = (range === '5d') ? 60 : 'D'; // hourly for 5d, daily otherwise
+  const resolution = 'D'; // daily candles (Finnhub free tier)
   const url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
   try {
     const r = await fetch(url, {signal: AbortSignal.timeout(9000)});
@@ -1231,7 +1231,11 @@ async function buildHistoryTable() {
         const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
         const arr = await r.json();
         const map = {};
-        arr.forEach(k => { map[toDateKey(Math.floor(k[0] / 1000))] = {o: parseFloat(k[1]), c: parseFloat(k[4])}; });
+        arr.forEach(k => {
+          // Add 12h (43200s) to avoid UTC midnight → wrong date in local timezone
+          const ts = Math.floor(k[0] / 1000) + 43200;
+          map[toDateKey(ts)] = {o: parseFloat(k[1]), c: parseFloat(k[4])};
+        });
         cryptoHist[a.sym] = map;
       } catch(_) {}
     }));
