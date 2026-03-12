@@ -316,6 +316,13 @@ body.light input[type=date]{background:#fff;color:#1a202c;}
   </div>
   <div class="topbar-r">
     <div class="live"><div class="dot"></div>LIVE</div>
+    <div style="display:flex;align-items:center;gap:4px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.2);border-radius:8px;padding:3px 7px;">
+      <span style="font-size:9px;color:var(--gd);font-weight:700;">₪$</span>
+      <input id="fxInput" type="number" step="0.001" min="2" max="6"
+        style="width:38px;background:transparent;border:none;outline:none;color:var(--gd);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;"
+        onchange="S.fx=parseFloat(this.value)||S.fx;document.getElementById('fxKpi').textContent='₪'+S.fx.toFixed(3);renderDashCrypto();renderDashStocks();updateKPIs();"
+        title="שער דולר — ניתן לעריכה ידנית">
+    </div>
     <button class="ibtn" id="themeBtn" onclick="toggleTheme()" title="מצב תצוגה">🌙</button>
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -746,14 +753,20 @@ const S = {
 // FETCH
 // ═══════════════════════════════════════════
 async function getFX() {
-  for (const url of ['https://api.exchangerate-api.com/v4/latest/USD','https://open.er-api.com/v6/latest/USD']) {
+  const sources = [
+    async () => { const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
+    async () => { const r = await fetch('https://open.er-api.com/v6/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
+    async () => { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
+  ];
+  for (const fn of sources) {
     try {
-      const r = await fetch(url, {signal: AbortSignal.timeout(4000)});
-      const d = await r.json();
-      if (d.rates?.ILS) { S.fx = d.rates.ILS; break; }
+      const rate = await fn();
+      if (rate && rate > 2 && rate < 6) { S.fx = rate; break; }
     } catch(_) {}
   }
   document.getElementById('fxKpi').textContent = '₪' + S.fx.toFixed(3);
+  const fxInput = document.getElementById('fxInput');
+  if (fxInput) fxInput.value = S.fx.toFixed(3);
 }
 
 async function getCrypto() {
@@ -1247,9 +1260,20 @@ async function buildHistoryTable() {
       allDays.push(d.toISOString().slice(0, 10));
     }
 
-    // Last-known prices for carry-forward on closed trading days
-    const lastStockOpen  = {};
+    // Pre-seed lastStockClose with current live prices so carry-forward
+    // works even before the first trading day appears in history
     const lastStockClose = {};
+    S.stocks.forEach(s => {
+      const p = S.sp[s.sym];
+      if (p?.price) lastStockClose[s.sym] = p.price;
+    });
+
+    // Pre-seed lastCryptoClose with current live prices
+    const lastCryptoClose = {};
+    S.crypto.forEach(a => {
+      const p = S.cp[a.id];
+      if (p?.usd) lastCryptoClose[a.sym] = p.usd;
+    });
 
     const rows = [];
     for (const dateKey of [...allDays].reverse()) {
@@ -1261,13 +1285,12 @@ async function buildHistoryTable() {
         const map = stockHist[s.sym];
 
         if (map?.[dateKey]) {
-          lastStockOpen[s.sym]  = map[dateKey].o;
           lastStockClose[s.sym] = map[dateKey].c;
           openVal  += map[dateKey].o * sh * S.fx;
           closeVal += map[dateKey].c * sh * S.fx;
           hasData   = true;
         } else if (lastStockClose[s.sym]) {
-          // Market closed — carry forward last price for both open and close
+          // Market closed — carry forward last known price (no PnL on closed days)
           openVal  += lastStockClose[s.sym] * sh * S.fx;
           closeVal += lastStockClose[s.sym] * sh * S.fx;
         }
@@ -1275,11 +1298,15 @@ async function buildHistoryTable() {
 
       S.crypto.forEach(a => {
         const map = cryptoHist[a.sym];
-        if (!map) return;
-        if (map[dateKey]) {
+        if (map?.[dateKey]) {
+          lastCryptoClose[a.sym] = map[dateKey].c;
           openVal  += map[dateKey].o * a.qty * S.fx;
           closeVal += map[dateKey].c * a.qty * S.fx;
           hasData   = true;
+        } else if (lastCryptoClose[a.sym]) {
+          // Carry forward last known crypto price
+          openVal  += lastCryptoClose[a.sym] * a.qty * S.fx;
+          closeVal += lastCryptoClose[a.sym] * a.qty * S.fx;
         }
       });
 
