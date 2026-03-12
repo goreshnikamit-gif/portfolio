@@ -1021,12 +1021,10 @@ function updateKPIs() {
   document.getElementById('usdVal').textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   if (window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
   fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
-  let wc = 0, wt = 0;
-  S.crypto.forEach(a => { const v = cv(a), ch = cc(a); if (v && ch != null) { wc += ch * v; wt += v; } });
-  const avg = wt ? wc / wt : 0;
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
+  const pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : 0;
   const badge = document.getElementById('chgBadge');
-  badge.textContent = fPct(avg); badge.className = 'badge ' + (avg >= 0 ? 'up' : 'dn');
+  badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   document.getElementById('chgAbs').textContent = 'רווח יומי: ' + (pnlTotal >= 0 ? '+' : '') + fILS(pnlTotal);
   let best = null, bc = -Infinity;
   S.crypto.forEach(a => { const ch = cc(a); if (ch != null && ch > bc) { bc = ch; best = a.sym; } });
