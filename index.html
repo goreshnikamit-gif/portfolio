@@ -799,41 +799,42 @@ async function getStocks() {
   }));
 }
 
-// ── Yahoo proxy with multiple fallbacks ───────────────────────────────────
-async function fetchYahoo(sym, range) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-  ];
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
-      if (!r.ok) continue;
-      const d = await r.json();
-      const result = d?.chart?.result?.[0];
-      if (result?.indicators?.quote?.[0]?.close && result?.timestamp) {
-        const closes = result.indicators.quote[0].close;
-        const opens   = result.indicators.quote[0].open;
-        const timestamps = result.timestamp;
-        const data = timestamps.map((t, i) => ({
-          t: t * 1000,
-          p: closes[i],
-          o: opens?.[i] ?? closes[i]
-        })).filter(x => x.p);
-        if (data.length >= 2) return data;
-      }
-    } catch(_) {}
+// ── Stock history via Finnhub candles (no CORS issues) ────────────────────
+// Finnhub free tier: 60 req/min. We cache aggressively.
+const RANGE_TO_DAYS = {'5d':5,'1mo':30,'3mo':90,'ytd':null,'1y':365,'5y':1825};
+
+function rangeToFromTo(range) {
+  const now = Math.floor(Date.now() / 1000);
+  if (range === 'ytd') {
+    const jan1 = Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
+    return {from: jan1, to: now};
   }
-  return null;
+  const days = RANGE_TO_DAYS[range] || 30;
+  return {from: now - days * 86400, to: now};
+}
+
+async function fetchFinnhubCandles(sym, range) {
+  const {from, to} = rangeToFromTo(range);
+  const resolution = (range === '5d') ? 60 : 'D'; // hourly for 5d, daily otherwise
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(9000)});
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d.s !== 'ok' || !d.t?.length) return null;
+    return d.t.map((t, i) => ({
+      t: t * 1000,
+      p: d.c[i],
+      o: d.o[i]
+    })).filter(x => x.p);
+  } catch(_) { return null; }
 }
 
 async function getStockHist(sym, range) {
   const key = sym + '_' + range;
   if (S.sChg[key]) return S.sChg[key];
-  const data = await fetchYahoo(sym, range);
-  if (data) S.sChg[key] = data;
+  const data = await fetchFinnhubCandles(sym, range);
+  if (data && data.length >= 2) S.sChg[key] = data;
   return data;
 }
 
@@ -1204,37 +1205,19 @@ async function buildHistoryTable() {
     // ── Fix legacy stocks that have no .shares ──────────────────────────
     S.stocks.forEach(s => { if (!s.shares && s.qty) s.shares = s.qty; });
 
-    // ── Fetch Yahoo Finance historical data with proxy fallback ─────────
+    // ── Fetch stock history via Finnhub (no CORS issues) ─────────────────
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
-        const range = days <= 7 ? '7d' : days <= 30 ? '1mo' : '3mo';
-        const url   = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=${range}`;
-        const proxies = [
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-          `https://corsproxy.io/?${encodeURIComponent(url)}`,
-          `https://thingproxy.freeboard.io/fetch/${url}`,
-        ];
-
-        let data = null;
-        for (const proxy of proxies) {
-          try {
-            const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
-            if (!r.ok) continue;
-            const d = await r.json();
-            const result = d?.chart?.result?.[0];
-            if (!result) continue;
-            const t = result.timestamp;
-            const o = result.indicators?.quote?.[0]?.open;
-            const c = result.indicators?.quote?.[0]?.close;
-            if (t && o && c) {
-              const map = {};
-              t.forEach((ts, i) => { if (o[i] && c[i]) map[toDateKey(ts)] = {o: o[i], c: c[i]}; });
-              if (Object.keys(map).length > 0) { data = map; break; }
-            }
-          } catch(_) {}
-        }
-        if (data) stockHist[s.sym] = data;
+        const range = days <= 7 ? '5d' : days <= 30 ? '1mo' : '3mo';
+        const data  = await fetchFinnhubCandles(s.sym, range);
+        if (!data?.length) return;
+        const map = {};
+        data.forEach(item => {
+          const dk = new Date(item.t).toISOString().slice(0, 10);
+          map[dk] = {o: item.o, c: item.p};
+        });
+        stockHist[s.sym] = map;
       } catch(_) {}
     }));
 
