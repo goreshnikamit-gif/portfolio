@@ -754,9 +754,15 @@ const S = {
 // ═══════════════════════════════════════════
 async function getFX() {
   const sources = [
+    // Twelve Data — real-time forex USD/ILS
+    async () => {
+      const r = await fetch('https://api.twelvedata.com/price?symbol=USD/ILS&apikey=d2b5b75a368f46b687628a30c0c5124b', {signal: AbortSignal.timeout(5000)});
+      const d = await r.json();
+      const p = parseFloat(d.price);
+      if (p) return p;
+    },
     async () => { const r = await fetch('https://open.er-api.com/v6/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
     async () => { const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
-    async () => { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
   ];
   for (const fn of sources) {
     try {
