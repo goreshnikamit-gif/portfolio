@@ -754,8 +754,8 @@ const S = {
 // ═══════════════════════════════════════════
 async function getFX() {
   const sources = [
-    async () => { const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
     async () => { const r = await fetch('https://open.er-api.com/v6/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
+    async () => { const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
     async () => { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
   ];
   for (const fn of sources) {
@@ -812,35 +812,39 @@ async function getStocks() {
   }));
 }
 
-// ── Stock history via Finnhub candles (no CORS issues) ────────────────────
-// Finnhub free tier: 60 req/min. We cache aggressively.
-const RANGE_TO_DAYS = {'5d':5,'1mo':30,'3mo':90,'ytd':null,'1y':365,'5y':1825};
-
-function rangeToFromTo(range) {
-  const now = Math.floor(Date.now() / 1000);
-  if (range === 'ytd') {
-    const jan1 = Math.floor(new Date(new Date().getFullYear(), 0, 1).getTime() / 1000);
-    return {from: jan1, to: now};
+// ── Stock history via Yahoo Finance (allorigins proxy) ────────────────────
+async function fetchYahooCandles(sym, range) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  ];
+  for (const proxy of proxies) {
+    try {
+      const r = await fetch(proxy, {signal: AbortSignal.timeout(10000)});
+      if (!r.ok) continue;
+      let json = await r.json();
+      // allorigins /get wraps in {contents:'...'}
+      if (json.contents) json = JSON.parse(json.contents);
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const t  = result.timestamp;
+      const o  = result.indicators?.quote?.[0]?.open;
+      const c  = result.indicators?.quote?.[0]?.close;
+      if (!t?.length || !c?.length) continue;
+      const data = t.map((ts, i) => ({
+        t: ts * 1000,
+        p: c[i],
+        o: o?.[i] ?? c[i]
+      })).filter(x => x.p != null);
+      if (data.length >= 2) return data;
+    } catch(_) {}
   }
-  const days = RANGE_TO_DAYS[range] || 30;
-  return {from: now - days * 86400, to: now};
+  return null;
 }
 
 async function fetchFinnhubCandles(sym, range) {
-  const {from, to} = rangeToFromTo(range);
-  const resolution = 'D'; // daily candles (Finnhub free tier)
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-  try {
-    const r = await fetch(url, {signal: AbortSignal.timeout(9000)});
-    if (!r.ok) return null;
-    const d = await r.json();
-    if (d.s !== 'ok' || !d.t?.length) return null;
-    return d.t.map((t, i) => ({
-      t: t * 1000,
-      p: d.c[i],
-      o: d.o[i]
-    })).filter(x => x.p);
-  } catch(_) { return null; }
+  return fetchYahooCandles(sym, range);
 }
 
 async function getStockHist(sym, range) {
@@ -1218,12 +1222,12 @@ async function buildHistoryTable() {
     // ── Fix legacy stocks that have no .shares ──────────────────────────
     S.stocks.forEach(s => { if (!s.shares && s.qty) s.shares = s.qty; });
 
-    // ── Fetch stock history via Finnhub (no CORS issues) ─────────────────
+    // ── Stock history via Yahoo Finance ──────────────────────────────────
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
         const range = days <= 7 ? '5d' : days <= 30 ? '1mo' : '3mo';
-        const data  = await fetchFinnhubCandles(s.sym, range);
+        const data  = await fetchYahooCandles(s.sym, range);
         if (!data?.length) return;
         const map = {};
         data.forEach(item => {
@@ -1719,7 +1723,9 @@ async function renderDashPeriod(period, customFrom, customTo) {
 // ═══════════════════════════════════════════
 async function doRefresh() {
   const btn = document.getElementById('refreshBtn'); btn.classList.add('spin');
-  await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
+  // getFX must complete first so all calculations use correct rate
+  await getFX();
+  await Promise.allSettled([getCrypto(), getStocks()]);
   renderDashCrypto(); renderDashStocks(); updateKPIs();
   if (S.curPage === 'stocks')   renderStocksPage();
   if (S.curPage === 'crypto')   renderCryptoPage();
