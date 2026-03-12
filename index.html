@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#00e5b8">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Portfolio">
@@ -365,7 +366,6 @@ window.fbSignOut = () => signOut(auth);
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
 
-// If iOS WebView (WhatsApp/Telegram etc) — show message to open in Safari
 if (isWebView) {
   document.addEventListener('DOMContentLoaded', () => {
     const ls = document.getElementById('lockScreen');
@@ -394,7 +394,6 @@ window.doGoogleLogin = async () => {
   try {
     const provider = new GoogleAuthProvider();
     if (isIOS) {
-      // Save pending state for after redirect
       localStorage.setItem('google_pending_redirect', '1');
       await signInWithRedirect(auth, provider);
     } else {
@@ -491,7 +490,6 @@ window.doLogout = async () => {
 };
 document.dispatchEvent(new Event('firebaseReady'));
 
-// Handle iOS redirect result
 if (localStorage.getItem('google_pending_redirect')) {
   localStorage.removeItem('google_pending_redirect');
   getRedirectResult(auth).then(result => {
@@ -517,19 +515,14 @@ if (localStorage.getItem('google_pending_redirect')) {
   <div class="lock-logo">P</div>
   <div class="lock-title">פורטפוליו שלי</div>
   <div class="lock-sub" id="authTitle">כניסה יומית</div>
-
-  <!-- Google Login -->
   <button class="lock-btn" id="googleBtn" onclick="doGoogleLogin()" style="display:none">
     <div class="lock-btn-ico">🔑</div>
     <div class="lock-btn-lbl">התחבר עם Google</div>
   </button>
-
-  <!-- Biometric -->
   <button class="lock-btn" id="bioBtn" onclick="doBiometric()" style="display:none">
     <div class="lock-btn-ico" id="authIco">👆</div>
     <div class="lock-btn-lbl" id="authLbl">טביעת אצבע / זיהוי פנים</div>
   </button>
-
   <div class="lock-err" id="lockErr"></div>
   <button class="lock-skip" onclick="skipAuth()">כניסה ללא אימות</button>
 </div>
@@ -567,7 +560,7 @@ if (localStorage.getItem('google_pending_redirect')) {
         <input type="date" id="dashDateTo" style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:5px 9px;color:var(--t1);font-family:Heebo;font-size:12px;">
         <button class="date-go" onclick="applyDashCustom()">חשב</button>
       </div>
-      <div id="dashPeriodResult" style="display:none;margin-top:10px;display:none;">
+      <div id="dashPeriodResult" style="display:none;margin-top:10px;">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;" id="dashPeriodGrid"></div>
       </div>
     </div>
@@ -591,8 +584,6 @@ if (localStorage.getItem('google_pending_redirect')) {
   <!-- STOCKS -->
   <div class="page" id="page-stocks">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מניות</div><button class="add-b" onclick="openEditor('stock')">+ הוסף</button></div>
-
-    <!-- Period buttons -->
     <div class="prow" id="sPeriodRow">
       <button class="pb2 active" onclick="setSP('1d',this)">יום</button>
       <button class="pb2" onclick="setSP('1w',this)">שבוע</button>
@@ -601,8 +592,6 @@ if (localStorage.getItem('google_pending_redirect')) {
       <button class="pb2" onclick="setSP('ytd',this)">YTD</button>
       <button class="pb2" onclick="setSP('custom',this)">📅 טווח</button>
     </div>
-
-    <!-- Date range (shown only when custom) -->
     <div class="date-row" id="dateRow" style="display:none">
       <label>מ:</label>
       <input type="date" id="dateFrom">
@@ -610,9 +599,7 @@ if (localStorage.getItem('google_pending_redirect')) {
       <input type="date" id="dateTo">
       <button class="date-go" onclick="loadCustomRange()">חשב</button>
     </div>
-
     <div id="sPageList"><div class="loading-row"><div class="spinner"></div>טוען נתוני מניות...</div></div>
-
     <div class="cc" style="margin-top:10px">
       <div class="ct2" id="sBarTitle">שינוי יומי — מניות</div>
       <div class="ch"><canvas id="sBarChart"></canvas></div>
@@ -639,12 +626,10 @@ if (localStorage.getItem('google_pending_redirect')) {
   <div class="page" id="page-insights">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>תובנות חכמות</div></div>
     <div class="ins-card"><div class="ins-title">📊 סיכום כולל</div><div id="insSummary"></div></div>
-
-    <!-- PNL HISTORY -->
     <div class="ins-card">
       <div class="ins-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>📅 היסטוריה יומית</span>
-        <select id="histDays" onchange="buildHistoryTable()" style="background:var(--c2);color:var(--t1);border:1px solid var(--b1);border-radius:8px;padding:4px 8px;font-size:12px;font-family:Heebo">
+        <select id="histDays" onchange="buildHistoryTable()" style="background:var(--s2);color:var(--t1);border:1px solid var(--b1);border-radius:8px;padding:4px 8px;font-size:12px;font-family:Heebo">
           <option value="7">7 ימים</option>
           <option value="30" selected>30 ימים</option>
           <option value="90">3 חודשים</option>
@@ -652,7 +637,6 @@ if (localStorage.getItem('google_pending_redirect')) {
       </div>
       <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:8px;text-align:center">⏳ טוען היסטוריה...</div></div>
     </div>
-
     <div class="ins-card"><div class="ins-title">🏆 מניבים ביותר היום</div><div id="insTop"></div></div>
     <div class="ins-card"><div class="ins-title">📉 מפסידים ביותר היום</div><div id="insBot"></div></div>
     <div class="ins-card"><div class="ins-title">🥧 התפלגות תיק</div><div id="insDist"></div></div>
@@ -707,7 +691,6 @@ const DEF_S = [
   {sym:'SNDK',name:'SanDisk',  shares:16.9614,icon:'💾',color:'#e2001a'},
 ];
 
-// Binance map
 const BN = {
   BTC:'BTCUSDT',ETH:'ETHUSDT',SOL:'SOLUSDT',ADA:'ADAUSDT',DOGE:'DOGEUSDT',
   XRP:'XRPUSDT',AVAX:'AVAXUSDT',PEPE:'PEPEUSDT',LUNA:'LUNAUSDT',BNB:'BNBUSDT',
@@ -720,173 +703,175 @@ const CG_ID = {
   ETH:'ethereum',XRP:'ripple',AVAX:'avalanche-2',BTC:'bitcoin',BNB:'binancecoin',
 };
 
-function loadLS(k,d){
+// ── Helper: normalize stocks so they always have .shares ──────────────────
+function normalizeStocks(arr) {
+  return arr.map(s => {
+    const out = {...s};
+    if (!out.shares && out.qty)  out.shares = out.qty;
+    if (!out.shares && out.baseILS) out._legacy = true; // can't fix without price
+    return out;
+  });
+}
+
+function loadLS(k, d) {
   try {
-    const v=localStorage.getItem(k);
+    const v = localStorage.getItem(k);
     if (!v) return JSON.parse(JSON.stringify(d));
     const parsed = JSON.parse(v);
-    // Migrate old baseILS stocks to shares
-    if (k==='ps') {
-      return parsed.map(s => {
-        if (s.baseILS && !s.shares) {
-          // Can't calculate without price, keep baseILS as fallback marker
-          return {...s, shares: null, _legacy: true};
-        }
-        return s;
-      });
-    }
+    if (k === 'ps') return normalizeStocks(parsed);
     return parsed;
   } catch(_) { return JSON.parse(JSON.stringify(d)); }
 }
-function saveLS(){
-  try{
-    localStorage.setItem('pc',JSON.stringify(S.crypto));
-    localStorage.setItem('ps',JSON.stringify(S.stocks));
-  }catch(_){}
-  // Save to Firebase
-  if(window.fbSave) {
-    window.fbSave({
-      crypto: S.crypto,
-      stocks: S.stocks,
-      updatedAt: Date.now()
-    });
+
+function saveLS() {
+  try {
+    localStorage.setItem('pc', JSON.stringify(S.crypto));
+    localStorage.setItem('ps', JSON.stringify(S.stocks));
+  } catch(_) {}
+  if (window.fbSave) {
+    window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
   }
 }
 
 const S = {
   fx: 3.65,
   cp: {}, sp: {}, sparks: {}, sChg: {}, cChg: {},
-  dChart:null, aC:null, sC:null, cbC:null, sbC:null,
-  sel: null, sPeriod:'1d', cPeriod:'1d', curPage:'dash',
+  dChart: null, aC: null, sC: null, cbC: null, sbC: null,
+  sel: null, sPeriod: '1d', cPeriod: '1d', curPage: 'dash',
   crypto: loadLS('pc', DEF_C),
   stocks: loadLS('ps', DEF_S),
 };
 
 // ═══════════════════════════════════════════
-// FETCH — EXACT V4 METHOD FOR STOCKS
+// FETCH
 // ═══════════════════════════════════════════
 async function getFX() {
   for (const url of ['https://api.exchangerate-api.com/v4/latest/USD','https://open.er-api.com/v6/latest/USD']) {
     try {
-      const r = await fetch(url, {signal:AbortSignal.timeout(4000)});
+      const r = await fetch(url, {signal: AbortSignal.timeout(4000)});
       const d = await r.json();
       if (d.rates?.ILS) { S.fx = d.rates.ILS; break; }
     } catch(_) {}
   }
-  document.getElementById('fxKpi').textContent = '₪'+S.fx.toFixed(3);
+  document.getElementById('fxKpi').textContent = '₪' + S.fx.toFixed(3);
 }
 
 async function getCrypto() {
-  const syms = [...new Set(S.crypto.map(a=>BN[a.sym]).filter(Boolean))];
+  const syms = [...new Set(S.crypto.map(a => BN[a.sym]).filter(Boolean))];
   if (!syms.length) return;
   try {
     const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(syms))}`);
     const arr = await r.json();
-    const m = {}; arr.forEach(t=>m[t.symbol]=t);
-    S.crypto.forEach(a=>{
-      const t=m[BN[a.sym]];
-      if(t) S.cp[a.id]={usd:parseFloat(t.lastPrice),ch24:parseFloat(t.priceChangePercent)};
+    const m = {}; arr.forEach(t => m[t.symbol] = t);
+    S.crypto.forEach(a => {
+      const t = m[BN[a.sym]];
+      if (t) S.cp[a.id] = {usd: parseFloat(t.lastPrice), ch24: parseFloat(t.priceChangePercent)};
     });
   } catch(_) {
-    await Promise.all(S.crypto.map(async a=>{
-      const bs=BN[a.sym]; if(!bs) return;
+    await Promise.all(S.crypto.map(async a => {
+      const bs = BN[a.sym]; if (!bs) return;
       try {
-        const r=await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${bs}`);
-        const t=await r.json();
-        S.cp[a.id]={usd:parseFloat(t.lastPrice),ch24:parseFloat(t.priceChangePercent)};
+        const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${bs}`);
+        const t = await r.json();
+        S.cp[a.id] = {usd: parseFloat(t.lastPrice), ch24: parseFloat(t.priceChangePercent)};
       } catch(_) {}
     }));
   }
 }
 
-// *** STOCK FETCH — uses last 2 closes from history for accurate daily change ***
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
 
 async function getStocks() {
   await Promise.all(S.stocks.map(async s => {
     try {
-      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.sym}&token=${FINNHUB_KEY}`, {signal:AbortSignal.timeout(9000)});
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.sym}&token=${FINNHUB_KEY}`, {signal: AbortSignal.timeout(9000)});
       if (!r.ok) return;
       const d = await r.json();
       if (d.c && d.pc) {
         S.sp[s.sym] = {
-          price: d.c,
-          prevClose: d.pc,
+          price: d.c, prevClose: d.pc,
           change: ((d.c - d.pc) / d.pc) * 100,
           changeAmt: d.c - d.pc,
-          high: d.h,
-          low: d.l
+          high: d.h, low: d.l
         };
       }
     } catch(_) {}
   }));
 }
 
-// Crypto history
-async function getCryptoHist(sym, days) {
-  const bs = BN[sym];
-  if (bs) {
+// ── Yahoo proxy with multiple fallbacks ───────────────────────────────────
+async function fetchYahoo(sym, range) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
+  ];
+  for (const proxy of proxies) {
     try {
-      const interval = days<=1?'1h':days<=7?'4h':days<=30?'1d':'3d';
-      const limit = days<=1?24:days<=7?42:30;
-      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=${interval}&limit=${limit}`);
-      const arr = await r.json();
-      return arr.map(k=>[k[0],parseFloat(k[4])]);
-    } catch(_) {}
-  }
-  const cgId = CG_ID[sym] || sym.toLowerCase();
-  try {
-    const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}`);
-    const d = await r.json(); return d.prices||[];
-  } catch(_) { return []; }
-}
-
-// Stock history via Yahoo proxy — for period changes and date range
-async function getStockHist(sym, range) {
-  // Cache key
-  const key = sym+'_'+range;
-  if (S.sChg[key]) return S.sChg[key];
-
-  for (const proxyFn of [
-    url => `https://corsproxy.io/?${url}`,
-    url => `https://thingproxy.freeboard.io/fetch/${url}`,
-  ]) {
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-      const full = proxyFn(url);
-      const r = await fetch(full, {signal:AbortSignal.timeout(7000)});
+      const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
+      if (!r.ok) continue;
       const d = await r.json();
       const result = d?.chart?.result?.[0];
       if (result?.indicators?.quote?.[0]?.close && result?.timestamp) {
         const closes = result.indicators.quote[0].close;
+        const opens   = result.indicators.quote[0].open;
         const timestamps = result.timestamp;
-        const data = timestamps.map((t,i)=>({t:t*1000, p:closes[i]})).filter(x=>x.p);
-        if (data.length >= 2) {
-          S.sChg[key] = data;
-          return data;
-        }
+        const data = timestamps.map((t, i) => ({
+          t: t * 1000,
+          p: closes[i],
+          o: opens?.[i] ?? closes[i]
+        })).filter(x => x.p);
+        if (data.length >= 2) return data;
       }
     } catch(_) {}
   }
   return null;
 }
 
+async function getStockHist(sym, range) {
+  const key = sym + '_' + range;
+  if (S.sChg[key]) return S.sChg[key];
+  const data = await fetchYahoo(sym, range);
+  if (data) S.sChg[key] = data;
+  return data;
+}
+
+// ── Crypto history ─────────────────────────────────────────────────────────
+async function getCryptoHist(sym, days) {
+  const bs = BN[sym];
+  if (bs) {
+    try {
+      const interval = days <= 1 ? '1h' : days <= 7 ? '4h' : days <= 30 ? '1d' : '3d';
+      const limit    = days <= 1 ? 24   : days <= 7 ? 42   : 30;
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=${interval}&limit=${limit}`);
+      const arr = await r.json();
+      return arr.map(k => [k[0], parseFloat(k[4])]);
+    } catch(_) {}
+  }
+  const cgId = CG_ID[sym] || sym.toLowerCase();
+  try {
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cgId}/market_chart?vs_currency=usd&days=${days}`);
+    const d = await r.json(); return d.prices || [];
+  } catch(_) { return []; }
+}
+
 async function getStockPeriodChange(sym, period) {
   if (period === '1d') return S.sp[sym]?.change ?? null;
   const rangeMap = {'1w':'5d','1m':'1mo','3m':'3mo','ytd':'ytd'};
-  const data = await getStockHist(sym, rangeMap[period]||'1mo');
+  const data = await getStockHist(sym, rangeMap[period] || '1mo');
   if (!data || data.length < 2) return null;
   return ((data[data.length-1].p - data[0].p) / data[0].p) * 100;
 }
 
 async function getCryptoPeriodChange(a, period) {
   if (period === '1d') return S.cp[a.id]?.ch24 ?? null;
-  const key = a.sym+'_'+period;
+  const key = a.sym + '_' + period;
   if (S.cChg[key] !== undefined) return S.cChg[key];
   const daysMap = {'1w':7,'1m':30,'3m':90};
-  const hist = await getCryptoHist(a.sym, daysMap[period]||7);
+  const hist = await getCryptoHist(a.sym, daysMap[period] || 7);
   if (!hist.length) return null;
-  const pct = ((hist[hist.length-1][1]-hist[0][1])/hist[0][1])*100;
+  const pct = ((hist[hist.length-1][1] - hist[0][1]) / hist[0][1]) * 100;
   S.cChg[key] = pct;
   return pct;
 }
@@ -894,43 +879,48 @@ async function getCryptoPeriodChange(a, period) {
 // ═══════════════════════════════════════════
 // CALC & FORMAT
 // ═══════════════════════════════════════════
-const cv=(a)=>{const p=S.cp[a.id];return p?p.usd*S.fx*a.qty:0;};
-const cc=(a)=>S.cp[a.id]?.ch24??null;
-const cpnl=(a)=>{const v=cv(a),ch=cc(a);if(!v||ch==null)return null;return v*ch/100/(1+ch/100);};
-const sv=(s)=>{
-  const p=S.sp[s.sym];
-  if(p?.price && s.shares) return s.shares*p.price*S.fx;
-  if(p?.price && s.baseILS && p.prevClose) return s.baseILS*(p.price/p.prevClose);
-  if(s.baseILS) return s.baseILS;
+const getShares = s => s.shares || s.qty || 0;
+
+const cv = (a) => { const p = S.cp[a.id]; return p ? p.usd * S.fx * a.qty : 0; };
+const cc = (a) => S.cp[a.id]?.ch24 ?? null;
+const cpnl = (a) => { const v = cv(a), ch = cc(a); if (!v || ch == null) return null; return v * ch / 100 / (1 + ch / 100); };
+
+const sv = (s) => {
+  const p = S.sp[s.sym];
+  const sh = getShares(s);
+  if (p?.price && sh) return sh * p.price * S.fx;
+  if (p?.price && s.baseILS && p.prevClose) return s.baseILS * (p.price / p.prevClose);
+  if (s.baseILS) return s.baseILS;
   return 0;
 };
-const spnl=(s)=>{
-  const p=S.sp[s.sym];
-  if(!p?.price) return null;
-  if(s.shares && p.prevClose) return s.shares*(p.price-p.prevClose)*S.fx;
-  if(s.baseILS && p.prevClose) return s.baseILS*((p.price-p.prevClose)/p.prevClose);
+const spnl = (s) => {
+  const p = S.sp[s.sym];
+  if (!p?.price) return null;
+  const sh = getShares(s);
+  if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
+  if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
   return null;
 };
-const tots=()=>{let c=0,st=0;S.crypto.forEach(a=>c+=cv(a));S.stocks.forEach(s=>st+=sv(s));return{c,st,g:c+st};};
+const tots = () => { let c = 0, st = 0; S.crypto.forEach(a => c += cv(a)); S.stocks.forEach(s => st += sv(s)); return {c, st, g: c + st}; };
 
-const fILS=(n,d=0)=>{if(n==null||isNaN(n))return'₪---';if(Math.abs(n)>=1e6)return'₪'+(n/1e6).toFixed(2)+'M';return'₪'+n.toLocaleString('he-IL',{minimumFractionDigits:d,maximumFractionDigits:d});};
-const fPct=(n,d=2)=>{if(n==null||isNaN(n))return'---%';return(n>=0?'+':'')+n.toFixed(d)+'%';};
-const fNum=(n)=>{if(!n&&n!==0)return'--';if(Math.abs(n)>=1e9)return(n/1e9).toFixed(2)+'B';if(Math.abs(n)>=1e6)return(n/1e6).toFixed(2)+'M';if(Math.abs(n)>=1e3)return(n/1e3).toFixed(1)+'K';return n.toLocaleString('en',{maximumFractionDigits:6});};
-const fP=(p)=>{if(!p&&p!==0)return'--';if(p<0.000001)return p.toExponential(2);if(p<0.001)return p.toFixed(8);if(p<1)return p.toFixed(4);return p.toFixed(2);};
+const fILS = (n, d = 0) => { if (n == null || isNaN(n)) return '₪---'; if (Math.abs(n) >= 1e6) return '₪' + (n / 1e6).toFixed(2) + 'M'; return '₪' + n.toLocaleString('he-IL', {minimumFractionDigits: d, maximumFractionDigits: d}); };
+const fPct = (n, d = 2) => { if (n == null || isNaN(n)) return '---%'; return (n >= 0 ? '+' : '') + n.toFixed(d) + '%'; };
+const fNum = (n) => { if (!n && n !== 0) return '--'; if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B'; if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M'; if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return n.toLocaleString('en', {maximumFractionDigits: 6}); };
+const fP = (p) => { if (!p && p !== 0) return '--'; if (p < 0.000001) return p.toExponential(2); if (p < 0.001) return p.toFixed(8); if (p < 1) return p.toFixed(4); return p.toFixed(2); };
 
 // ═══════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════
 function goPage(id, btn) {
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
   S.curPage = id;
   document.getElementById('app').scrollTop = 0;
-  if (id==='stocks') renderStocksPage();
-  if (id==='crypto') renderCryptoPage();
-  if (id==='insights') { renderInsights(); buildHistoryTable(); }
+  if (id === 'stocks')  renderStocksPage();
+  if (id === 'crypto')  renderCryptoPage();
+  if (id === 'insights') { renderInsights(); buildHistoryTable(); }
 }
 
 // ═══════════════════════════════════════════
@@ -940,22 +930,22 @@ async function drawSpark(cid, key, isCrypto, isUp) {
   const canvas = document.getElementById(cid); if (!canvas) return;
   let prices = S.sparks[key];
   if (!prices) {
-    if (isCrypto) { const h=await getCryptoHist(key,7); prices=h.map(([,p])=>p); }
-    else { const p=S.sp[key]; prices=p?[p.prevClose, p.prevClose+(p.price-p.prevClose)*.5, p.price]:[]; }
+    if (isCrypto) { const h = await getCryptoHist(key, 7); prices = h.map(([, p]) => p); }
+    else { const p = S.sp[key]; prices = p ? [p.prevClose, p.prevClose + (p.price - p.prevClose) * .5, p.price] : []; }
     if (prices.length) S.sparks[key] = prices;
   }
   if (!prices?.length) return;
-  const col = isUp?'#10d97e':'#f43f5e';
-  const ex = Chart.getChart(canvas); if(ex) ex.destroy();
-  new Chart(canvas,{type:'line',data:{labels:prices.map((_,i)=>i),datasets:[{data:prices,borderColor:col,borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,28);g.addColorStop(0,col+'44');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:false,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+  const col = isUp ? '#10d97e' : '#f43f5e';
+  const ex = Chart.getChart(canvas); if (ex) ex.destroy();
+  new Chart(canvas, {type:'line',data:{labels:prices.map((_, i) => i),datasets:[{data:prices,borderColor:col,borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,28);g.addColorStop(0,col+'44');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:false,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
 }
 
 // ═══════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════
 function cardHTML(o) {
-  const{sym,name,icon,color,type,value,qtyLabel,priceStr,priceUSD,change,pnlDay}=o;
-  const up=change>=0,pup=(pnlDay||0)>=0;
+  const {sym, name, icon, color, type, value, qtyLabel, priceStr, priceUSD, change, pnlDay} = o;
+  const up = change >= 0, pup = (pnlDay || 0) >= 0;
   return `<div class="card" onclick="openDet('${sym}','${type}')">
     <div class="cg" style="background:${color}"></div>
     <button class="cedit" onclick="event.stopPropagation();openEditor('${type}')" title="ערוך">✏️</button>
@@ -983,59 +973,59 @@ function cardHTML(o) {
 
 function renderDashCrypto() {
   const g = document.getElementById('dCGrid');
-  const sorted = [...S.crypto].sort((a,b)=>cv(b)-cv(a));
-  g.innerHTML = sorted.map(a=>{
-    const p=S.cp[a.id],pu=p?.usd,pi=pu?pu*S.fx:null;
+  const sorted = [...S.crypto].sort((a, b) => cv(b) - cv(a));
+  g.innerHTML = sorted.map(a => {
+    const p = S.cp[a.id], pu = p?.usd, pi = pu ? pu * S.fx : null;
     return cardHTML({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(a.qty)+' '+a.sym,priceStr:pi?`₪<span>${fP(pi)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a)});
   }).join('');
-  sorted.forEach(a=>setTimeout(()=>drawSpark(`spk_${a.sym}`,a.sym,true,cc(a)>=0),20));
+  sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 20));
 }
 
 function renderDashStocks() {
   const g = document.getElementById('dSGrid');
-  g.innerHTML = S.stocks.map(s=>{
-    const p=S.sp[s.sym],pu=p?.price;
+  g.innerHTML = S.stocks.map(s => {
+    const p = S.sp[s.sym], pu = p?.price;
     return cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ',priceStr:pu?`$<span>${pu.toFixed(2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s)});
   }).join('');
-  S.stocks.forEach(s=>{const p=S.sp[s.sym];if(p)setTimeout(()=>drawSpark(`spk_${s.sym}`,s.sym,false,p.change>=0),20);});
+  S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 20); });
 }
 
 function updateKPIs() {
-  const{c,st,g}=tots();
-  document.getElementById('grandNum').textContent=g>0?g.toLocaleString('he-IL',{maximumFractionDigits:0}):'---';
-  document.getElementById('cKpi').textContent=fILS(c);
-  document.getElementById('sKpi').textContent=fILS(st);
-  const cp=g?c/g*100:0,sp=g?st/g*100:0;
-  document.getElementById('cPct').textContent=cp.toFixed(1)+'% מהתיק';
-  document.getElementById('sPct').textContent=sp.toFixed(1)+'% מהתיק';
-  document.getElementById('cBar').style.width=cp+'%';
-  document.getElementById('sBar').style.width=sp+'%';
-  document.getElementById('usdVal').textContent='≈ $'+(g/S.fx).toLocaleString('en',{maximumFractionDigits:0});
-  if(window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
-fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
-  let wc=0,wt=0;
-  S.crypto.forEach(a=>{const v=cv(a),ch=cc(a);if(v&&ch!=null){wc+=ch*v;wt+=v;}});
-  const avg=wt?wc/wt:0;
-  const pnlTotal=S.crypto.reduce((a,x)=>a+(cpnl(x)||0),0)+S.stocks.reduce((a,s)=>a+(spnl(s)||0),0);
-  const badge=document.getElementById('chgBadge');
-  badge.textContent=fPct(avg);badge.className='badge '+(avg>=0?'up':'dn');
-  document.getElementById('chgAbs').textContent='רווח יומי: '+(pnlTotal>=0?'+':'')+fILS(pnlTotal);
-  let best=null,bc=-Infinity;
-  S.crypto.forEach(a=>{const ch=cc(a);if(ch!=null&&ch>bc){bc=ch;best=a.sym;}});
-  S.stocks.forEach(s=>{const ch=S.sp[s.sym]?.change;if(ch!=null&&ch>bc){bc=ch;best=s.sym;}});
-  if(best)document.getElementById('bestKpi').textContent=best+' '+fPct(bc);
-  renderAlloc(c,st);
+  const {c, st, g} = tots();
+  document.getElementById('grandNum').textContent = g > 0 ? g.toLocaleString('he-IL', {maximumFractionDigits:0}) : '---';
+  document.getElementById('cKpi').textContent = fILS(c);
+  document.getElementById('sKpi').textContent = fILS(st);
+  const cp = g ? c / g * 100 : 0, sp = g ? st / g * 100 : 0;
+  document.getElementById('cPct').textContent = cp.toFixed(1) + '% מהתיק';
+  document.getElementById('sPct').textContent = sp.toFixed(1) + '% מהתיק';
+  document.getElementById('cBar').style.width = cp + '%';
+  document.getElementById('sBar').style.width = sp + '%';
+  document.getElementById('usdVal').textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
+  if (window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
+  fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
+  let wc = 0, wt = 0;
+  S.crypto.forEach(a => { const v = cv(a), ch = cc(a); if (v && ch != null) { wc += ch * v; wt += v; } });
+  const avg = wt ? wc / wt : 0;
+  const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
+  const badge = document.getElementById('chgBadge');
+  badge.textContent = fPct(avg); badge.className = 'badge ' + (avg >= 0 ? 'up' : 'dn');
+  document.getElementById('chgAbs').textContent = 'רווח יומי: ' + (pnlTotal >= 0 ? '+' : '') + fILS(pnlTotal);
+  let best = null, bc = -Infinity;
+  S.crypto.forEach(a => { const ch = cc(a); if (ch != null && ch > bc) { bc = ch; best = a.sym; } });
+  S.stocks.forEach(s => { const ch = S.sp[s.sym]?.change; if (ch != null && ch > bc) { bc = ch; best = s.sym; } });
+  if (best) document.getElementById('bestKpi').textContent = best + ' ' + fPct(bc);
+  renderAlloc(c, st);
 }
 
-function renderAlloc(c,st) {
-  const lbs=[],vs=[],cls=[];
-  S.crypto.forEach(a=>{const v=cv(a);if(v>0){lbs.push(a.sym);vs.push(v);cls.push(a.color+'bb');}});
-  S.stocks.forEach(s=>{lbs.push(s.sym);vs.push(sv(s));cls.push(s.color+'bb');});
-  const opt={plugins:{legend:{position:'right',labels:{color:'#8899b4',font:{family:'Heebo',size:9},padding:5,boxWidth:7}}},cutout:'65%',animation:{duration:500}};
-  if(S.aC)S.aC.destroy();
-  S.aC=new Chart(document.getElementById('allocChart'),{type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'#0b1220'}]},options:opt});
-  if(S.sC)S.sC.destroy();
-  S.sC=new Chart(document.getElementById('splitChart'),{type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:['#00e5b8aa','#4f8ef7aa'],borderWidth:1,borderColor:'#0b1220'}]},options:opt});
+function renderAlloc(c, st) {
+  const lbs = [], vs = [], cls = [];
+  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { lbs.push(a.sym); vs.push(v); cls.push(a.color + 'bb'); } });
+  S.stocks.forEach(s => { lbs.push(s.sym); vs.push(sv(s)); cls.push(s.color + 'bb'); });
+  const opt = {plugins:{legend:{position:'right',labels:{color:'#8899b4',font:{family:'Heebo',size:9},padding:5,boxWidth:7}}},cutout:'65%',animation:{duration:500}};
+  if (S.aC) S.aC.destroy();
+  S.aC = new Chart(document.getElementById('allocChart'), {type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'#0b1220'}]},options:opt});
+  if (S.sC) S.sC.destroy();
+  S.sC = new Chart(document.getElementById('splitChart'), {type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:['#00e5b8aa','#4f8ef7aa'],borderWidth:1,borderColor:'#0b1220'}]},options:opt});
 }
 
 // ═══════════════════════════════════════════
@@ -1044,51 +1034,48 @@ function renderAlloc(c,st) {
 const SP_LABELS = {'1d':'יומי','1w':'שבועי','1m':'חודשי','3m':'3 חודשים','ytd':'מתחילת השנה','custom':'טווח מותאם'};
 
 function setSP(p, btn) {
-  S.sPeriod=p;
-  document.querySelectorAll('#sPeriodRow .pb2').forEach(b=>b.classList.remove('active'));
+  S.sPeriod = p;
+  document.querySelectorAll('#sPeriodRow .pb2').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('dateRow').style.display = p==='custom'?'flex':'none';
-  if (p!=='custom') renderStocksPage();
+  document.getElementById('dateRow').style.display = p === 'custom' ? 'flex' : 'none';
+  if (p !== 'custom') renderStocksPage();
 }
 
 async function loadCustomRange() {
   const from = document.getElementById('dateFrom').value;
-  const to = document.getElementById('dateTo').value;
-  if (!from||!to) { alert('בחר תאריך התחלה וסוף'); return; }
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to) { alert('בחר תאריך התחלה וסוף'); return; }
   renderStocksPage(from, to);
 }
 
 async function renderStocksPage(customFrom, customTo) {
   const el = document.getElementById('sPageList');
   el.innerHTML = '<div class="loading-row"><div class="spinner"></div>טוען נתוני מניות...</div>';
-
   let changes, pnlTitle;
-
   if (customFrom && customTo) {
-    // Custom date range
     pnlTitle = `שינוי ${customFrom} → ${customTo}`;
     changes = await Promise.all(S.stocks.map(async s => {
-      const fromTs = new Date(customFrom).getTime()/1000;
-      const toTs = new Date(customTo).getTime()/1000;
-      const diffDays = Math.ceil((toTs-fromTs)/86400);
+      const fromTs = new Date(customFrom).getTime() / 1000;
+      const toTs   = new Date(customTo).getTime()   / 1000;
+      const diffDays = Math.ceil((toTs - fromTs) / 86400);
       const range = diffDays<=5?'5d':diffDays<=31?'1mo':diffDays<=93?'3mo':diffDays<=366?'1y':'5y';
       const data = await getStockHist(s.sym, range);
       if (!data || data.length < 2) return null;
-      const filtered = data.filter(x=>x.t/1000>=fromTs && x.t/1000<=toTs);
+      const filtered = data.filter(x => x.t / 1000 >= fromTs && x.t / 1000 <= toTs);
       if (filtered.length < 2) return null;
       return ((filtered[filtered.length-1].p - filtered[0].p) / filtered[0].p) * 100;
     }));
   } else {
-    pnlTitle = SP_LABELS[S.sPeriod]||'יומי';
-    changes = await Promise.all(S.stocks.map(s=>getStockPeriodChange(s.sym, S.sPeriod)));
+    pnlTitle = SP_LABELS[S.sPeriod] || 'יומי';
+    changes  = await Promise.all(S.stocks.map(s => getStockPeriodChange(s.sym, S.sPeriod)));
   }
 
-  el.innerHTML = S.stocks.map((s,i)=>{
-    const val=sv(s);
-    const p=S.sp[s.sym];
-    const chg=changes[i];
-    const pnl=chg!=null ? val*chg/100/(1+chg/100) : null;
-    const up=(chg||0)>=0;
+  el.innerHTML = S.stocks.map((s, i) => {
+    const val = sv(s);
+    const p   = S.sp[s.sym];
+    const chg = changes[i];
+    const pnl = chg != null ? val * chg / 100 / (1 + chg / 100) : null;
+    const up  = (chg || 0) >= 0;
     return `<div class="arow" onclick="openDet('${s.sym}','stock')">
       <div class="ar-ico" style="background:${s.color}22">${s.icon}</div>
       <div class="ar-main">
@@ -1104,10 +1091,9 @@ async function renderStocksPage(customFrom, customTo) {
     </div>`;
   }).join('');
 
-  // Bar chart
-  if (S.sbC){S.sbC.destroy();S.sbC=null;}
-  document.getElementById('sBarTitle').textContent=`שינוי ${pnlTitle} — מניות`;
-  S.sbC = new Chart(document.getElementById('sBarChart'),{
+  if (S.sbC) { S.sbC.destroy(); S.sbC = null; }
+  document.getElementById('sBarTitle').textContent = `שינוי ${pnlTitle} — מניות`;
+  S.sbC = new Chart(document.getElementById('sBarChart'), {
     type:'bar',
     data:{labels:S.stocks.map(s=>s.sym),datasets:[{data:changes.map(c=>c??0),backgroundColor:changes.map(c=>(c||0)>=0?'#10d97e':'#f43f5e'),borderRadius:6}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fPct(c.raw)}}},scales:{x:{ticks:{color:'#8899b4',font:{family:'Heebo',size:10}},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#8899b4',font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(255,255,255,0.03)'}}}}
@@ -1118,8 +1104,8 @@ async function renderStocksPage(customFrom, customTo) {
 // CRYPTO PAGE
 // ═══════════════════════════════════════════
 function setCP(p, btn) {
-  S.cPeriod=p;
-  document.querySelectorAll('#cPeriodRow .pb2').forEach(b=>b.classList.remove('active'));
+  S.cPeriod = p;
+  document.querySelectorAll('#cPeriodRow .pb2').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderCryptoPage();
 }
@@ -1127,12 +1113,12 @@ function setCP(p, btn) {
 async function renderCryptoPage() {
   const el = document.getElementById('cPageList');
   el.innerHTML = '<div class="loading-row"><div class="spinner"></div>טוען...</div>';
-  const changes = await Promise.all(S.crypto.map(a=>getCryptoPeriodChange(a, S.cPeriod)));
-  const sorted = S.crypto.map((a,i)=>({a,chg:changes[i]})).sort((x,y)=>cv(y.a)-cv(x.a));
-  el.innerHTML = sorted.map(({a,chg})=>{
-    const val=cv(a),p=S.cp[a.id],pu=p?.usd;
-    const pnl=chg!=null&&val?val*chg/100/(1+chg/100):null;
-    const up=(chg||0)>=0;
+  const changes = await Promise.all(S.crypto.map(a => getCryptoPeriodChange(a, S.cPeriod)));
+  const sorted  = S.crypto.map((a, i) => ({a, chg: changes[i]})).sort((x, y) => cv(y.a) - cv(x.a));
+  el.innerHTML  = sorted.map(({a, chg}) => {
+    const val = cv(a), p = S.cp[a.id], pu = p?.usd;
+    const pnl = chg != null && val ? val * chg / 100 / (1 + chg / 100) : null;
+    const up  = (chg || 0) >= 0;
     return `<div class="arow" onclick="openDet('${a.sym}','crypto')">
       <div class="ar-ico" style="background:${a.color}22">${a.icon}</div>
       <div class="ar-main">
@@ -1148,8 +1134,8 @@ async function renderCryptoPage() {
     </div>`;
   }).join('');
 
-  if(S.cbC){S.cbC.destroy();S.cbC=null;}
-  S.cbC = new Chart(document.getElementById('cBarChart'),{
+  if (S.cbC) { S.cbC.destroy(); S.cbC = null; }
+  S.cbC = new Chart(document.getElementById('cBarChart'), {
     type:'bar',
     data:{labels:sorted.map(x=>x.a.sym),datasets:[{data:sorted.map(x=>x.chg??0),backgroundColor:sorted.map(x=>(x.chg||0)>=0?'#10d97e':'#f43f5e'),borderRadius:6}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fPct(c.raw)}}},scales:{x:{ticks:{color:'#8899b4',font:{family:'Heebo',size:10}},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#8899b4',font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(255,255,255,0.03)'}}}}
@@ -1160,10 +1146,10 @@ async function renderCryptoPage() {
 // INSIGHTS
 // ═══════════════════════════════════════════
 function renderInsights() {
-  const{c,st,g}=tots();
-  const pnlTotal=S.crypto.reduce((a,x)=>a+(cpnl(x)||0),0)+S.stocks.reduce((a,s)=>a+(spnl(s)||0),0);
+  const {c, st, g} = tots();
+  const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
 
-  document.getElementById('insSummary').innerHTML=`
+  document.getElementById('insSummary').innerHTML = `
     <div class="ir"><span class="ir-l">שווי כולל</span><span class="ir-v ac">${fILS(g)}</span></div>
     <div class="ir"><span class="ir-l">קריפטו</span><span class="ir-v">${fILS(c)}</span></div>
     <div class="ir"><span class="ir-l">מניות</span><span class="ir-v">${fILS(st)}</span></div>
@@ -1172,13 +1158,13 @@ function renderInsights() {
     <div class="ir"><span class="ir-l">USD/ILS</span><span class="ir-v gd">₪${S.fx.toFixed(3)}</span></div>
   `;
 
-  const all=[
-    ...S.crypto.map(a=>({sym:a.sym,name:a.name,icon:a.icon,val:cv(a),chg:cc(a),pnl:cpnl(a)||0})),
-    ...S.stocks.map(s=>({sym:s.sym,name:s.name,icon:s.icon,val:sv(s),chg:S.sp[s.sym]?.change??null,pnl:spnl(s)||0})),
-  ].filter(x=>x.chg!=null).sort((a,b)=>b.chg-a.chg);
+  const all = [
+    ...S.crypto.map(a => ({sym:a.sym,name:a.name,icon:a.icon,val:cv(a),chg:cc(a),pnl:cpnl(a)||0})),
+    ...S.stocks.map(s => ({sym:s.sym,name:s.name,icon:s.icon,val:sv(s),chg:S.sp[s.sym]?.change??null,pnl:spnl(s)||0})),
+  ].filter(x => x.chg != null).sort((a, b) => b.chg - a.chg);
 
-  const rankRow=(x,i)=>{
-    const up=x.chg>=0,rc=i===0?'r1':i===1?'r2':'r3';
+  const rankRow = (x, i) => {
+    const up = x.chg >= 0, rc = i===0?'r1':i===1?'r2':'r3';
     return `<div class="rank-row">
       <div class="rank-n ${rc}">${i+1}</div>
       <div style="font-size:18px">${x.icon}</div>
@@ -1187,25 +1173,25 @@ function renderInsights() {
       <div><div style="font-size:10px;color:var(--t2)">${fILS(x.val)}</div><div class="rank-pnl ${up?'up':'dn'}">${up?'+':''}${fILS(x.pnl)}</div></div>
     </div>`;
   };
-  document.getElementById('insTop').innerHTML=all.slice(0,3).map((x,i)=>rankRow(x,i)).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">אין נתונים</div>';
-  document.getElementById('insBot').innerHTML=[...all].reverse().slice(0,3).map((x,i)=>rankRow(x,i)).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">אין נתונים</div>';
+  document.getElementById('insTop').innerHTML = all.slice(0,3).map((x,i) => rankRow(x,i)).join('') || '<div style="color:var(--t3);font-size:12px;padding:8px">אין נתונים</div>';
+  document.getElementById('insBot').innerHTML = [...all].reverse().slice(0,3).map((x,i) => rankRow(x,i)).join('') || '<div style="color:var(--t3);font-size:12px;padding:8px">אין נתונים</div>';
 
-  const allA=[...S.crypto.map(a=>({sym:a.sym,icon:a.icon,color:a.color,val:cv(a)})),...S.stocks.map(s=>({sym:s.sym,icon:s.icon,color:s.color,val:sv(s)}))].sort((a,b)=>b.val-a.val);
-  document.getElementById('insDist').innerHTML=allA.map(x=>{
-    const pct=g?x.val/g*100:0;
+  const allA = [...S.crypto.map(a => ({sym:a.sym,icon:a.icon,color:a.color,val:cv(a)})),...S.stocks.map(s => ({sym:s.sym,icon:s.icon,color:s.color,val:sv(s)}))].sort((a,b) => b.val-a.val);
+  document.getElementById('insDist').innerHTML = allA.map(x => {
+    const pct = g ? x.val / g * 100 : 0;
     return `<div class="dist-r"><div class="dist-l">${x.icon} ${x.sym}</div><div class="dist-bw"><div class="dist-b" style="width:${pct}%;background:${x.color}bb"></div></div><div class="dist-p">${pct.toFixed(1)}%</div></div>`;
   }).join('');
 
-  const tips=[];
-  const top=allA[0];if(top&&g&&top.val/g>0.4)tips.push(`⚠️ <b>${top.sym}</b> מהווה ${(top.val/g*100).toFixed(0)}% מהתיק — ריכוז גבוה`);
-  const winner=all.find(x=>x.chg>10);if(winner)tips.push(`🚀 <b>${winner.sym}</b> עלה ${winner.chg.toFixed(1)}% היום`);
-  const loser=all.find(x=>x.chg<-10);if(loser)tips.push(`📉 <b>${loser.sym}</b> ירד ${Math.abs(loser.chg).toFixed(1)}% היום`);
-  if(!tips.length)tips.push('✅ אין חריגות בולטות היום');
-  document.getElementById('insTips').innerHTML=tips.map(t=>`<div class="ir"><span class="ir-l" style="color:var(--t1);font-size:11px">${t}</span></div>`).join('');
+  const tips = [];
+  const top = allA[0]; if (top && g && top.val/g > 0.4) tips.push(`⚠️ <b>${top.sym}</b> מהווה ${(top.val/g*100).toFixed(0)}% מהתיק — ריכוז גבוה`);
+  const winner = all.find(x => x.chg > 10); if (winner) tips.push(`🚀 <b>${winner.sym}</b> עלה ${winner.chg.toFixed(1)}% היום`);
+  const loser  = all.find(x => x.chg < -10); if (loser)  tips.push(`📉 <b>${loser.sym}</b> ירד ${Math.abs(loser.chg).toFixed(1)}% היום`);
+  if (!tips.length) tips.push('✅ אין חריגות בולטות היום');
+  document.getElementById('insTips').innerHTML = tips.map(t => `<div class="ir"><span class="ir-l" style="color:var(--t1);font-size:11px">${t}</span></div>`).join('');
 }
 
 // ═══════════════════════════════════════════
-// HISTORICAL P&L TABLE
+// HISTORICAL P&L TABLE  ← FIXED
 // ═══════════════════════════════════════════
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
@@ -1213,32 +1199,46 @@ async function buildHistoryTable() {
   const days = parseInt(document.getElementById('histDays')?.value || '30');
 
   try {
-    const toDateKey = (ts) => new Date(ts * 1000).toISOString().slice(0,10);
+    const toDateKey = ts => new Date(ts * 1000).toISOString().slice(0, 10);
 
-    // Fetch historical candles for each stock from Yahoo Finance
+    // ── Fix legacy stocks that have no .shares ──────────────────────────
+    S.stocks.forEach(s => { if (!s.shares && s.qty) s.shares = s.qty; });
+
+    // ── Fetch Yahoo Finance historical data with proxy fallback ─────────
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
         const range = days <= 7 ? '7d' : days <= 30 ? '1mo' : '3mo';
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=${range}`;
-        const r = await fetch(`https://corsproxy.io/?${url}`, {signal:AbortSignal.timeout(9000)});
-        if (!r.ok) return;
-        const d = await r.json();
-        const result = d?.chart?.result?.[0];
-        if (!result) return;
-        const t = result.timestamp;
-        const o = result.indicators?.quote?.[0]?.open;
-        const c = result.indicators?.quote?.[0]?.close;
-        if (t && o && c) {
-          // Build map dateKey -> {o, c}
-          const map = {};
-          t.forEach((ts,i) => { if(o[i]&&c[i]) map[toDateKey(ts)] = {o:o[i], c:c[i]}; });
-          stockHist[s.sym] = map;
+        const url   = `https://query1.finance.yahoo.com/v8/finance/chart/${s.sym}?interval=1d&range=${range}`;
+        const proxies = [
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          `https://corsproxy.io/?${encodeURIComponent(url)}`,
+          `https://thingproxy.freeboard.io/fetch/${url}`,
+        ];
+
+        let data = null;
+        for (const proxy of proxies) {
+          try {
+            const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
+            if (!r.ok) continue;
+            const d = await r.json();
+            const result = d?.chart?.result?.[0];
+            if (!result) continue;
+            const t = result.timestamp;
+            const o = result.indicators?.quote?.[0]?.open;
+            const c = result.indicators?.quote?.[0]?.close;
+            if (t && o && c) {
+              const map = {};
+              t.forEach((ts, i) => { if (o[i] && c[i]) map[toDateKey(ts)] = {o: o[i], c: c[i]}; });
+              if (Object.keys(map).length > 0) { data = map; break; }
+            }
+          } catch(_) {}
         }
+        if (data) stockHist[s.sym] = data;
       } catch(_) {}
     }));
 
-    // Fetch historical prices for each crypto from Binance
+    // ── Fetch Binance crypto history ─────────────────────────────────────
     const cryptoHist = {};
     await Promise.all(S.crypto.map(async a => {
       const bs = BN[a.sym];
@@ -1248,38 +1248,41 @@ async function buildHistoryTable() {
         const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
         const arr = await r.json();
         const map = {};
-        arr.forEach(k => { map[toDateKey(Math.floor(k[0]/1000))] = {o:parseFloat(k[1]), c:parseFloat(k[4])}; });
+        arr.forEach(k => { map[toDateKey(Math.floor(k[0] / 1000))] = {o: parseFloat(k[1]), c: parseFloat(k[4])}; });
         cryptoHist[a.sym] = map;
       } catch(_) {}
     }));
 
-    // Build all calendar days in range
+    // ── Build calendar days ──────────────────────────────────────────────
     const allDays = [];
     for (let i = 0; i < days; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      allDays.push(d.toISOString().slice(0,10));
+      allDays.push(d.toISOString().slice(0, 10));
     }
 
-    // Track last known stock prices for carry-forward on closed days
+    // Last-known prices for carry-forward on closed trading days
+    const lastStockOpen  = {};
     const lastStockClose = {};
 
-    // Build rows for each day
     const rows = [];
     for (const dateKey of [...allDays].reverse()) {
       let openVal = 0, closeVal = 0, hasData = false;
 
       S.stocks.forEach(s => {
+        const sh  = getShares(s);
+        if (!sh) return;
         const map = stockHist[s.sym];
-        if (!map) return;
-        if (map[dateKey]) {
+
+        if (map?.[dateKey]) {
+          lastStockOpen[s.sym]  = map[dateKey].o;
           lastStockClose[s.sym] = map[dateKey].c;
-          openVal  += map[dateKey].o * s.shares * S.fx;
-          closeVal += map[dateKey].c * s.shares * S.fx;
-          hasData = true;
+          openVal  += map[dateKey].o * sh * S.fx;
+          closeVal += map[dateKey].c * sh * S.fx;
+          hasData   = true;
         } else if (lastStockClose[s.sym]) {
-          // Market closed — use last known price for both open and close
-          openVal  += lastStockClose[s.sym] * s.shares * S.fx;
-          closeVal += lastStockClose[s.sym] * s.shares * S.fx;
+          // Market closed — carry forward last price for both open and close
+          openVal  += lastStockClose[s.sym] * sh * S.fx;
+          closeVal += lastStockClose[s.sym] * sh * S.fx;
         }
       });
 
@@ -1289,12 +1292,12 @@ async function buildHistoryTable() {
         if (map[dateKey]) {
           openVal  += map[dateKey].o * a.qty * S.fx;
           closeVal += map[dateKey].c * a.qty * S.fx;
-          hasData = true;
+          hasData   = true;
         }
       });
 
       if (!openVal && !closeVal) continue;
-      rows.push({ dateKey, openVal, closeVal, hasData });
+      rows.push({dateKey, openVal, closeVal, hasData});
     }
 
     rows.reverse(); // newest first
@@ -1304,11 +1307,10 @@ async function buildHistoryTable() {
       return;
     }
 
-    // Build chart data (chronological)
-    const chartLabels = [...rows].reverse().map(r => r.dateKey.slice(5).replace('-','/'));
+    // ── Chart data (chronological order) ────────────────────────────────
+    const chartLabels = [...rows].reverse().map(r => r.dateKey.slice(5).replace('-', '/'));
     const chartData   = [...rows].reverse().map(r => Math.round(r.closeVal));
 
-    // Build chart canvas + table
     let html = `
     <canvas id="histChart" style="width:100%;height:160px;margin-bottom:12px"></canvas>
     <div style="overflow-x:auto">
@@ -1323,25 +1325,25 @@ async function buildHistoryTable() {
       </thead><tbody>`;
 
     for (const row of rows) {
-      const { dateKey, openVal, closeVal, hasData } = row;
+      const {dateKey, openVal, closeVal, hasData} = row;
       const dateStr = new Date(dateKey).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
       const pnl = closeVal - openVal;
-      const pct = openVal ? (pnl/openVal*100) : 0;
-      const up = pnl >= 0;
+      const pct = openVal ? (pnl / openVal * 100) : 0;
+      const up  = pnl >= 0;
       const closedStyle = hasData ? '' : 'opacity:0.45';
 
       html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${closedStyle}">
         <td style="padding:6px 4px;color:var(--t2)">${dateStr}${hasData?'':' 🔒'}</td>
         <td style="padding:6px 4px">${fILS(openVal)}</td>
         <td style="padding:6px 4px">${fILS(closeVal)}</td>
-        <td style="padding:6px 4px" class="${up?'up':'dn'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
+        <td style="padding:6px 4px;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
       </tr>`;
     }
 
     html += '</tbody></table></div>';
     el.innerHTML = html;
 
-    // Draw chart
+    // ── Draw portfolio value chart ────────────────────────────────────────
     const ctx = document.getElementById('histChart')?.getContext('2d');
     if (ctx && window.Chart) {
       new Chart(ctx, {
@@ -1360,12 +1362,13 @@ async function buildHistoryTable() {
         },
         options: {
           responsive: true,
-          plugins: { legend: { display: false }, tooltip: {
-            callbacks: { label: ctx => '₪' + ctx.parsed.y.toLocaleString() }
-          }},
+          plugins: {
+            legend: {display: false},
+            tooltip: {callbacks: {label: ctx => '₪' + ctx.parsed.y.toLocaleString()}}
+          },
           scales: {
-            x: { ticks: { color: '#666', maxTicksLimit: 6, font:{size:9} }, grid:{display:false} },
-            y: { ticks: { color: '#666', font:{size:9}, callback: v => '₪'+(v/1000).toFixed(0)+'K' }, grid:{color:'rgba(255,255,255,0.05)'} }
+            x: {ticks: {color:'#666', maxTicksLimit:6, font:{size:9}}, grid:{display:false}},
+            y: {ticks: {color:'#666', font:{size:9}, callback: v => '₪'+(v/1000).toFixed(0)+'K'}, grid:{color:'rgba(255,255,255,0.05)'}}
           }
         }
       });
@@ -1376,26 +1379,27 @@ async function buildHistoryTable() {
   }
 }
 
-
-
+// ═══════════════════════════════════════════
+// DETAIL MODAL
+// ═══════════════════════════════════════════
 async function openDet(sym, type) {
-  S.sel=sym;
+  S.sel = sym;
   document.getElementById('detOv').classList.add('open');
-  document.body.style.overflow='hidden';
-  if(S.dChart){S.dChart.destroy();S.dChart=null;}
-  const el=document.getElementById('detContent');
-  if(type==='crypto'){const a=S.crypto.find(x=>x.sym===sym);if(a)await renderCryptoModal(a,el);}
-  else{const s=S.stocks.find(x=>x.sym===sym);if(s)renderStockModal(s,el);}
+  document.body.style.overflow = 'hidden';
+  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+  const el = document.getElementById('detContent');
+  if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
+  else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
-function closeDet(){document.getElementById('detOv').classList.remove('open');document.body.style.overflow='';S.sel=null;if(S.dChart){S.dChart.destroy();S.dChart=null;}}
+function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null; } }
 
-async function renderCryptoModal(a,el){
-  const p=S.cp[a.id];const pu=p?.usd||0;const pi=pu*S.fx;
-  const val=cv(a);const ch24=p?.ch24||0;const pnl=cpnl(a)||0;
-  const{g}=tots();const pct=g?val/g*100:0;
-  const sig=ch24>5?'buy':ch24<-5?'sell':'hold';
-  const sigTxt=sig==='buy'?'🟢 מומנטום חיובי':sig==='sell'?'🔴 לחץ מכירה':'🟡 ניטרלי';
-  el.innerHTML=`
+async function renderCryptoModal(a, el) {
+  const p = S.cp[a.id]; const pu = p?.usd || 0; const pi = pu * S.fx;
+  const val = cv(a); const ch24 = p?.ch24 || 0; const pnl = cpnl(a) || 0;
+  const {g} = tots(); const pct = g ? val / g * 100 : 0;
+  const sig = ch24 > 5 ? 'buy' : ch24 < -5 ? 'sell' : 'hold';
+  const sigTxt = sig==='buy'?'🟢 מומנטום חיובי':sig==='sell'?'🔴 לחץ מכירה':'🟡 ניטרלי';
+  el.innerHTML = `
     <div class="mh"><div class="mico" style="background:${a.color}22">${a.icon}</div><div><h2>${a.sym}</h2><p>${a.name} · ${fNum(a.qty)} יחידות</p></div></div>
     <div class="mkpis">
       <div class="mkpi"><div class="mkpi-l">שווי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
@@ -1427,28 +1431,29 @@ async function renderCryptoModal(a,el){
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>`;
-  loadCC(a.sym,1,el.querySelector('.rb.active'));
+  loadCC(a.sym, 1, el.querySelector('.rb.active'));
 }
 
-async function loadCC(sym,days,btn){
-  document.querySelectorAll('#detContent .rb').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');
-  const box=document.getElementById('mchBox');if(box)box.style.opacity='.5';
-  const raw=await getCryptoHist(sym,days);
-  if(box)box.style.opacity='1';
-  const c2=document.getElementById('dCanvas');if(!c2||!raw.length)return;
-  if(S.dChart){S.dChart.destroy();S.dChart=null;}
-  const prices=raw.map(([,p])=>p);
-  const labels=raw.map(([t])=>{const d=new Date(t);return days<=1?d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('he-IL',{month:'short',day:'numeric'});});
-  const up=prices[prices.length-1]>=prices[0];const col=up?'#10d97e':'#f43f5e';
-  S.dChart=new Chart(c2,{type:'line',data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:1.8,pointRadius:0,tension:.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(c.raw<1?6:2)}}},scales:{x:{ticks:{color:'#3d5070',font:{size:8},maxTicksLimit:7},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',font:{size:8},callback:v=>'$'+fP(v)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}});
+async function loadCC(sym, days, btn) {
+  document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active');
+  const box = document.getElementById('mchBox'); if (box) box.style.opacity = '.5';
+  const raw = await getCryptoHist(sym, days);
+  if (box) box.style.opacity = '1';
+  const c2 = document.getElementById('dCanvas'); if (!c2 || !raw.length) return;
+  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+  const prices = raw.map(([, p]) => p);
+  const labels = raw.map(([t]) => { const d = new Date(t); return days<=1 ? d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('he-IL',{month:'short',day:'numeric'}); });
+  const up = prices[prices.length-1] >= prices[0]; const col = up ? '#10d97e' : '#f43f5e';
+  S.dChart = new Chart(c2, {type:'line',data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:1.8,pointRadius:0,tension:.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(c.raw<1?6:2)}}},scales:{x:{ticks:{color:'#3d5070',font:{size:8},maxTicksLimit:7},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',font:{size:8},callback:v=>'$'+fP(v)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}});
 }
 
-function renderStockModal(s,el){
-  const p=S.sp[s.sym];const val=sv(s);const chg=p?.change??null;const pnl=spnl(s);
-  const pu=p?.price;const{g}=tots();const pct=g?val/g*100:0;
-  const sig=chg==null?'hold':chg>2?'buy':chg<-2?'sell':'hold';
-  const sigTxt=sig==='buy'?'🟢 מומנטום חיובי':sig==='sell'?'🔴 לחץ מכירה':'🟡 ניטרלי';
-  el.innerHTML=`
+function renderStockModal(s, el) {
+  const p = S.sp[s.sym]; const val = sv(s); const chg = p?.change ?? null; const pnl = spnl(s);
+  const pu = p?.price; const {g} = tots(); const pct = g ? val / g * 100 : 0;
+  const sh = getShares(s);
+  const sig = chg == null ? 'hold' : chg > 2 ? 'buy' : chg < -2 ? 'sell' : 'hold';
+  const sigTxt = sig==='buy'?'🟢 מומנטום חיובי':sig==='sell'?'🔴 לחץ מכירה':'🟡 ניטרלי';
+  el.innerHTML = `
     <div class="mh"><div class="mico" style="background:${s.color}22">${s.icon}</div><div><h2>${s.sym}</h2><p>${s.name} · NASDAQ</p></div></div>
     <div class="mkpis">
       <div class="mkpi"><div class="mkpi-l">שווי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
@@ -1469,7 +1474,7 @@ function renderStockModal(s,el){
     <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
     <div class="man">
       <div class="manc"><div class="mant">📊 פוזיציה</div>
-        <div class="mr"><span class="mrl">מניות</span><span class="mrv ac">${s.shares?s.shares.toFixed(3):'--'}</span></div>
+        <div class="mr"><span class="mrl">מניות</span><span class="mrv ac">${sh?sh.toFixed(3):'--'}</span></div>
         <div class="mr"><span class="mrl">שווי ₪</span><span class="mrv ac">${fILS(val)}</span></div>
         <div class="mr"><span class="mrl">שווי $</span><span class="mrv">$${(val/S.fx).toFixed(0)}</span></div>
         <div class="mr"><span class="mrl">% תיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
@@ -1483,82 +1488,65 @@ function renderStockModal(s,el){
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>`;
-  // Load daily chart by default
-  loadSC(s.sym,'1d',el.querySelector('.rb.active'));
+  loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
 
-async function loadSC(sym, range, btn){
-  document.querySelectorAll('#detContent .rb').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  const box=document.getElementById('mchBox');
-  if(box) box.style.opacity='.5';
-
-  let prices=[], labels=[];
-
-  if(range==='1d'){
-    // Daily: use prevClose → price line
-    const p=S.sp[sym];
-    if(p?.price&&p?.prevClose){
-      prices=[p.prevClose,p.prevClose+(p.price-p.prevClose)*.25,p.prevClose+(p.price-p.prevClose)*.5,p.prevClose+(p.price-p.prevClose)*.75,p.price];
-      labels=['פתיחה','','','','כעת'];
+async function loadSC(sym, range, btn) {
+  document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const box = document.getElementById('mchBox');
+  if (box) box.style.opacity = '.5';
+  let prices = [], labels = [];
+  if (range === '1d') {
+    const p = S.sp[sym];
+    if (p?.price && p?.prevClose) {
+      prices = [p.prevClose, p.prevClose+(p.price-p.prevClose)*.25, p.prevClose+(p.price-p.prevClose)*.5, p.prevClose+(p.price-p.prevClose)*.75, p.price];
+      labels = ['פתיחה','','','','כעת'];
     }
-    if(box) box.style.opacity='1';
-    drawSChart(prices,labels,sym);
+    if (box) box.style.opacity = '1';
+    drawSChart(prices, labels, sym);
     return;
   }
-
-  // Historical ranges via Yahoo proxy
   const data = await getStockHist(sym, range);
-  if(box) box.style.opacity='1';
-  if(!data||!data.length){
-    const c=document.getElementById('dCanvas');
-    if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
-    return;
-  }
-  prices = data.map(d=>d.p);
-  labels = data.map(d=>{
-    const dt=new Date(d.t);
-    if(range==='5d') return dt.toLocaleDateString('he-IL',{weekday:'short'});
-    if(range==='1mo'||range==='3mo') return dt.toLocaleDateString('he-IL',{month:'short',day:'numeric'});
+  if (box) box.style.opacity = '1';
+  if (!data || !data.length) { const c = document.getElementById('dCanvas'); if (c) c.getContext('2d').clearRect(0,0,c.width,c.height); return; }
+  prices = data.map(d => d.p);
+  labels = data.map(d => {
+    const dt = new Date(d.t);
+    if (range==='5d') return dt.toLocaleDateString('he-IL',{weekday:'short'});
+    if (range==='1mo'||range==='3mo') return dt.toLocaleDateString('he-IL',{month:'short',day:'numeric'});
     return dt.toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
   });
-  drawSChart(prices,labels,sym);
+  drawSChart(prices, labels, sym);
 }
 
-function drawSChart(prices,labels,sym){
-  const canvas=document.getElementById('dCanvas'); if(!canvas||!prices.length) return;
-  if(S.dChart){S.dChart.destroy();S.dChart=null;}
-  const up=prices[prices.length-1]>=prices[0];
-  const col=up?'#10d97e':'#f43f5e';
-  const pct=prices[0]?((prices[prices.length-1]-prices[0])/prices[0]*100).toFixed(2):0;
-  S.dChart=new Chart(canvas,{
+function drawSChart(prices, labels, sym) {
+  const canvas = document.getElementById('dCanvas'); if (!canvas || !prices.length) return;
+  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+  const up  = prices[prices.length-1] >= prices[0];
+  const col = up ? '#10d97e' : '#f43f5e';
+  const pct = prices[0] ? ((prices[prices.length-1]-prices[0])/prices[0]*100).toFixed(2) : 0;
+  S.dChart = new Chart(canvas, {
     type:'line',
-    data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:2,pointRadius:0,tension:.3,fill:true,
-      backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},
+    data:{labels,datasets:[{label:'$',data:prices,borderColor:col,borderWidth:2,pointRadius:0,tension:.3,fill:true,backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);g.addColorStop(0,col+'28');g.addColorStop(1,col+'00');return g;}}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},
-        tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(2)}},
-        title:{display:true,text:`${up?'+':''}${pct}% לתקופה`,color:col,font:{size:11,family:'Heebo'}}},
-      scales:{
-        x:{ticks:{color:'#3d5070',font:{size:8},maxTicksLimit:7},grid:{color:'rgba(255,255,255,0.02)'}},
-        y:{ticks:{color:'#3d5070',font:{size:8},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}
-      }
-    }
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>'$'+c.raw?.toFixed(2)}},title:{display:true,text:`${up?'+':''}${pct}% לתקופה`,color:col,font:{size:11,family:'Heebo'}}},
+      scales:{x:{ticks:{color:'#3d5070',font:{size:8},maxTicksLimit:7},grid:{color:'rgba(255,255,255,0.02)'}},y:{ticks:{color:'#3d5070',font:{size:8},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(255,255,255,0.02)'},position:'right'}}}
   });
 }
 
 // ═══════════════════════════════════════════
 // EDITOR
 // ═══════════════════════════════════════════
-let edTab='crypto';
-function openEditor(tab){edTab=tab||'crypto';document.getElementById('edOv').classList.add('open');document.body.style.overflow='hidden';renderEd();}
-function closeEd(){document.getElementById('edOv').classList.remove('open');document.body.style.overflow='';}
+let edTab = 'crypto';
+function openEditor(tab) { edTab = tab || 'crypto'; document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd(); }
+function closeEd() { document.getElementById('edOv').classList.remove('open'); document.body.style.overflow = ''; }
 
-function renderEd(){
-  const el=document.getElementById('edContent');
-  const iC=edTab==='crypto';
-  const list=iC?S.crypto:S.stocks;
-  el.innerHTML=`
+function renderEd() {
+  const el  = document.getElementById('edContent');
+  const iC  = edTab === 'crypto';
+  const list = iC ? S.crypto : S.stocks;
+  el.innerHTML = `
     <div class="ed-t">✏️ ניהול נכסים</div>
     <div class="ed-s">ערוך כמויות, הוסף או הסר</div>
     <div class="tabr">
@@ -1566,12 +1554,13 @@ function renderEd(){
       <button class="tabb ${!iC?'active':''}" onclick="edTab='stock';renderEd()">📈 מניות (${S.stocks.length})</button>
     </div>
     <div class="alist">
-      ${list.map((a,i)=>`
+      ${list.map((a,i) => `
         <div class="erow">
           <div class="erow-ico">${a.icon}</div>
           <div class="erow-info"><div class="erow-sym">${a.sym}</div><div class="erow-name">${a.name}</div></div>
-          ${iC?`<input class="einput" type="number" value="${a.qty}" step="any" oninput="S.crypto[${i}].qty=parseFloat(this.value)||0">`:
-               `<input class="einput" type="number" value="${a.shares||a.qty||0}" step="any" placeholder="מניות" oninput="S.stocks[${i}].shares=parseFloat(this.value)||0">`}
+          ${iC
+            ? `<input class="einput" type="number" value="${a.qty}" step="any" oninput="S.crypto[${i}].qty=parseFloat(this.value)||0">`
+            : `<input class="einput" type="number" value="${getShares(a)}" step="any" placeholder="מניות" oninput="S.stocks[${i}].shares=parseFloat(this.value)||0">`}
           <button class="edel" onclick="delA(${i})">🗑️</button>
         </div>`).join('')}
     </div>
@@ -1580,8 +1569,9 @@ function renderEd(){
       <div class="fg">
         <div class="ff"><label>סימבול</label><input id="nS" type="text" placeholder="${iC?'BTC':'AAPL'}" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="ff"><label>שם</label><input id="nN" type="text" placeholder="${iC?'Bitcoin':'Apple'}"></div>
-        ${iC?`<div class="ff"><label>כמות</label><input id="nQ" type="number" placeholder="0.5" step="any"></div>`:
-             `<div class="ff"><label>מס' מניות</label><input id="nQ" type="number" placeholder="10.5" step="any"></div>`}
+        ${iC
+          ? `<div class="ff"><label>כמות</label><input id="nQ" type="number" placeholder="0.5" step="any"></div>`
+          : `<div class="ff"><label>מס' מניות</label><input id="nQ" type="number" placeholder="10.5" step="any"></div>`}
         <div class="ff"><label>אייקון</label><input id="nI" type="text" placeholder="${iC?'🔶':'📊'}" maxlength="4"></div>
       </div>
       <button class="fadd" onclick="addA()">✅ הוסף לתיק</button>
@@ -1591,30 +1581,30 @@ function renderEd(){
   `;
 }
 
-function delA(i){if(edTab==='crypto')S.crypto.splice(i,1);else S.stocks.splice(i,1);renderEd();}
+function delA(i) { if (edTab==='crypto') S.crypto.splice(i,1); else S.stocks.splice(i,1); renderEd(); }
 
-function addA(){
-  const sym=(document.getElementById('nS')?.value||'').trim().toUpperCase();
-  const name=(document.getElementById('nN')?.value||'').trim()||sym;
-  const icon=(document.getElementById('nI')?.value||'').trim()||(edTab==='crypto'?'🪙':'📈');
-  const colors=['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316'];
-  const color=colors[Math.floor(Math.random()*colors.length)];
-  if(!sym){alert('חובה להזין סימבול');return;}
-  if(edTab==='crypto'){
-    const qty=parseFloat(document.getElementById('nQ')?.value);
-    if(isNaN(qty)||qty<=0){alert('חובה להזין כמות');return;}
-    if(S.crypto.find(a=>a.sym===sym)){alert('מטבע זה כבר קיים');return;}
-    S.crypto.push({id:CG_ID[sym]||sym.toLowerCase(),sym,name,qty,icon,color});
+function addA() {
+  const sym   = (document.getElementById('nS')?.value || '').trim().toUpperCase();
+  const name  = (document.getElementById('nN')?.value || '').trim() || sym;
+  const icon  = (document.getElementById('nI')?.value || '').trim() || (edTab==='crypto'?'🪙':'📈');
+  const colors = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316'];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  if (!sym) { alert('חובה להזין סימבול'); return; }
+  if (edTab === 'crypto') {
+    const qty = parseFloat(document.getElementById('nQ')?.value);
+    if (isNaN(qty) || qty <= 0) { alert('חובה להזין כמות'); return; }
+    if (S.crypto.find(a => a.sym === sym)) { alert('מטבע זה כבר קיים'); return; }
+    S.crypto.push({id: CG_ID[sym] || sym.toLowerCase(), sym, name, qty, icon, color});
   } else {
-    const shares=parseFloat(document.getElementById('nQ')?.value);
-    if(isNaN(shares)||shares<=0){alert('חובה להזין מספר מניות');return;}
-    if(S.stocks.find(s=>s.sym===sym)){alert('מניה זו כבר קיימת');return;}
-    S.stocks.push({sym,name,shares,icon,color});
+    const shares = parseFloat(document.getElementById('nQ')?.value);
+    if (isNaN(shares) || shares <= 0) { alert('חובה להזין מספר מניות'); return; }
+    if (S.stocks.find(s => s.sym === sym)) { alert('מניה זו כבר קיימת'); return; }
+    S.stocks.push({sym, name, shares, icon, color});
   }
   renderEd();
 }
 
-function saveClose(){saveLS();S.sparks={};S.sChg={};S.cChg={};closeEd();doRefresh();}
+function saveClose() { saveLS(); S.sparks = {}; S.sChg = {}; S.cChg = {}; closeEd(); doRefresh(); }
 
 // ═══════════════════════════════════════════
 // DASHBOARD DATE FILTER
@@ -1623,65 +1613,58 @@ let dashPeriod = 'live';
 
 function setDashPeriod(p, btn) {
   dashPeriod = p;
-  document.querySelectorAll('#dashPeriodRow .pb2').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#dashPeriodRow .pb2').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const dateRow = document.getElementById('dashDateRow');
-  dateRow.style.display = p==='custom' ? 'flex' : 'none';
+  dateRow.style.display = p === 'custom' ? 'flex' : 'none';
   if (p !== 'custom') renderDashPeriod(p);
 }
 
 async function applyDashCustom() {
   const from = document.getElementById('dashDateFrom').value;
-  const to = document.getElementById('dashDateTo').value;
+  const to   = document.getElementById('dashDateTo').value;
   if (!from || !to) { alert('בחר תאריך התחלה וסוף'); return; }
   renderDashPeriod('custom', from, to);
 }
 
 async function renderDashPeriod(period, customFrom, customTo) {
-  if (period === 'live') {
-    document.getElementById('dashPeriodResult').style.display = 'none';
-    return;
-  }
-
-  const grid = document.getElementById('dashPeriodGrid');
+  if (period === 'live') { document.getElementById('dashPeriodResult').style.display = 'none'; return; }
+  const grid   = document.getElementById('dashPeriodGrid');
   const result = document.getElementById('dashPeriodResult');
   result.style.display = 'block';
   grid.innerHTML = '<div style="color:var(--t2);font-size:12px;padding:8px;grid-column:1/-1"><div class="spinner" style="display:inline-block;margin-left:6px"></div>מחשב שינויים...</div>';
 
-  const rangeMap = {'1w':'5d','1m':'1mo','3m':'3mo','ytd':'ytd'};
   const labelMap = {'1w':'שבוע אחרון','1m':'חודש אחרון','3m':'3 חודשים','ytd':'מתחילת השנה'};
-
-  // Get all assets changes for the period
   const allAssets = [
-    ...S.crypto.map(a=>({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',val:cv(a),asset:a})),
-    ...S.stocks.map(s=>({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',val:sv(s),asset:s})),
+    ...S.crypto.map(a => ({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',val:cv(a),asset:a})),
+    ...S.stocks.map(s => ({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',val:sv(s),asset:s})),
   ];
 
   const changes = await Promise.all(allAssets.map(async x => {
     if (x.type === 'crypto') {
       if (period === 'custom') {
         const from = new Date(customFrom).getTime();
-        const to = new Date(customTo).getTime();
-        const diffDays = Math.ceil((to-from)/86400000);
+        const to   = new Date(customTo).getTime();
+        const diffDays = Math.ceil((to - from) / 86400000);
         const hist = await getCryptoHist(x.sym, diffDays);
         if (!hist.length) return null;
-        const filtered = hist.filter(([t])=>t>=from&&t<=to);
+        const filtered = hist.filter(([t]) => t >= from && t <= to);
         if (filtered.length < 2) return null;
-        return ((filtered[filtered.length-1][1]-filtered[0][1])/filtered[0][1])*100;
+        return ((filtered[filtered.length-1][1] - filtered[0][1]) / filtered[0][1]) * 100;
       } else {
         return getCryptoPeriodChange(x.asset, period);
       }
     } else {
       if (period === 'custom') {
-        const fromTs = new Date(customFrom).getTime()/1000;
-        const toTs = new Date(customTo).getTime()/1000;
-        const diffDays = Math.ceil((toTs-fromTs)/86400);
+        const fromTs = new Date(customFrom).getTime() / 1000;
+        const toTs   = new Date(customTo).getTime()   / 1000;
+        const diffDays = Math.ceil((toTs - fromTs) / 86400);
         const range = diffDays<=5?'5d':diffDays<=31?'1mo':diffDays<=93?'3mo':'1y';
         const data = await getStockHist(x.sym, range);
         if (!data || data.length < 2) return null;
-        const filtered = data.filter(d=>d.t/1000>=fromTs&&d.t/1000<=toTs);
+        const filtered = data.filter(d => d.t/1000 >= fromTs && d.t/1000 <= toTs);
         if (filtered.length < 2) return null;
-        return ((filtered[filtered.length-1].p-filtered[0].p)/filtered[0].p)*100;
+        return ((filtered[filtered.length-1].p - filtered[0].p) / filtered[0].p) * 100;
       } else {
         return getStockPeriodChange(x.sym, period);
       }
@@ -1691,11 +1674,11 @@ async function renderDashPeriod(period, customFrom, customTo) {
   const periodLabel = period==='custom' ? `${customFrom} → ${customTo}` : labelMap[period];
   let totalStart = 0, totalEnd = 0;
 
-  grid.innerHTML = allAssets.map((x,i) => {
+  grid.innerHTML = allAssets.map((x, i) => {
     const chg = changes[i];
-    const up = (chg||0) >= 0;
-    const pnl = chg!=null ? x.val*chg/100/(1+chg/100) : null;
-    if (chg!=null) { totalEnd += x.val; totalStart += x.val/(1+chg/100); }
+    const up  = (chg || 0) >= 0;
+    const pnl = chg != null ? x.val * chg / 100 / (1 + chg / 100) : null;
+    if (chg != null) { totalEnd += x.val; totalStart += x.val / (1 + chg / 100); }
     return `<div style="background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:11px;cursor:pointer" onclick="openDet('${x.sym}','${x.type}')">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
         <div style="width:28px;height:28px;border-radius:7px;background:${x.color}22;display:flex;align-items:center;justify-content:center;font-size:14px">${x.icon}</div>
@@ -1706,70 +1689,62 @@ async function renderDashPeriod(period, customFrom, customTo) {
     </div>`;
   }).join('');
 
-  // Add summary row
-  const totalChg = totalStart ? ((totalEnd-totalStart)/totalStart)*100 : 0;
+  const totalChg = totalStart ? ((totalEnd - totalStart) / totalStart) * 100 : 0;
   const totalPnl = totalEnd - totalStart;
-  const summaryHTML = `<div style="background:linear-gradient(135deg,rgba(0,229,184,0.08),rgba(79,142,247,0.05));border:1px solid rgba(0,229,184,0.2);border-radius:10px;padding:11px;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;">
+  grid.innerHTML += `<div style="background:linear-gradient(135deg,rgba(0,229,184,0.08),rgba(79,142,247,0.05));border:1px solid rgba(0,229,184,0.2);border-radius:10px;padding:11px;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;">
     <div style="font-size:10px;color:var(--t2);font-weight:700">סה"כ תיק — ${periodLabel}</div>
     <div style="text-align:left">
       <div style="font-size:16px;font-weight:900;color:${totalChg>=0?'var(--gr)':'var(--rd)'}">${fPct(totalChg)}</div>
       <div style="font-size:12px;font-weight:700;color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div>
     </div>
   </div>`;
-  grid.innerHTML += summaryHTML;
 }
 
 // ═══════════════════════════════════════════
-// MAIN
+// MAIN REFRESH
 // ═══════════════════════════════════════════
-async function doRefresh(){
-  const btn=document.getElementById('refreshBtn');btn.classList.add('spin');
-  await Promise.allSettled([getFX(),getCrypto(),getStocks()]);
-  renderDashCrypto();renderDashStocks();updateKPIs();
-  if(S.curPage==='stocks')renderStocksPage();
-  if(S.curPage==='crypto')renderCryptoPage();
-  if(S.curPage==='insights')renderInsights();
-  // Extra render after short delay to catch late-arriving data
-  setTimeout(()=>{renderDashCrypto();renderDashStocks();updateKPIs();},3000);
-  document.getElementById('ts').textContent=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+async function doRefresh() {
+  const btn = document.getElementById('refreshBtn'); btn.classList.add('spin');
+  await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
+  renderDashCrypto(); renderDashStocks(); updateKPIs();
+  if (S.curPage === 'stocks')   renderStocksPage();
+  if (S.curPage === 'crypto')   renderCryptoPage();
+  if (S.curPage === 'insights') renderInsights();
+  setTimeout(() => { renderDashCrypto(); renderDashStocks(); updateKPIs(); }, 3000);
+  document.getElementById('ts').textContent = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
   btn.classList.remove('spin');
 }
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDet();closeEd();}});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet(); closeEd(); } });
 
 // PWA
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 let dp;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;document.getElementById('installBanner').classList.add('show');});
-document.getElementById('installBtn').addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;document.getElementById('installBanner').classList.remove('show');});
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; document.getElementById('installBanner').classList.add('show'); });
+document.getElementById('installBtn').addEventListener('click', async () => { if (!dp) return; dp.prompt(); await dp.userChoice; dp = null; document.getElementById('installBanner').classList.remove('show'); });
 
 // ═══════════════════════════════════════════
-// BIOMETRIC AUTH
+// AUTH & APP INIT
 // ═══════════════════════════════════════════
-const AUTH_KEY = 'portfolio_auth_cred';
-
 window.proceedToApp = async function() {
   document.getElementById('lockScreen').classList.add('hidden');
   document.getElementById('app').style.display = '';
   document.querySelector('.topbar').style.display = '';
   document.querySelector('.nav').style.display = '';
 
-  // Try loading from Firebase first
   const loadAndStart = async () => {
     if (window.fbLoad) {
       const fbData = await window.fbLoad();
       if (fbData?.crypto?.length || fbData?.stocks?.length) {
-        // Existing user — load their data
         if (fbData.crypto?.length) S.crypto = fbData.crypto;
-        if (fbData.stocks?.length) S.stocks = fbData.stocks;
+        if (fbData.stocks?.length) S.stocks = normalizeStocks(fbData.stocks);
         try {
           localStorage.setItem('pc', JSON.stringify(S.crypto));
           localStorage.setItem('ps', JSON.stringify(S.stocks));
         } catch(_) {}
       } else {
-        // משתמש חדש — תיק ריק
         S.crypto = [];
         S.stocks = [];
         localStorage.removeItem('pc');
@@ -1780,12 +1755,10 @@ window.proceedToApp = async function() {
     setInterval(doRefresh, 30000);
 
     if (window.fbListen) {
-      window.fbListen((data) => {
+      window.fbListen(data => {
         if (data?.crypto?.length) S.crypto = data.crypto;
-        if (data?.stocks?.length) S.stocks = data.stocks;
-        renderDashCrypto();
-        renderDashStocks();
-        updateKPIs();
+        if (data?.stocks?.length) S.stocks = normalizeStocks(data.stocks);
+        renderDashCrypto(); renderDashStocks(); updateKPIs();
       });
     }
   };
@@ -1794,45 +1767,40 @@ window.proceedToApp = async function() {
     await loadAndStart();
   } else {
     document.addEventListener('firebaseReady', loadAndStart, {once: true});
-    setTimeout(() => {
-      if (!window.firebaseReady) { doRefresh(); setInterval(doRefresh, 30000); }
-    }, 3000);
+    setTimeout(() => { if (!window.firebaseReady) { doRefresh(); setInterval(doRefresh, 30000); } }, 3000);
   }
-}
+};
 
-// Auth handled by Firebase module above
 function skipAuth() {
   if (confirm('כניסה ללא אימות — בטוח?')) window.proceedToApp();
 }
 
-// Theme toggle
-function toggleTheme(){
+function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
   document.getElementById('themeBtn').textContent = isLight ? '☀️' : '🌙';
-  localStorage.setItem('theme', isLight?'light':'dark');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
-// Load saved theme
-if(localStorage.getItem('theme')==='light'){
+if (localStorage.getItem('theme') === 'light') {
   document.body.classList.add('light');
-  document.addEventListener('DOMContentLoaded',()=>{
-    const btn=document.getElementById('themeBtn');
-    if(btn) btn.textContent='☀️';
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = '☀️';
   });
 }
 
 // Default dates
-const today=new Date();const monthAgo=new Date(today);monthAgo.setMonth(monthAgo.getMonth()-1);
-const todayStr=today.toISOString().split('T')[0];
-const monthAgoStr=monthAgo.toISOString().split('T')[0];
-document.getElementById('dateTo').value=todayStr;
-document.getElementById('dateFrom').value=monthAgoStr;
-document.getElementById('dashDateTo').value=todayStr;
-document.getElementById('dashDateFrom').value=monthAgoStr;
+const today    = new Date();
+const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
+const todayStr    = today.toISOString().split('T')[0];
+const monthAgoStr = monthAgo.toISOString().split('T')[0];
+document.getElementById('dateTo').value       = todayStr;
+document.getElementById('dateFrom').value     = monthAgoStr;
+document.getElementById('dashDateTo').value   = todayStr;
+document.getElementById('dashDateFrom').value = monthAgoStr;
 
-// App starts after auth (see initAuth above)
 // Hide UI until authenticated
 document.querySelector('.topbar').style.display = 'none';
-document.querySelector('.nav').style.display = 'none';
+document.querySelector('.nav').style.display    = 'none';
 </script>
 </body>
 </html>
