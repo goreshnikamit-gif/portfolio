@@ -1022,7 +1022,7 @@ function updateKPIs() {
   if (window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
   fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
-  const pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : 0;
+  const pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   document.getElementById('chgAbs').textContent = 'רווח יומי: ' + (pnlTotal >= 0 ? '+' : '') + fILS(pnlTotal);
