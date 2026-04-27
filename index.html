@@ -801,6 +801,8 @@ async function getCrypto() {
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
 
 async function getStocks() {
+  const dow = new Date().getDay(); // 0=Sun, 6=Sat
+  const marketClosed = (dow === 0 || dow === 6);
   await Promise.all(S.stocks.map(async s => {
     try {
       const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.sym}&token=${FINNHUB_KEY}`, {signal: AbortSignal.timeout(9000)});
@@ -809,8 +811,8 @@ async function getStocks() {
       if (d.c && d.pc) {
         S.sp[s.sym] = {
           price: d.c, prevClose: d.pc,
-          change: ((d.c - d.pc) / d.pc) * 100,
-          changeAmt: d.c - d.pc,
+          change: marketClosed ? 0 : ((d.c - d.pc) / d.pc) * 100,
+          changeAmt: marketClosed ? 0 : d.c - d.pc,
           high: d.h, low: d.l
         };
       }
@@ -920,6 +922,10 @@ const sv = (s) => {
 const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
+  // On weekends/holidays Finnhub returns Friday's close as both price and prevClose=Thursday's close
+  // This makes P&L show Friday's change instead of today's (which is 0). Detect closed market:
+  const dow = new Date().getDay(); // 0=Sun, 6=Sat
+  if (dow === 0 || dow === 6) return 0; // Market closed on weekends → no stock P&L
   const sh = getShares(s);
   if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
   if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
@@ -1213,7 +1219,7 @@ function renderInsights() {
 }
 
 // ═══════════════════════════════════════════
-// HISTORICAL P&L TABLE  ← FIXED v2: day-over-day + real seed
+// HISTORICAL P&L TABLE  ← FIXED v3: always stocks+crypto, carry-forward
 // ═══════════════════════════════════════════
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
@@ -1221,33 +1227,30 @@ async function buildHistoryTable() {
   const days = parseInt(document.getElementById('histDays')?.value || '30');
 
   try {
-    const toDateKey = ts => new Date(ts * 1000).toISOString().slice(0, 10);
-
-    // ── Fix legacy stocks that have no .shares ──────────────────────────
+    // ── Fix legacy stocks ────────────────────────────────────────────────
     S.stocks.forEach(s => { if (!s.shares && s.qty) s.shares = s.qty; });
 
-    // ── Stock history via Yahoo Finance ──────────────────────────────────
+    // ── Fetch stock history (Yahoo) ─────────────────────────────────────
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
-        // Fetch extra days so we can seed carry-forward from real data
         const range = days <= 7 ? '1mo' : days <= 30 ? '3mo' : '6mo';
-        const data  = await fetchYahooCandles(s.sym, range);
+        const data = await fetchYahooCandles(s.sym, range);
         if (!data?.length) return;
         const map = {};
         data.forEach(item => {
           const dk = new Date(item.t).toISOString().slice(0, 10);
-          map[dk] = {o: item.o, c: item.p};
+          map[dk] = { c: item.p };
         });
         stockHist[s.sym] = map;
       } catch(_) {}
     }));
 
-    // ── Fetch Binance crypto history ─────────────────────────────────────
+    // ── Fetch crypto history (Binance daily) ────────────────────────────
     const cryptoHist = {};
+    const toDateKey = ts => new Date(ts * 1000).toISOString().slice(0, 10);
     await Promise.all(S.crypto.map(async a => {
-      const bs = BN[a.sym];
-      if (!bs) return;
+      const bs = BN[a.sym]; if (!bs) return;
       try {
         const limit = Math.min(days + 5, 100);
         const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
@@ -1255,100 +1258,83 @@ async function buildHistoryTable() {
         const map = {};
         arr.forEach(k => {
           const ts = Math.floor(k[0] / 1000) + 43200;
-          map[toDateKey(ts)] = {o: parseFloat(k[1]), c: parseFloat(k[4])};
+          map[toDateKey(ts)] = { c: parseFloat(k[4]) };
         });
         cryptoHist[a.sym] = map;
       } catch(_) {}
     }));
 
-    // ── Build calendar days (newest to oldest) ───────────────────────────
+    // ── Build calendar days (oldest first) ──────────────────────────────
     const allDays = [];
-    for (let i = 0; i < days; i++) {
+    for (let i = days; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i);
       allDays.push(d.toISOString().slice(0, 10));
     }
 
-    // ── Seed carry-forward from REAL historical data, not live prices ────
-    // Find the last real close BEFORE our window starts
-    const lastStockClose = {};
+    // ── Seed: find last known close BEFORE window for carry-forward ─────
+    const lastStock = {};
     S.stocks.forEach(s => {
-      const map = stockHist[s.sym];
-      if (!map) return;
-      const windowStart = allDays[allDays.length - 1]; // oldest day in window
-      const sortedDates = Object.keys(map).sort();
-      // Find latest date before windowStart
-      for (let i = sortedDates.length - 1; i >= 0; i--) {
-        if (sortedDates[i] < windowStart) {
-          lastStockClose[s.sym] = map[sortedDates[i]].c;
-          break;
-        }
+      const map = stockHist[s.sym]; if (!map) return;
+      const sorted = Object.keys(map).sort();
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i] < allDays[0]) { lastStock[s.sym] = map[sorted[i]].c; break; }
       }
-      // Fallback: use earliest date in window if no prior data
-      if (!lastStockClose[s.sym] && map[windowStart]) {
-        lastStockClose[s.sym] = map[windowStart].o;
-      }
+      // fallback: use first available
+      if (!lastStock[s.sym] && sorted.length) lastStock[s.sym] = map[sorted[0]].c;
+    });
+    // If Yahoo returned nothing, use live Finnhub price as fallback
+    S.stocks.forEach(s => {
+      if (!lastStock[s.sym] && S.sp[s.sym]?.price) lastStock[s.sym] = S.sp[s.sym].price;
     });
 
-    const lastCryptoClose = {};
+    const lastCrypto = {};
     S.crypto.forEach(a => {
-      const map = cryptoHist[a.sym];
-      if (!map) return;
-      const windowStart = allDays[allDays.length - 1];
-      const sortedDates = Object.keys(map).sort();
-      for (let i = sortedDates.length - 1; i >= 0; i--) {
-        if (sortedDates[i] < windowStart) {
-          lastCryptoClose[a.sym] = map[sortedDates[i]].c;
-          break;
-        }
+      const map = cryptoHist[a.sym]; if (!map) return;
+      const sorted = Object.keys(map).sort();
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i] < allDays[0]) { lastCrypto[a.sym] = map[sorted[i]].c; break; }
       }
-      if (!lastCryptoClose[a.sym] && map[windowStart]) {
-        lastCryptoClose[a.sym] = map[windowStart].o;
-      }
+      if (!lastCrypto[a.sym] && sorted.length) lastCrypto[a.sym] = map[sorted[0]].c;
     });
 
-    // ── Build daily close values (chronological: oldest first) ───────────
-    const dailyCloses = []; // {dateKey, closeVal, hasData}
-    for (const dateKey of [...allDays].reverse()) {
-      let closeVal = 0, hasData = false;
+    // ── Build daily portfolio totals ────────────────────────────────────
+    // Each day: total = sum of (last known stock close × shares × fx)
+    //                 + sum of (crypto close or carry-forward × qty × fx)
+    // On weekends/holidays: stocks carry-forward Friday's close (correct!)
+    // Crypto trades 24/7 so it always has data
+    const dailyTotals = []; // {dateKey, total, hasTrading}
+    for (const dk of allDays) {
+      let total = 0;
+      let hasTrading = false;
 
+      // Stocks: update carry-forward if we have data, then add to total
       S.stocks.forEach(s => {
-        const sh = getShares(s);
-        if (!sh) return;
+        const sh = getShares(s); if (!sh) return;
         const map = stockHist[s.sym];
-        if (map?.[dateKey]) {
-          lastStockClose[s.sym] = map[dateKey].c;
-          hasData = true;
-        }
-        if (lastStockClose[s.sym]) {
-          closeVal += lastStockClose[s.sym] * sh * S.fx;
-        }
+        if (map?.[dk]) { lastStock[s.sym] = map[dk].c; hasTrading = true; }
+        if (lastStock[s.sym]) total += lastStock[s.sym] * sh * S.fx;
       });
 
+      // Crypto: same logic
       S.crypto.forEach(a => {
         const map = cryptoHist[a.sym];
-        if (map?.[dateKey]) {
-          lastCryptoClose[a.sym] = map[dateKey].c;
-          hasData = true;
-        }
-        if (lastCryptoClose[a.sym]) {
-          closeVal += lastCryptoClose[a.sym] * a.qty * S.fx;
-        }
+        if (map?.[dk]) { lastCrypto[a.sym] = map[dk].c; hasTrading = true; }
+        if (lastCrypto[a.sym]) total += lastCrypto[a.sym] * a.qty * S.fx;
       });
 
-      if (!closeVal) continue;
-      dailyCloses.push({dateKey, closeVal, hasData});
+      if (total > 0) dailyTotals.push({ dateKey: dk, total, hasTrading });
     }
 
-    // ── Build rows: P&L = today's close − yesterday's close ─────────────
+    // ── Build P&L rows: change = today total − yesterday total ──────────
     const rows = [];
-    for (let i = 1; i < dailyCloses.length; i++) {
-      const prev = dailyCloses[i - 1];
-      const curr = dailyCloses[i];
+    for (let i = 1; i < dailyTotals.length; i++) {
+      const prev = dailyTotals[i - 1];
+      const curr = dailyTotals[i];
       rows.push({
-        dateKey:  curr.dateKey,
-        prevClose: prev.closeVal,
-        closeVal: curr.closeVal,
-        hasData:  curr.hasData
+        dateKey:   curr.dateKey,
+        prevTotal: prev.total,
+        total:     curr.total,
+        hasTrading: curr.hasTrading
       });
     }
     rows.reverse(); // newest first
@@ -1358,9 +1344,10 @@ async function buildHistoryTable() {
       return;
     }
 
-    // ── Chart data (chronological order) ────────────────────────────────
-    const chartLabels = [...rows].reverse().map(r => r.dateKey.slice(5).replace('-', '/'));
-    const chartData   = [...rows].reverse().map(r => Math.round(r.closeVal));
+    // ── Chart (chronological) ───────────────────────────────────────────
+    const chartRows   = [...rows].reverse();
+    const chartLabels = chartRows.map(r => r.dateKey.slice(5).replace('-', '/'));
+    const chartData   = chartRows.map(r => Math.round(r.total));
 
     let html = `
     <canvas id="histChart" style="width:100%;height:160px;margin-bottom:12px"></canvas>
@@ -1369,24 +1356,24 @@ async function buildHistoryTable() {
       <thead>
         <tr style="color:var(--t3);border-bottom:1px solid var(--b1)">
           <th style="text-align:right;padding:6px 4px">תאריך</th>
-          <th style="text-align:left;padding:6px 4px">סגירה קודמת</th>
-          <th style="text-align:left;padding:6px 4px">סגירה</th>
+          <th style="text-align:left;padding:6px 4px">סה״כ אתמול</th>
+          <th style="text-align:left;padding:6px 4px">סה״כ היום</th>
           <th style="text-align:left;padding:6px 4px">P&L יומי</th>
         </tr>
       </thead><tbody>`;
 
     for (const row of rows) {
-      const {dateKey, prevClose, closeVal, hasData} = row;
+      const { dateKey, prevTotal, total, hasTrading } = row;
       const dateStr = new Date(dateKey).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
-      const pnl = closeVal - prevClose;
-      const pct = prevClose ? (pnl / prevClose * 100) : 0;
+      const pnl = total - prevTotal;
+      const pct = prevTotal ? (pnl / prevTotal * 100) : 0;
       const up  = pnl >= 0;
-      const closedStyle = hasData ? '' : 'opacity:0.45';
+      const dim = hasTrading ? '' : 'opacity:0.45';
 
-      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${closedStyle}">
-        <td style="padding:6px 4px;color:var(--t2)">${dateStr}${hasData?'':' 🔒'}</td>
-        <td style="padding:6px 4px">${fILS(prevClose)}</td>
-        <td style="padding:6px 4px">${fILS(closeVal)}</td>
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${dim}">
+        <td style="padding:6px 4px;color:var(--t2)">${dateStr}${hasTrading?'':' 🔒'}</td>
+        <td style="padding:6px 4px">${fILS(prevTotal)}</td>
+        <td style="padding:6px 4px">${fILS(total)}</td>
         <td style="padding:6px 4px;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
       </tr>`;
     }
@@ -1394,7 +1381,7 @@ async function buildHistoryTable() {
     html += '</tbody></table></div>';
     el.innerHTML = html;
 
-    // ── Draw portfolio value chart ────────────────────────────────────────
+    // ── Chart ────────────────────────────────────────────────────────────
     const ctx = document.getElementById('histChart')?.getContext('2d');
     if (ctx && window.Chart) {
       new Chart(ctx, {
@@ -1405,21 +1392,15 @@ async function buildHistoryTable() {
             data: chartData,
             borderColor: '#00e5b8',
             backgroundColor: 'rgba(0,229,184,0.08)',
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.3,
-            fill: true
+            borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true
           }]
         },
         options: {
           responsive: true,
-          plugins: {
-            legend: {display: false},
-            tooltip: {callbacks: {label: ctx => '₪' + ctx.parsed.y.toLocaleString()}}
-          },
+          plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>'₪'+c.parsed.y.toLocaleString()}} },
           scales: {
-            x: {ticks: {color:'#666', maxTicksLimit:6, font:{size:9}}, grid:{display:false}},
-            y: {ticks: {color:'#666', font:{size:9}, callback: v => '₪'+(v/1000).toFixed(0)+'K'}, grid:{color:'rgba(255,255,255,0.05)'}}
+            x: {ticks:{color:'#666',maxTicksLimit:6,font:{size:9}}, grid:{display:false}},
+            y: {ticks:{color:'#666',font:{size:9},callback:v=>'₪'+(v/1000).toFixed(0)+'K'}, grid:{color:'rgba(255,255,255,0.05)'}}
           }
         }
       });
