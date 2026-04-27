@@ -1213,7 +1213,7 @@ function renderInsights() {
 }
 
 // ═══════════════════════════════════════════
-// HISTORICAL P&L TABLE  ← FIXED
+// HISTORICAL P&L TABLE  ← FIXED v2: day-over-day + real seed
 // ═══════════════════════════════════════════
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
@@ -1230,7 +1230,8 @@ async function buildHistoryTable() {
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
-        const range = days <= 7 ? '5d' : days <= 30 ? '1mo' : '3mo';
+        // Fetch extra days so we can seed carry-forward from real data
+        const range = days <= 7 ? '1mo' : days <= 30 ? '3mo' : '6mo';
         const data  = await fetchYahooCandles(s.sym, range);
         if (!data?.length) return;
         const map = {};
@@ -1248,12 +1249,11 @@ async function buildHistoryTable() {
       const bs = BN[a.sym];
       if (!bs) return;
       try {
-        const limit = Math.min(days + 2, 100);
+        const limit = Math.min(days + 5, 100);
         const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
         const arr = await r.json();
         const map = {};
         arr.forEach(k => {
-          // Add 12h (43200s) to avoid UTC midnight → wrong date in local timezone
           const ts = Math.floor(k[0] / 1000) + 43200;
           map[toDateKey(ts)] = {o: parseFloat(k[1]), c: parseFloat(k[4])};
         });
@@ -1261,45 +1261,65 @@ async function buildHistoryTable() {
       } catch(_) {}
     }));
 
-    // ── Build calendar days ──────────────────────────────────────────────
+    // ── Build calendar days (newest to oldest) ───────────────────────────
     const allDays = [];
     for (let i = 0; i < days; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
       allDays.push(d.toISOString().slice(0, 10));
     }
 
-    // Pre-seed lastStockClose with current live prices so carry-forward
-    // works even before the first trading day appears in history
+    // ── Seed carry-forward from REAL historical data, not live prices ────
+    // Find the last real close BEFORE our window starts
     const lastStockClose = {};
     S.stocks.forEach(s => {
-      const p = S.sp[s.sym];
-      if (p?.price) lastStockClose[s.sym] = p.price;
+      const map = stockHist[s.sym];
+      if (!map) return;
+      const windowStart = allDays[allDays.length - 1]; // oldest day in window
+      const sortedDates = Object.keys(map).sort();
+      // Find latest date before windowStart
+      for (let i = sortedDates.length - 1; i >= 0; i--) {
+        if (sortedDates[i] < windowStart) {
+          lastStockClose[s.sym] = map[sortedDates[i]].c;
+          break;
+        }
+      }
+      // Fallback: use earliest date in window if no prior data
+      if (!lastStockClose[s.sym] && map[windowStart]) {
+        lastStockClose[s.sym] = map[windowStart].o;
+      }
     });
 
-    // Pre-seed lastCryptoClose with current live prices
     const lastCryptoClose = {};
     S.crypto.forEach(a => {
-      const p = S.cp[a.id];
-      if (p?.usd) lastCryptoClose[a.sym] = p.usd;
+      const map = cryptoHist[a.sym];
+      if (!map) return;
+      const windowStart = allDays[allDays.length - 1];
+      const sortedDates = Object.keys(map).sort();
+      for (let i = sortedDates.length - 1; i >= 0; i--) {
+        if (sortedDates[i] < windowStart) {
+          lastCryptoClose[a.sym] = map[sortedDates[i]].c;
+          break;
+        }
+      }
+      if (!lastCryptoClose[a.sym] && map[windowStart]) {
+        lastCryptoClose[a.sym] = map[windowStart].o;
+      }
     });
 
-    const rows = [];
+    // ── Build daily close values (chronological: oldest first) ───────────
+    const dailyCloses = []; // {dateKey, closeVal, hasData}
     for (const dateKey of [...allDays].reverse()) {
-      let openVal = 0, closeVal = 0, hasData = false;
+      let closeVal = 0, hasData = false;
 
       S.stocks.forEach(s => {
-        const sh  = getShares(s);
+        const sh = getShares(s);
         if (!sh) return;
         const map = stockHist[s.sym];
-
         if (map?.[dateKey]) {
           lastStockClose[s.sym] = map[dateKey].c;
-          openVal  += map[dateKey].o * sh * S.fx;
-          closeVal += map[dateKey].c * sh * S.fx;
-          hasData   = true;
-        } else if (lastStockClose[s.sym]) {
-          // Market closed — carry forward last known price (no PnL on closed days)
-          openVal  += lastStockClose[s.sym] * sh * S.fx;
+          hasData = true;
+        }
+        if (lastStockClose[s.sym]) {
           closeVal += lastStockClose[s.sym] * sh * S.fx;
         }
       });
@@ -1308,20 +1328,29 @@ async function buildHistoryTable() {
         const map = cryptoHist[a.sym];
         if (map?.[dateKey]) {
           lastCryptoClose[a.sym] = map[dateKey].c;
-          openVal  += map[dateKey].o * a.qty * S.fx;
-          closeVal += map[dateKey].c * a.qty * S.fx;
-          hasData   = true;
-        } else if (lastCryptoClose[a.sym]) {
-          // Carry forward last known crypto price
-          openVal  += lastCryptoClose[a.sym] * a.qty * S.fx;
+          hasData = true;
+        }
+        if (lastCryptoClose[a.sym]) {
           closeVal += lastCryptoClose[a.sym] * a.qty * S.fx;
         }
       });
 
-      if (!openVal && !closeVal) continue;
-      rows.push({dateKey, openVal, closeVal, hasData});
+      if (!closeVal) continue;
+      dailyCloses.push({dateKey, closeVal, hasData});
     }
 
+    // ── Build rows: P&L = today's close − yesterday's close ─────────────
+    const rows = [];
+    for (let i = 1; i < dailyCloses.length; i++) {
+      const prev = dailyCloses[i - 1];
+      const curr = dailyCloses[i];
+      rows.push({
+        dateKey:  curr.dateKey,
+        prevClose: prev.closeVal,
+        closeVal: curr.closeVal,
+        hasData:  curr.hasData
+      });
+    }
     rows.reverse(); // newest first
 
     if (!rows.length) {
@@ -1340,23 +1369,23 @@ async function buildHistoryTable() {
       <thead>
         <tr style="color:var(--t3);border-bottom:1px solid var(--b1)">
           <th style="text-align:right;padding:6px 4px">תאריך</th>
-          <th style="text-align:left;padding:6px 4px">פתיחה</th>
+          <th style="text-align:left;padding:6px 4px">סגירה קודמת</th>
           <th style="text-align:left;padding:6px 4px">סגירה</th>
           <th style="text-align:left;padding:6px 4px">P&L יומי</th>
         </tr>
       </thead><tbody>`;
 
     for (const row of rows) {
-      const {dateKey, openVal, closeVal, hasData} = row;
+      const {dateKey, prevClose, closeVal, hasData} = row;
       const dateStr = new Date(dateKey).toLocaleDateString('he-IL', {day:'2-digit', month:'2-digit'});
-      const pnl = closeVal - openVal;
-      const pct = openVal ? (pnl / openVal * 100) : 0;
+      const pnl = closeVal - prevClose;
+      const pct = prevClose ? (pnl / prevClose * 100) : 0;
       const up  = pnl >= 0;
       const closedStyle = hasData ? '' : 'opacity:0.45';
 
       html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${closedStyle}">
         <td style="padding:6px 4px;color:var(--t2)">${dateStr}${hasData?'':' 🔒'}</td>
-        <td style="padding:6px 4px">${fILS(openVal)}</td>
+        <td style="padding:6px 4px">${fILS(prevClose)}</td>
         <td style="padding:6px 4px">${fILS(closeVal)}</td>
         <td style="padding:6px 4px;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(pnl)} (${up?'+':''}${pct.toFixed(1)}%)</td>
       </tr>`;
