@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
+<meta name="news-build" content="v5-world-filters-10-per-asset">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -221,6 +222,16 @@ body.light .news-filter-chip.active { color: #F4EFE5; }
 .news-filter-empty { text-align: center; padding: 42px 20px; color: var(--t3); font-size: 13px; line-height: 1.75; }
 .news-item[dir="ltr"] .news-item-title, .news-item[dir="ltr"] .news-item-desc { direction: ltr; text-align: left; }
 .news-item[dir="rtl"] .news-item-title, .news-item[dir="rtl"] .news-item-desc { direction: rtl; text-align: right; }
+/* News v5: centered story cards while preserving source/time header */
+.news-item { text-align: center; }
+.news-item-title, .news-item-desc,
+.news-item[dir="ltr"] .news-item-title, .news-item[dir="ltr"] .news-item-desc,
+.news-item[dir="rtl"] .news-item-title, .news-item[dir="rtl"] .news-item-desc { text-align: center; }
+.news-item-sym { align-self: center; }
+.news-reader { width: min(100%, 980px); margin-inline: auto; }
+.news-reader-title { text-align: center; }
+.news-reader-meta { justify-content: center; flex-wrap: wrap; }
+.news-reader-status { align-self: center; }
 .news-list { display: grid; gap: 10px; }
 @media (min-width: 640px) { .news-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .news-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -1950,6 +1961,7 @@ async function renderCryptoPage() {
 // ═══════════════════════════════════════════
 let newsTab = 'world';
 let newsMineFilter = 'all';
+let newsWorldFilter = 'all';
 let newsRenderVersion = 0;
 let newsMineSignature = '';
 const newsCache = { world: null, mine: null, _displayed: [], articles: {} };
@@ -1957,8 +1969,19 @@ let newsLastFetch = { world: 0, mine: 0 };
 const NEWS_TTL = 15 * 60 * 1000;
 const NEWS_STALE_TTL = 24 * 60 * 60 * 1000;
 const NEWS_ARTICLE_TTL = 7 * 24 * 60 * 60 * 1000;
-const NEWS_STORAGE_KEY = 'vector_news_cache_v5';
-const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v3';
+const NEWS_STORAGE_KEY = 'vector_news_cache_v6';
+const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v4';
+
+const NEWS_PER_ASSET = 10;
+const NEWS_WORLD_FILTERS = [
+  { id: 'all',        label: 'הכל',       icon: 'ph-squares-four' },
+  { id: 'markets',    label: 'שווקים',    icon: 'ph-chart-line-up' },
+  { id: 'crypto',     label: 'קריפטו',    icon: 'ph-coins' },
+  { id: 'earnings',   label: 'דוחות',     icon: 'ph-file-text' },
+  { id: 'technology', label: 'טכנולוגיה', icon: 'ph-cpu' },
+  { id: 'economy',    label: 'כלכלה',     icon: 'ph-bank' },
+  { id: 'ai',         label: 'AI',        icon: 'ph-brain' }
+];
 
 // RSS is a discovery/fallback layer. Article content is fetched separately into the internal reader.
 const NEWS_FETCHERS = [
@@ -2004,11 +2027,22 @@ window.setNewsTab = (t) => {
   renderNews();
 };
 
+window.setNewsWorldFilter = (filter) => {
+  const valid = new Set(NEWS_WORLD_FILTERS.map(item => item.id));
+  newsWorldFilter = valid.has(String(filter || '').toLowerCase()) ? String(filter).toLowerCase() : 'all';
+  const items = newsCache.world || [];
+  newsRenderFilters(items);
+  const content = document.getElementById('newsContent');
+  if (!content) return;
+  const visible = newsApplyWorldFilter(items);
+  content.innerHTML = visible.length ? newsCardsHtml(visible) : newsWorldEmptyHtml(newsWorldFilter);
+};
+
 window.setNewsMineFilter = (sym) => {
   const wanted = String(sym || 'all').toUpperCase();
   const assets = newsCurrentAssets();
   newsMineFilter = wanted === 'ALL' || !assets.some(a => a.sym === wanted) ? 'all' : wanted;
-  newsRenderMineFilters(newsCache.mine || []);
+  newsRenderFilters(newsCache.mine || []);
   const content = document.getElementById('newsContent');
   if (!content) return;
   const visible = newsApplyMineFilter(newsFilterMineItems(newsCache.mine || [], assets));
@@ -2201,7 +2235,7 @@ async function newsFetchFinnhubCompany(asset) {
   const fmt = d => d.toISOString().slice(0, 10);
   const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(asset.sym)}&from=${fmt(from)}&to=${fmt(to)}&token=${encodeURIComponent(FINNHUB_KEY)}`;
   const rows = await newsFetchJson(url, 5500);
-  return rows.slice(0, 10).map(row => newsFinnhubItem(row, asset.sym, asset.name, asset.kind)).filter(Boolean);
+  return rows.slice(0, 24).map(row => newsFinnhubItem(row, asset.sym, asset.name, asset.kind)).filter(Boolean);
 }
 
 function newsDedupe(items) {
@@ -2260,6 +2294,41 @@ function newsFilterMineItems(items, assets) {
   }).filter(Boolean);
 }
 
+function newsWorldTags(item) {
+  const text = `${item?.title || ''} ${item?.desc || ''} ${item?.src || ''}`.toLowerCase();
+  const tags = new Set();
+  if (/\b(stock|stocks|share|shares|market|markets|wall street|nasdaq|dow|s&p|index|indices|futures|investor|investment|fund|etf|yield|dollar|currency|currencies|rally|selloff)\b/i.test(text)) tags.add('markets');
+  if (/\b(bitcoin|btc|crypto|cryptocurrency|ethereum|eth|solana|sol|blockchain|token|defi|stablecoin|coinbase)\b/i.test(text)) tags.add('crypto');
+  if (/\b(earnings|quarterly|results|revenue|profit|eps|guidance|forecast|sales report|financial results)\b/i.test(text)) tags.add('earnings');
+  if (/\b(technology|tech|software|cloud|chip|chips|semiconductor|smartphone|apple|microsoft|google|alphabet|meta|amazon|nvidia|tesla|cybersecurity)\b/i.test(text)) tags.add('technology');
+  if (/\b(economy|economic|inflation|interest rate|rates|federal reserve|\bfed\b|central bank|gdp|jobs|employment|recession|treasury|bond|bonds|tariff|trade war|oil|gold|commodity)\b/i.test(text)) tags.add('economy');
+  if (/\b(ai|artificial intelligence|generative ai|machine learning|openai|chatgpt|anthropic|gemini|copilot|large language model|llm)\b/i.test(text)) tags.add('ai');
+  if (!tags.size) tags.add('markets');
+  return [...tags];
+}
+
+function newsApplyWorldFilter(items) {
+  if (newsWorldFilter === 'all') return items;
+  return items.filter(item => newsWorldTags(item).includes(newsWorldFilter));
+}
+
+function newsWorldEmptyHtml(filter = newsWorldFilter) {
+  const label = NEWS_WORLD_FILTERS.find(item => item.id === filter)?.label || 'הקטגוריה הזאת';
+  return `<div class="news-filter-empty">לא נמצאו כרגע כתבות בקטגוריית <strong>${newsEscape(label)}</strong>.<br>אפשר לבחור קטגוריה אחרת או לחזור לכל החדשות.</div>`;
+}
+
+function newsPreviewText(item) {
+  const title = newsNormaliseTitle(item?.title || '').toLowerCase();
+  const desc = newsStripHtml(item?.desc || item?.feedContent || '').trim();
+  if (desc.length < 42) return '';
+  const normalized = newsNormaliseTitle(desc).toLowerCase();
+  if (normalized === title || normalized.startsWith(title + ' ')) {
+    const tail = desc.slice(item.title?.length || 0).replace(/^\s*[-–—|:]\s*/, '').trim();
+    return tail.length >= 42 ? tail : '';
+  }
+  return desc;
+}
+
 function newsApplyMineFilter(items) {
   if (newsMineFilter === 'all') return items;
   return items.filter(item => String(item.tagSym || '').toUpperCase() === newsMineFilter);
@@ -2272,14 +2341,26 @@ function newsMineEmptyHtml(filter = newsMineFilter) {
   return `<div class="news-filter-empty">לא נמצאו כרגע כתבות עבור <strong>${newsEscape(filter)}</strong>.<br>אפשר לבחור נכס אחר או לחזור לכל הנכסים.</div>`;
 }
 
-function newsRenderMineFilters(items = []) {
+function newsRenderFilters(items = []) {
   const bar = document.getElementById('newsAssetFilters');
   if (!bar) return;
-  if (newsTab !== 'mine') {
-    bar.classList.remove('show');
-    bar.innerHTML = '';
+
+  if (newsTab === 'world') {
+    const counts = new Map(NEWS_WORLD_FILTERS.map(filter => [filter.id, 0]));
+    counts.set('all', items.length);
+    for (const item of items) {
+      for (const tag of newsWorldTags(item)) counts.set(tag, (counts.get(tag) || 0) + 1);
+    }
+    bar.innerHTML = NEWS_WORLD_FILTERS.map(filter => {
+      const count = counts.get(filter.id) || 0;
+      const active = newsWorldFilter === filter.id ? ' active' : '';
+      const zero = count ? '' : ' zero';
+      return `<button class="news-filter-chip${active}${zero}" onclick="setNewsWorldFilter('${filter.id}')"><i class="ph-thin ${filter.icon} ph-sm"></i><span>${newsEscape(filter.label)}</span><span class="news-filter-count">${count}</span></button>`;
+    }).join('');
+    bar.classList.add('show');
     return;
   }
+
   const assets = newsCurrentAssets();
   if (newsMineFilter !== 'all' && !assets.some(a => a.sym === newsMineFilter)) newsMineFilter = 'all';
   const counts = new Map();
@@ -2326,13 +2407,21 @@ function newsWorldScore(item) {
 }
 
 function newsCurateWorld(items) {
-  const deduped = newsDedupe(items).filter(item => newsWorldScore(item) > -100);
+  const deduped = newsDedupe(items)
+    .filter(item => newsWorldScore(item) > -100)
+    .filter(item => {
+      const preview = newsPreviewText(item);
+      // Google News headline-only entries are the main source of empty reader pages.
+      // Keep them only when a useful feed summary exists; direct publisher/Finnhub links remain eligible.
+      return preview.length >= 42 || !newsIsGoogleNewsUrl(item.link);
+    })
+    .map(item => ({ ...item, worldTags: newsWorldTags(item) }));
   const primary = deduped.filter(item => newsWorldScore(item) >= 1);
   const primaryKeys = new Set(primary.map(item => item.link));
   const backup = deduped.filter(item => !primaryKeys.has(item.link));
   return [...primary, ...backup]
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 45);
+    .slice(0, 60);
 }
 
 function newsLoadStored() {
@@ -2374,14 +2463,14 @@ function newsRefreshVisible(type, items) {
   const subtabs = document.getElementById('newsSubtabs');
   const content = document.getElementById('newsContent');
   if (!content || subtabs?.style.display === 'none') return;
+  newsRenderFilters(items);
   if (type === 'mine') {
     const safe = newsFilterMineItems(items, newsCurrentAssets());
-    newsRenderMineFilters(safe);
     const visible = newsApplyMineFilter(safe);
     content.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
   } else {
-    newsRenderMineFilters([]);
-    content.innerHTML = items.length ? newsCardsHtml(items) : content.innerHTML;
+    const visible = newsApplyWorldFilter(items);
+    content.innerHTML = visible.length ? newsCardsHtml(visible) : newsWorldEmptyHtml();
   }
 }
 
@@ -2434,35 +2523,51 @@ async function newsLoadWorld(force = false) {
 
 function newsAssetRssQuery(asset) {
   const query = asset.kind === 'crypto'
-    ? `("${asset.name}" OR "${asset.sym}") cryptocurrency when:7d`
-    : `("${asset.sym}" stock OR "${asset.name}") when:7d`;
+    ? `("${asset.name}" OR "${asset.sym}") (cryptocurrency OR crypto OR blockchain) when:30d`
+    : `("${asset.sym}" stock OR "${asset.name}" shares OR "${asset.name}" earnings) when:30d`;
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
 }
 
 async function newsFetchAssetRss(asset) {
   const items = await newsFetchRss(newsAssetRssQuery(asset), 'Google News');
-  return items.slice(0, 7).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
+  return items.slice(0, 24).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
 }
 
-async function newsEnrichMineWithRss(missingAssets, baseItems, signature) {
-  if (!missingAssets.length) return baseItems;
-  const results = await newsMapLimit(missingAssets, 3, async asset => {
-    try { return await newsFetchAssetRss(asset); }
-    catch (_) { return []; }
+function newsDedupePerAsset(items) {
+  const seen = new Set();
+  return items.filter(item => {
+    const key = (item.title || '').toLowerCase().replace(/[^a-z0-9א-ת]+/g, ' ').trim().slice(0, 140);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
-  if (signature !== newsPortfolioSignature()) return baseItems;
-  const assets = newsCurrentAssets();
-  const enriched = newsDedupe(newsFilterMineItems([...baseItems, ...results.flat()], assets))
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
-  if (enriched.length) {
-    newsCache.mine = enriched;
-    newsMineSignature = signature;
-    newsLastFetch.mine = Date.now();
-    newsStore('mine', enriched, signature);
-    newsRefreshVisible('mine', enriched);
+}
+
+async function newsFetchStoriesForAsset(asset, general = []) {
+  const rssPromise = newsFetchAssetRss(asset).catch(error => {
+    console.warn('[News] Asset RSS failed:', asset.sym, error?.message || error);
+    return [];
+  });
+
+  let primaryPromise;
+  if (asset.kind === 'stock') {
+    primaryPromise = newsFetchFinnhubCompany(asset).catch(error => {
+      console.warn('[News] Company feed failed:', asset.sym, error?.message || error);
+      return [];
+    });
+  } else {
+    primaryPromise = Promise.resolve(general
+      .filter(item => newsAssetMatchesItem(item, asset))
+      .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind })));
   }
-  return enriched;
+
+  const [primary, rss] = await Promise.all([primaryPromise, rssPromise]);
+  const merged = newsDedupePerAsset([...primary, ...rss])
+    .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }))
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  // Always reserve an independent quota per portfolio asset. No global 30/60-item cap.
+  return merged.slice(0, NEWS_PER_ASSET);
 }
 
 async function newsLoadMine(force = false) {
@@ -2484,52 +2589,28 @@ async function newsLoadMine(force = false) {
     return [];
   }
 
-  const stockAssets = assets.filter(a => a.kind === 'stock');
-  const cryptoAssets = assets.filter(a => a.kind === 'crypto');
-
-  const stockPromise = newsMapLimit(stockAssets, 3, async asset => {
-    try { return await newsFetchFinnhubCompany(asset); }
-    catch (error) {
-      console.warn('[News] Company feed failed:', asset.sym, error?.message || error);
-      return [];
-    }
-  });
-  const cryptoPromise = cryptoAssets.length
-    ? newsFetchFinnhubGeneral().catch(error => {
-        console.warn('[News] Crypto market feed failed:', error?.message || error);
+  const hasCrypto = assets.some(asset => asset.kind === 'crypto');
+  const general = hasCrypto
+    ? await newsFetchFinnhubGeneral().catch(error => {
+        console.warn('[News] General crypto feed failed:', error?.message || error);
         return [];
       })
-    : Promise.resolve([]);
+    : [];
 
-  const [companyResults, general] = await Promise.all([stockPromise, cryptoPromise]);
-  let collected = companyResults.flat();
+  const perAsset = await newsMapLimit(assets, 3, asset => newsFetchStoriesForAsset(asset, general));
+  if (signature !== newsPortfolioSignature()) return newsCache.mine || [];
 
-  for (const asset of cryptoAssets) {
-    const matches = general
-      .filter(item => newsAssetMatchesItem(item, asset))
-      .slice(0, 8)
-      .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
-    collected.push(...matches);
-  }
-
-  let fresh = newsDedupe(newsFilterMineItems(collected, assets))
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
-
-  const covered = new Set(fresh.map(item => String(item.tagSym || '').toUpperCase()));
-  const missingAssets = assets.filter(asset => !covered.has(asset.sym));
+  const fresh = newsFilterMineItems(perAsset.flat(), assets)
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
   if (fresh.length) {
     newsCache.mine = fresh;
     newsMineSignature = signature;
     newsLastFetch.mine = Date.now();
     newsStore('mine', fresh, signature);
-    newsEnrichMineWithRss(missingAssets, fresh, signature).catch(() => {});
     return fresh;
   }
 
-  fresh = await newsEnrichMineWithRss(missingAssets, [], signature);
-  if (fresh.length) return fresh;
   if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_STALE_TTL) {
     return newsFilterMineItems(newsCache.mine, assets);
   }
@@ -2542,14 +2623,15 @@ function newsCardsHtml(items) {
     const sym = item.tagSym
       ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
       : '';
-    const dir = newsTextDir(`${item.title || ''} ${item.desc || ''}`);
+    const preview = newsPreviewText(item);
+    const dir = newsTextDir(`${item.title || ''} ${preview}`);
     return `<div class="news-item" dir="${dir}" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
       <div class="news-item-head">
         <span class="news-item-src">${newsEscape(item.src)}</span>
         <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
       </div>
       <div class="news-item-title">${newsEscape(item.title)}</div>
-      ${item.desc ? `<div class="news-item-desc">${newsEscape(item.desc)}</div>` : ''}
+      ${preview ? `<div class="news-item-desc">${newsEscape(preview)}</div>` : '<div class="news-item-desc">תוכן הכתבה ייטען במצב הקריאה הפנימי</div>'}
       ${sym}
     </div>`;
   }).join('') + '</div>';
@@ -2571,53 +2653,48 @@ async function renderNews() {
       newsMineSignature = signature;
       newsMineFilter = 'all';
     }
-  } else {
-    newsRenderMineFilters([]);
   }
 
   const cached = newsCache[requestedTab];
   if (cached?.length) {
     const safeCached = requestedTab === 'mine' ? newsFilterMineItems(cached, newsCurrentAssets()) : cached;
-    if (requestedTab === 'mine') newsRenderMineFilters(safeCached);
-    const visible = requestedTab === 'mine' ? newsApplyMineFilter(safeCached) : safeCached;
-    el.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
+    newsRenderFilters(safeCached);
+    const visible = requestedTab === 'mine' ? newsApplyMineFilter(safeCached) : newsApplyWorldFilter(safeCached);
+    el.innerHTML = visible.length
+      ? newsCardsHtml(visible)
+      : (requestedTab === 'mine' ? newsMineEmptyHtml() : newsWorldEmptyHtml());
+
     const loader = requestedTab === 'world' ? newsLoadWorld(true) : newsLoadMine(true);
     loader.then(items => {
-      if (version !== newsRenderVersion || newsTab !== requestedTab) return;
-      if (!items) return;
-      if (requestedTab === 'mine') {
-        const safe = newsFilterMineItems(items, newsCurrentAssets());
-        newsRenderMineFilters(safe);
-        const filtered = newsApplyMineFilter(safe);
-        el.innerHTML = filtered.length ? newsCardsHtml(filtered) : newsMineEmptyHtml();
-      } else if (items.length && subtabs?.style.display !== 'none') {
-        el.innerHTML = newsCardsHtml(items);
-      }
+      if (version !== newsRenderVersion || newsTab !== requestedTab || !items) return;
+      const safe = requestedTab === 'mine' ? newsFilterMineItems(items, newsCurrentAssets()) : items;
+      newsRenderFilters(safe);
+      const filtered = requestedTab === 'mine' ? newsApplyMineFilter(safe) : newsApplyWorldFilter(safe);
+      el.innerHTML = filtered.length
+        ? newsCardsHtml(filtered)
+        : (requestedTab === 'mine' ? newsMineEmptyHtml() : newsWorldEmptyHtml());
     }).catch(() => {});
     return;
   }
 
-  if (requestedTab === 'mine') newsRenderMineFilters([]);
+  newsRenderFilters([]);
   el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
   try {
     const items = requestedTab === 'world' ? await newsLoadWorld() : await newsLoadMine();
     if (version !== newsRenderVersion || newsTab !== requestedTab) return;
-    if (requestedTab === 'mine') {
-      const safe = newsFilterMineItems(items, newsCurrentAssets());
-      newsRenderMineFilters(safe);
-      if (!newsCurrentAssets().length) {
-        el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
-        return;
-      }
-      const visible = newsApplyMineFilter(safe);
-      el.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
+    const safe = requestedTab === 'mine' ? newsFilterMineItems(items, newsCurrentAssets()) : items;
+    newsRenderFilters(safe);
+
+    if (requestedTab === 'mine' && !newsCurrentAssets().length) {
+      el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
       return;
     }
-    if (!items.length) {
-      el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
+    const visible = requestedTab === 'mine' ? newsApplyMineFilter(safe) : newsApplyWorldFilter(safe);
+    if (!visible.length) {
+      el.innerHTML = requestedTab === 'mine' ? newsMineEmptyHtml() : newsWorldEmptyHtml();
       return;
     }
-    el.innerHTML = newsCardsHtml(items);
+    el.innerHTML = newsCardsHtml(visible);
   } catch (error) {
     if (version !== newsRenderVersion || newsTab !== requestedTab) return;
     console.error('[News] Render failed:', error);
@@ -2729,13 +2806,15 @@ function newsReaderParagraphs(text = '') {
 }
 
 function newsArticleQuality(text = '', item = {}) {
-  const blocks = String(text).split(/\n\s*\n/).filter(x => x.trim().length > 35);
-  const chars = blocks.join(' ').length;
-  const words = blocks.join(' ').split(/\s+/).filter(Boolean).length;
-  const lower = blocks.join(' ').toLowerCase();
-  if (chars < 520 || words < 90) return 0;
+  const blocks = String(text).split(/\n\s*\n/).filter(x => x.trim().length > 28);
+  const joined = blocks.join(' ');
+  const chars = joined.length;
+  const words = joined.split(/\s+/).filter(Boolean).length;
+  const lower = joined.toLowerCase();
+  if (chars < 260 || words < 45) return 0;
   if (newsIsGoogleNewsUrl(item.link) && /google news|full coverage|view full coverage/i.test(lower) && chars < 1800) return 0;
-  if (/enable javascript|access denied|robot check|just a moment|consent\.google/i.test(lower) && chars < 1800) return 0;
+  if (/enable javascript|access denied|robot check|just a moment|consent\.google|sign in to continue/i.test(lower) && chars < 1800) return 0;
+  if ((lower.match(/subscribe|advertisement|privacy|cookie/g) || []).length > 8 && words < 220) return 0;
   return chars + blocks.length * 180 + Math.min(words, 1500);
 }
 
@@ -2858,20 +2937,43 @@ async function newsSearchArticleUrls(item) {
   const cleanTitle = String(item.title || '').replace(/["“”]/g, '').slice(0, 180);
   const hint = newsSourceDomainHint(item.src);
   const query = `"${cleanTitle}" ${hint ? 'site:' + hint : String(item.src || '')}`.trim();
-  const searchUrl = 'https://s.jina.ai/' + encodeURIComponent(query);
-  let response;
-  try {
-    response = await fetch(searchUrl, {
-      signal: newsAbortSignal(10000),
+  const endpoints = [
+    'https://s.jina.ai/' + encodeURIComponent(query),
+    'https://r.jina.ai/http://www.google.com/search?q=' + encodeURIComponent(query),
+    'https://r.jina.ai/http://www.bing.com/search?q=' + encodeURIComponent(query)
+  ];
+  const results = await Promise.allSettled(endpoints.map(async endpoint => {
+    const response = await fetch(endpoint, {
+      signal: newsAbortSignal(11000),
       headers: { Accept: 'text/plain', 'X-Respond-With': 'markdown', 'X-Cache-Tolerance': '21600' },
       cache: 'force-cache'
     });
-  } catch (_) {}
-  if (!response?.ok) {
-    response = await fetch(searchUrl, { signal: newsAbortSignal(10000), headers: { Accept: 'text/plain' }, cache: 'force-cache' });
+    if (!response.ok) throw new Error('Search HTTP ' + response.status);
+    return response.text();
+  }));
+  const urls = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') urls.push(...newsExtractSearchUrls(await result.value, item));
   }
-  if (!response.ok) throw new Error('Search HTTP ' + response.status);
-  return newsExtractSearchUrls(await response.text(), item);
+  return [...new Set(urls)].slice(0, 8);
+}
+
+async function newsResolveGoogleCandidates(item) {
+  if (!newsIsGoogleNewsUrl(item.link)) return [];
+  const endpoints = [
+    'https://r.jina.ai/' + item.link,
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(item.link)
+  ];
+  const results = await Promise.allSettled(endpoints.map(async endpoint => {
+    const response = await fetch(endpoint, { signal: newsAbortSignal(10000), headers: { Accept: 'text/plain,text/html,*/*' }, cache: 'force-cache' });
+    if (!response.ok) throw new Error('Google resolve HTTP ' + response.status);
+    return response.text();
+  }));
+  const urls = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') urls.push(...newsExtractSearchUrls(await result.value, item));
+  }
+  return [...new Set(urls)].slice(0, 6);
 }
 
 async function newsTryArticleUrl(url, item) {
@@ -2898,9 +3000,22 @@ async function newsFetchArticle(item) {
   if (decodedGoogle) directCandidates.push(decodedGoogle);
   if (item.resolvedLink) directCandidates.push(newsSafeUrl(item.resolvedLink));
   if (!newsIsGoogleNewsUrl(item.link)) directCandidates.push(newsSafeUrl(item.link));
-  const uniqueDirect = [...new Set(directCandidates.filter(Boolean))];
 
-  for (const url of uniqueDirect.slice(0, 2)) {
+  if (newsIsGoogleNewsUrl(item.link)) {
+    // Sometimes the reader follows the Google News handoff directly; try it before search.
+    try {
+      const result = await newsReaderRequest(item.link, item, 'browser');
+      const stored = { ...result, via: 'google-handoff', savedAt: Date.now() };
+      newsCache.articles[key] = stored;
+      newsStoreArticles();
+      return stored;
+    } catch (_) {}
+    try { directCandidates.push(...await newsResolveGoogleCandidates(item)); }
+    catch (_) {}
+  }
+
+  const uniqueDirect = [...new Set(directCandidates.filter(Boolean))];
+  for (const url of uniqueDirect.slice(0, 5)) {
     try {
       const result = await newsTryArticleUrl(url, item);
       const stored = { ...result, savedAt: Date.now() };
@@ -2912,11 +3027,9 @@ async function newsFetchArticle(item) {
     }
   }
 
-  // Google News links are identifiers, not dependable article pages. Search the exact headline,
-  // resolve the publisher URL, then run the same internal reader on that URL.
   try {
     const searchUrls = await newsSearchArticleUrls(item);
-    for (const url of searchUrls.slice(0, 3)) {
+    for (const url of searchUrls.slice(0, 6)) {
       try {
         const result = await newsTryArticleUrl(url, item);
         const stored = { ...result, via: 'search+' + result.via, savedAt: Date.now() };
@@ -2929,7 +3042,7 @@ async function newsFetchArticle(item) {
     console.warn('[News] Article search fallback failed:', error?.message || error);
   }
 
-  if (summary.length >= 120) {
+  if (summary.length >= 55) {
     const stored = { text: summary, mode: 'summary', via: 'feed', resolvedUrl: '', savedAt: Date.now() };
     newsCache.articles[key] = stored;
     newsStoreArticles();
@@ -2996,7 +3109,7 @@ window.openNewsArticle = async function(index) {
     const body = document.getElementById('newsArticleBody');
     const status = document.getElementById('newsReaderStatus');
     if (body && !initialText) {
-      body.innerHTML = '<p>לא התקבל מהמקור תוכן שניתן להציג. הכתבה נשארת בתוך האתר ולא נפתח חלון חיצוני.</p>';
+      body.innerHTML = `<div class="news-reader-lead"><p>${newsEscape(item.title)}</p></div><div class="news-reader-note">המקור פרסם כותרת ללא תקציר זמין וחסם חילוץ אוטומטי של גוף הכתבה. נשארת בתוך האתר ולא מתבצע מעבר החוצה.</div>`;
     }
     if (status) {
       status.className = 'news-reader-status summary';
