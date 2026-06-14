@@ -207,6 +207,20 @@ body.light .tk-opt.sel { color: #F4EFE5; }
 .news-subtab { flex: 1; padding: 10px 0; border: none; background: none; color: var(--t2); font-family: var(--font-body); font-size: 13.5px; font-weight: 500; border-radius: calc(var(--radius-sm) - 3px); cursor: pointer; transition: all .15s; }
 .news-subtab.active { background: var(--ac); color: #fff; font-weight: 700; }
 body.light .news-subtab.active { color: #F4EFE5; }
+.news-asset-filters { display: none; align-items: center; gap: 7px; overflow-x: auto; padding: 0 1px 10px; margin: -2px 0 5px; scrollbar-width: none; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+.news-asset-filters::-webkit-scrollbar { display: none; }
+.news-asset-filters.show { display: flex; }
+.news-filter-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--b2); background: var(--s1); color: var(--t2); font-family: var(--font-body); font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s, transform .15s; }
+.news-filter-chip:hover { color: var(--t1); border-color: var(--ac); transform: translateY(-1px); }
+.news-filter-chip.active { color: #fff; background: var(--ac); border-color: var(--ac); }
+body.light .news-filter-chip.active { color: #F4EFE5; }
+.news-filter-chip.zero { opacity: .58; }
+.news-filter-symbol { font-family: var(--font-mono); font-size: 11px; font-weight: 700; direction: ltr; }
+.news-filter-count { min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--s3); color: var(--t3); font-family: var(--font-mono); font-size: 9.5px; line-height: 1; }
+.news-filter-chip.active .news-filter-count { background: rgba(255,255,255,.18); color: #fff; }
+.news-filter-empty { text-align: center; padding: 42px 20px; color: var(--t3); font-size: 13px; line-height: 1.75; }
+.news-item[dir="ltr"] .news-item-title, .news-item[dir="ltr"] .news-item-desc { direction: ltr; text-align: left; }
+.news-item[dir="rtl"] .news-item-title, .news-item[dir="rtl"] .news-item-desc { direction: rtl; text-align: right; }
 .news-list { display: grid; gap: 10px; }
 @media (min-width: 640px) { .news-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .news-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -234,8 +248,15 @@ body.light .news-subtab.active { color: #F4EFE5; }
 .news-reader-body p { margin: 0 0 14px 0; }
 .news-reader-body { max-width: 900px; }
 .news-reader-body .loading-row { border-top: 1px solid var(--b1); margin-top: 18px; padding-top: 18px; }
-
-.news-reader-img { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 6px; }
+.news-reader-status { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--b1); background: var(--s2); color: var(--t2); font-family: var(--font-mono); font-size: 10px; }
+.news-reader-status.full { color: var(--gr); border-color: color-mix(in srgb, var(--gr) 25%, var(--b1)); background: color-mix(in srgb, var(--gr) 7%, var(--s2)); }
+.news-reader-status.summary { color: var(--gd); border-color: color-mix(in srgb, var(--gd) 25%, var(--b1)); background: color-mix(in srgb, var(--gd) 7%, var(--s2)); }
+.news-reader-lead { padding: 14px 16px; border-right: 3px solid var(--ac); background: var(--s1); border-radius: var(--radius-sm); color: var(--t2); margin-bottom: 16px; }
+.news-reader-body p { max-width: 82ch; }
+.news-reader-title[dir="ltr"], .news-reader-body[dir="ltr"] { direction: ltr; text-align: left; }
+.news-reader-title[dir="rtl"], .news-reader-body[dir="rtl"] { direction: rtl; text-align: right; }
+.news-reader-note { margin-top: 18px; padding: 11px 13px; border: 1px solid var(--b1); background: var(--s1); border-radius: var(--radius-sm); color: var(--t3); font-size: 12px; line-height: 1.55; }
+.news-reader-img { width: 100%; max-height: 330px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 6px; }
 
 /* ── PAGES ── */
 .page { display: none; padding: 18px 18px 10px; }
@@ -1011,6 +1032,7 @@ if (localStorage.getItem('google_pending_redirect')) {
       <button class="news-subtab active" id="newsTabWorld" onclick="setNewsTab('world')">חדשות מהעולם</button>
       <button class="news-subtab" id="newsTabMine" onclick="setNewsTab('mine')">נכסים שלי</button>
     </div>
+    <div class="news-asset-filters" id="newsAssetFilters" aria-label="סינון חדשות לפי נכס"></div>
     <div id="newsContent"><div class="news-list">
       <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
       <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
@@ -1924,19 +1946,21 @@ async function renderCryptoPage() {
 // INSIGHTS
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
-// NEWS — fast market feed + portfolio-only tags + in-app reader
+// NEWS — market feed + portfolio filters + resilient in-app reader
 // ═══════════════════════════════════════════
 let newsTab = 'world';
+let newsMineFilter = 'all';
 let newsRenderVersion = 0;
 let newsMineSignature = '';
 const newsCache = { world: null, mine: null, _displayed: [], articles: {} };
 let newsLastFetch = { world: 0, mine: 0 };
 const NEWS_TTL = 15 * 60 * 1000;
 const NEWS_STALE_TTL = 24 * 60 * 60 * 1000;
-const NEWS_STORAGE_KEY = 'vector_news_cache_v4';
-const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v2';
+const NEWS_ARTICLE_TTL = 7 * 24 * 60 * 60 * 1000;
+const NEWS_STORAGE_KEY = 'vector_news_cache_v5';
+const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v3';
 
-// RSS is only a fallback/enrichment layer. Direct finance news is attempted in parallel.
+// RSS is a discovery/fallback layer. Article content is fetched separately into the internal reader.
 const NEWS_FETCHERS = [
   url => url,
   url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
@@ -1963,6 +1987,14 @@ const NEWS_WORLD_EXCLUDE = [
   'dear tax guy', 'social security benefit', 'retirement seminar', 'annuity', 'inheritance dispute',
   'credit-card debt', 'credit card debt', 'mortgage advice', 'should i retire', 'can i afford to retire'
 ];
+const NEWS_READER_BOILERPLATE = [
+  /^advertisement$/i, /^advertising$/i, /^skip to (main )?content$/i, /^sign (in|up)$/i,
+  /^subscribe/i, /^newsletter/i, /^read more/i, /^related (content|stories|articles)/i,
+  /^recommended/i, /^most popular/i, /^cookie/i, /^privacy/i, /^terms of use/i,
+  /^all rights reserved/i, /^copyright/i, /^follow us/i, /^share this/i,
+  /^watch live/i, /^live tv/i, /^markets now/i, /^breaking news/i,
+  /^download the app/i, /^open in app/i, /^continue reading/i
+];
 
 window.setNewsTab = (t) => {
   newsTab = t === 'mine' ? 'mine' : 'world';
@@ -1970,6 +2002,19 @@ window.setNewsTab = (t) => {
   document.getElementById('newsTabWorld')?.classList.toggle('active', newsTab === 'world');
   document.getElementById('newsTabMine')?.classList.toggle('active', newsTab === 'mine');
   renderNews();
+};
+
+window.setNewsMineFilter = (sym) => {
+  const wanted = String(sym || 'all').toUpperCase();
+  const assets = newsCurrentAssets();
+  newsMineFilter = wanted === 'ALL' || !assets.some(a => a.sym === wanted) ? 'all' : wanted;
+  newsRenderMineFilters(newsCache.mine || []);
+  const content = document.getElementById('newsContent');
+  if (!content) return;
+  const visible = newsApplyMineFilter(newsFilterMineItems(newsCache.mine || [], assets));
+  content.innerHTML = visible.length
+    ? newsCardsHtml(visible)
+    : newsMineEmptyHtml(newsMineFilter);
 };
 
 function newsEscape(value = '') {
@@ -2013,6 +2058,13 @@ function newsNormaliseTitle(value) {
     .trim();
 }
 
+function newsTextDir(value = '') {
+  const text = String(value);
+  const hebrew = (text.match(/[א-ת]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return hebrew > latin * 0.35 ? 'rtl' : 'ltr';
+}
+
 function newsAbortSignal(ms) {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
     return AbortSignal.timeout(ms);
@@ -2022,10 +2074,10 @@ function newsAbortSignal(ms) {
   return controller.signal;
 }
 
-async function newsFetchCandidate(url) {
+async function newsFetchCandidate(url, timeout = 5000, accept = 'application/rss+xml, application/xml, text/xml, text/plain, */*') {
   const response = await fetch(url, {
-    signal: newsAbortSignal(5000),
-    headers: { Accept: 'application/rss+xml, application/xml, text/xml, text/plain, */*' },
+    signal: newsAbortSignal(timeout),
+    headers: { Accept: accept },
     cache: 'no-store'
   });
   if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -2071,7 +2123,10 @@ function newsParseFeed(xmlText, srcLabel) {
     const pubRaw = newsNodeText(node, ['pubDate', 'published', 'updated', 'dc\\:date']);
     const pubDate = pubRaw && !Number.isNaN(Date.parse(pubRaw)) ? new Date(pubRaw) : new Date();
     const rawContent = newsNodeText(node, ['content\\:encoded', 'content', 'description', 'summary']);
-    const desc = newsStripHtml(rawContent).slice(0, 520);
+    const desc = newsStripHtml(rawContent).slice(0, 700);
+    const sourceEl = node.querySelector('source');
+    const publisher = newsStripHtml(sourceEl?.textContent || '');
+    const sourceHome = newsSafeUrl(sourceEl?.getAttribute('url') || '');
 
     const media = node.getElementsByTagName('media:content')[0] || node.getElementsByTagName('media:thumbnail')[0];
     let img = media?.getAttribute('url') || node.querySelector('enclosure[type^="image"]')?.getAttribute('url') || '';
@@ -2087,7 +2142,9 @@ function newsParseFeed(xmlText, srcLabel) {
       desc,
       feedContent: newsStripHtml(rawContent),
       img: newsSafeUrl(img),
-      src: srcLabel
+      src: publisher || srcLabel,
+      feedSrc: srcLabel,
+      sourceHome
     };
   }).filter(item => item.title && item.link);
 }
@@ -2113,7 +2170,7 @@ async function newsFetchJson(url, timeout = 6000) {
   return data;
 }
 
-function newsFinnhubItem(row, tagSym = '', tagName = '') {
+function newsFinnhubItem(row, tagSym = '', tagName = '', tagKind = '') {
   const title = newsNormaliseTitle(row?.headline || '');
   const link = newsSafeUrl(row?.url || '');
   if (!title || !link) return null;
@@ -2122,12 +2179,13 @@ function newsFinnhubItem(row, tagSym = '', tagName = '') {
     title,
     link,
     pubDate: timestamp ? new Date(timestamp * 1000) : new Date(),
-    desc: newsStripHtml(row?.summary || '').slice(0, 520),
+    desc: newsStripHtml(row?.summary || '').slice(0, 700),
     feedContent: newsStripHtml(row?.summary || ''),
     img: newsSafeUrl(row?.image || ''),
     src: newsStripHtml(row?.source || 'Market News'),
     tagSym,
-    tagName
+    tagName,
+    tagKind
   };
 }
 
@@ -2143,7 +2201,7 @@ async function newsFetchFinnhubCompany(asset) {
   const fmt = d => d.toISOString().slice(0, 10);
   const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(asset.sym)}&from=${fmt(from)}&to=${fmt(to)}&token=${encodeURIComponent(FINNHUB_KEY)}`;
   const rows = await newsFetchJson(url, 5500);
-  return rows.slice(0, 10).map(row => newsFinnhubItem(row, asset.sym, asset.name)).filter(Boolean);
+  return rows.slice(0, 10).map(row => newsFinnhubItem(row, asset.sym, asset.name, asset.kind)).filter(Boolean);
 }
 
 function newsDedupe(items) {
@@ -2174,11 +2232,17 @@ function newsCurrentAssets() {
   const map = new Map();
   for (const stock of (S.stocks || [])) {
     const sym = String(stock.sym || '').trim().toUpperCase();
-    if (sym) map.set('stock:' + sym, { sym, name: String(stock.name || sym).trim(), kind: 'stock' });
+    if (sym) map.set('stock:' + sym, {
+      sym, name: String(stock.name || sym).trim(), kind: 'stock',
+      color: String(stock.color || ''), icon: stock.icon || ''
+    });
   }
   for (const coin of (S.crypto || [])) {
     const sym = String(coin.sym || '').trim().toUpperCase();
-    if (sym) map.set('crypto:' + sym, { sym, name: String(coin.name || sym).trim(), kind: 'crypto' });
+    if (sym) map.set('crypto:' + sym, {
+      sym, name: String(coin.name || sym).trim(), kind: 'crypto',
+      color: String(coin.color || ''), icon: coin.icon || ''
+    });
   }
   return [...map.values()];
 }
@@ -2192,8 +2256,51 @@ function newsFilterMineItems(items, assets) {
   return items.map(item => {
     const asset = bySym.get(String(item.tagSym || '').toUpperCase());
     if (!asset) return null;
-    return { ...item, tagSym: asset.sym, tagName: asset.name };
+    return { ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind };
   }).filter(Boolean);
+}
+
+function newsApplyMineFilter(items) {
+  if (newsMineFilter === 'all') return items;
+  return items.filter(item => String(item.tagSym || '').toUpperCase() === newsMineFilter);
+}
+
+function newsMineEmptyHtml(filter = newsMineFilter) {
+  if (filter === 'all') {
+    return '<div class="news-filter-empty">לא נמצאו כרגע כתבות שמקושרות לנכסים שבתיק.<br>העדכון ממשיך ברקע ויופיע כאן כשיימצאו כתבות חדשות.</div>';
+  }
+  return `<div class="news-filter-empty">לא נמצאו כרגע כתבות עבור <strong>${newsEscape(filter)}</strong>.<br>אפשר לבחור נכס אחר או לחזור לכל הנכסים.</div>`;
+}
+
+function newsRenderMineFilters(items = []) {
+  const bar = document.getElementById('newsAssetFilters');
+  if (!bar) return;
+  if (newsTab !== 'mine') {
+    bar.classList.remove('show');
+    bar.innerHTML = '';
+    return;
+  }
+  const assets = newsCurrentAssets();
+  if (newsMineFilter !== 'all' && !assets.some(a => a.sym === newsMineFilter)) newsMineFilter = 'all';
+  const counts = new Map();
+  for (const item of items) {
+    const sym = String(item.tagSym || '').toUpperCase();
+    if (sym) counts.set(sym, (counts.get(sym) || 0) + 1);
+  }
+  const total = items.length;
+  const allActive = newsMineFilter === 'all' ? ' active' : '';
+  const buttons = [
+    `<button class="news-filter-chip${allActive}" onclick="setNewsMineFilter('all')"><i class="ph-thin ph-squares-four ph-sm"></i><span>הכל</span><span class="news-filter-count">${total}</span></button>`
+  ];
+  for (const asset of assets) {
+    const count = counts.get(asset.sym) || 0;
+    const active = newsMineFilter === asset.sym ? ' active' : '';
+    const zero = count ? '' : ' zero';
+    const kindIcon = asset.kind === 'crypto' ? 'ph-coins' : 'ph-chart-line-up';
+    buttons.push(`<button class="news-filter-chip${active}${zero}" onclick='setNewsMineFilter(${JSON.stringify(asset.sym)})' title="${newsEscape(asset.name)}"><i class="ph-thin ${kindIcon} ph-sm"></i><span class="news-filter-symbol">${newsEscape(asset.sym)}</span><span class="news-filter-count">${count}</span></button>`);
+  }
+  bar.innerHTML = buttons.join('');
+  bar.classList.add('show');
 }
 
 function newsAssetMatchesItem(item, asset) {
@@ -2267,7 +2374,15 @@ function newsRefreshVisible(type, items) {
   const subtabs = document.getElementById('newsSubtabs');
   const content = document.getElementById('newsContent');
   if (!content || subtabs?.style.display === 'none') return;
-  content.innerHTML = items.length ? newsCardsHtml(items) : content.innerHTML;
+  if (type === 'mine') {
+    const safe = newsFilterMineItems(items, newsCurrentAssets());
+    newsRenderMineFilters(safe);
+    const visible = newsApplyMineFilter(safe);
+    content.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
+  } else {
+    newsRenderMineFilters([]);
+    content.innerHTML = items.length ? newsCardsHtml(items) : content.innerHTML;
+  }
 }
 
 async function newsLoadWorld(force = false) {
@@ -2326,7 +2441,7 @@ function newsAssetRssQuery(asset) {
 
 async function newsFetchAssetRss(asset) {
   const items = await newsFetchRss(newsAssetRssQuery(asset), 'Google News');
-  return items.slice(0, 7).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name }));
+  return items.slice(0, 7).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
 }
 
 async function newsEnrichMineWithRss(missingAssets, baseItems, signature) {
@@ -2357,6 +2472,7 @@ async function newsLoadMine(force = false) {
     newsCache.mine = null;
     newsLastFetch.mine = 0;
     newsMineSignature = signature;
+    newsMineFilter = 'all';
   }
   if (!force && newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) {
     return newsFilterMineItems(newsCache.mine, assets);
@@ -2392,7 +2508,7 @@ async function newsLoadMine(force = false) {
     const matches = general
       .filter(item => newsAssetMatchesItem(item, asset))
       .slice(0, 8)
-      .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name }));
+      .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
     collected.push(...matches);
   }
 
@@ -2408,7 +2524,6 @@ async function newsLoadMine(force = false) {
     newsMineSignature = signature;
     newsLastFetch.mine = Date.now();
     newsStore('mine', fresh, signature);
-    // Fill missing holdings quietly; the first direct results appear immediately.
     newsEnrichMineWithRss(missingAssets, fresh, signature).catch(() => {});
     return fresh;
   }
@@ -2427,7 +2542,8 @@ function newsCardsHtml(items) {
     const sym = item.tagSym
       ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
       : '';
-    return `<div class="news-item" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
+    const dir = newsTextDir(`${item.title || ''} ${item.desc || ''}`);
+    return `<div class="news-item" dir="${dir}" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
       <div class="news-item-head">
         <span class="news-item-src">${newsEscape(item.src)}</span>
         <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
@@ -2453,31 +2569,52 @@ async function renderNews() {
       newsCache.mine = null;
       newsLastFetch.mine = 0;
       newsMineSignature = signature;
+      newsMineFilter = 'all';
     }
+  } else {
+    newsRenderMineFilters([]);
   }
 
   const cached = newsCache[requestedTab];
   if (cached?.length) {
     const safeCached = requestedTab === 'mine' ? newsFilterMineItems(cached, newsCurrentAssets()) : cached;
-    el.innerHTML = newsCardsHtml(safeCached);
+    if (requestedTab === 'mine') newsRenderMineFilters(safeCached);
+    const visible = requestedTab === 'mine' ? newsApplyMineFilter(safeCached) : safeCached;
+    el.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
     const loader = requestedTab === 'world' ? newsLoadWorld(true) : newsLoadMine(true);
     loader.then(items => {
       if (version !== newsRenderVersion || newsTab !== requestedTab) return;
-      if (items?.length && subtabs?.style.display !== 'none') el.innerHTML = newsCardsHtml(items);
+      if (!items) return;
+      if (requestedTab === 'mine') {
+        const safe = newsFilterMineItems(items, newsCurrentAssets());
+        newsRenderMineFilters(safe);
+        const filtered = newsApplyMineFilter(safe);
+        el.innerHTML = filtered.length ? newsCardsHtml(filtered) : newsMineEmptyHtml();
+      } else if (items.length && subtabs?.style.display !== 'none') {
+        el.innerHTML = newsCardsHtml(items);
+      }
     }).catch(() => {});
     return;
   }
 
+  if (requestedTab === 'mine') newsRenderMineFilters([]);
   el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
   try {
     const items = requestedTab === 'world' ? await newsLoadWorld() : await newsLoadMine();
     if (version !== newsRenderVersion || newsTab !== requestedTab) return;
-    if (!items.length) {
-      if (requestedTab === 'mine' && !newsCurrentAssets().length) {
+    if (requestedTab === 'mine') {
+      const safe = newsFilterMineItems(items, newsCurrentAssets());
+      newsRenderMineFilters(safe);
+      if (!newsCurrentAssets().length) {
         el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
-      } else {
-        el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
+        return;
       }
+      const visible = newsApplyMineFilter(safe);
+      el.innerHTML = visible.length ? newsCardsHtml(visible) : newsMineEmptyHtml();
+      return;
+    }
+    if (!items.length) {
+      el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
       return;
     }
     el.innerHTML = newsCardsHtml(items);
@@ -2498,10 +2635,59 @@ function newsArticleKey(item) {
   return 'a' + (hash >>> 0).toString(36);
 }
 
-function newsCleanReaderText(raw = '') {
+function newsIsGoogleNewsUrl(value = '') {
+  try { return new URL(value).hostname === 'news.google.com'; }
+  catch (_) { return false; }
+}
+
+function newsDecodeLegacyGoogleUrl(value = '') {
+  if (!newsIsGoogleNewsUrl(value)) return '';
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.at(-2) !== 'articles') return '';
+    let encoded = parts.at(-1).replace(/-/g, '+').replace(/_/g, '/');
+    encoded += '='.repeat((4 - encoded.length % 4) % 4);
+    const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+    const decoded = new TextDecoder().decode(bytes);
+    const match = decoded.match(/https?:\/\/[^\u0000-\u0020"'<>]+/i);
+    return newsSafeUrl(match?.[0] || '');
+  } catch (_) { return ''; }
+}
+
+function newsParseReaderEnvelope(raw = '') {
   let text = String(raw).replace(/\r/g, '');
-  const contentMarker = text.indexOf('Markdown Content:');
-  if (contentMarker >= 0) text = text.slice(contentMarker + 'Markdown Content:'.length);
+  let resolvedUrl = '';
+  let resolvedTitle = '';
+  const front = text.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (front) {
+    const urlMatch = front[1].match(/^url:\s*["']?(.+?)["']?\s*$/mi);
+    const titleMatch = front[1].match(/^title:\s*["']?(.+?)["']?\s*$/mi);
+    resolvedUrl = newsSafeUrl(urlMatch?.[1] || '');
+    resolvedTitle = newsStripHtml(titleMatch?.[1] || '');
+    text = text.slice(front[0].length);
+  } else {
+    const urlMatch = text.match(/^URL Source:\s*(https?:\/\/\S+)/mi);
+    const titleMatch = text.match(/^Title:\s*(.+)$/mi);
+    resolvedUrl = newsSafeUrl(urlMatch?.[1] || '');
+    resolvedTitle = newsStripHtml(titleMatch?.[1] || '');
+    const marker = text.indexOf('Markdown Content:');
+    if (marker >= 0) text = text.slice(marker + 'Markdown Content:'.length);
+  }
+  return { text, resolvedUrl, resolvedTitle };
+}
+
+function newsTitleSimilarity(a = '', b = '') {
+  const tokens = value => new Set(String(value).toLowerCase().replace(/[^a-z0-9א-ת]+/g, ' ').split(/\s+/).filter(word => word.length > 3));
+  const left = tokens(a), right = tokens(b);
+  if (!left.size || !right.size) return 1;
+  let overlap = 0;
+  for (const word of left) if (right.has(word)) overlap++;
+  return overlap / Math.min(left.size, right.size);
+}
+
+function newsCleanReaderText(raw = '', item = {}) {
+  let { text } = newsParseReaderEnvelope(raw);
   text = text
     .replace(/^Title:.*$/gmi, '')
     .replace(/^URL Source:.*$/gmi, '')
@@ -2513,36 +2699,251 @@ function newsCleanReaderText(raw = '') {
     .replace(/^[-*+]\s+/gm, '• ')
     .replace(/\*\*|__|`/g, '')
     .replace(/https?:\/\/\S+/g, '')
+    .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return text.slice(0, 24000);
+
+  const title = String(item.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const rawBlocks = text.split(/\n\s*\n|(?<=\.)\s*\n(?=[A-Z“"'])/).map(block => block.replace(/\s*\n\s*/g, ' ').trim());
+  const seen = new Set();
+  const blocks = [];
+  for (let block of rawBlocks) {
+    block = block.replace(/^[-–—|:•\s]+|[-–—|:\s]+$/g, '').trim();
+    if (block.length < 38 || block.length > 5000) continue;
+    const lower = block.toLowerCase();
+    if (title && (lower === title || lower.startsWith(title + ' ')) && block.length < title.length + 80) continue;
+    if (NEWS_READER_BOILERPLATE.some(re => re.test(block))) continue;
+    if (/^(home|world|business|markets|technology|politics|video|photos)(\s+[|•]\s+|$)/i.test(block)) continue;
+    if ((block.match(/\b(sign in|subscribe|cookie|privacy|advertisement)\b/gi) || []).length >= 2) continue;
+    const key = lower.replace(/[^a-z0-9א-ת]+/g, ' ').slice(0, 180);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    blocks.push(block);
+  }
+  return blocks.slice(0, 55).join('\n\n').slice(0, 36000);
 }
 
 function newsReaderParagraphs(text = '') {
   const chunks = String(text).split(/\n\s*\n/).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length > 35);
-  return chunks.slice(0, 45).map(p => `<p>${newsEscape(p)}</p>`).join('');
+  return chunks.slice(0, 55).map(p => `<p>${newsEscape(p)}</p>`).join('');
+}
+
+function newsArticleQuality(text = '', item = {}) {
+  const blocks = String(text).split(/\n\s*\n/).filter(x => x.trim().length > 35);
+  const chars = blocks.join(' ').length;
+  const words = blocks.join(' ').split(/\s+/).filter(Boolean).length;
+  const lower = blocks.join(' ').toLowerCase();
+  if (chars < 520 || words < 90) return 0;
+  if (newsIsGoogleNewsUrl(item.link) && /google news|full coverage|view full coverage/i.test(lower) && chars < 1800) return 0;
+  if (/enable javascript|access denied|robot check|just a moment|consent\.google/i.test(lower) && chars < 1800) return 0;
+  return chars + blocks.length * 180 + Math.min(words, 1500);
+}
+
+async function newsReaderRequest(url, item, engine = 'auto') {
+  const readerUrl = 'https://r.jina.ai/' + url;
+  const options = {
+    signal: newsAbortSignal(14000),
+    headers: {
+      Accept: 'text/plain',
+      'X-Respond-With': 'frontmatter',
+      'X-Engine': engine,
+      'X-Cache-Tolerance': '21600'
+    },
+    cache: 'force-cache'
+  };
+  let response;
+  try {
+    response = await fetch(readerUrl, options);
+  } catch (_) {}
+  if (!response?.ok) {
+    response = await fetch(readerUrl, { signal: newsAbortSignal(14000), headers: { Accept: 'text/plain' }, cache: 'force-cache' });
+  }
+  if (!response.ok) throw new Error('Reader HTTP ' + response.status);
+  const raw = await response.text();
+  const envelope = newsParseReaderEnvelope(raw);
+  const text = newsCleanReaderText(raw, item);
+  if (envelope.resolvedTitle && newsTitleSimilarity(envelope.resolvedTitle, item.title) < 0.18) {
+    throw new Error('Reader resolved a different article');
+  }
+  if (!newsArticleQuality(text, item)) throw new Error('Reader returned no article body');
+  return { text, mode: 'full', via: 'reader', resolvedUrl: envelope.resolvedUrl || url };
+}
+
+function newsJsonLdBodies(value, output = []) {
+  if (!value) return output;
+  if (Array.isArray(value)) {
+    value.forEach(item => newsJsonLdBodies(item, output));
+    return output;
+  }
+  if (typeof value !== 'object') return output;
+  if (typeof value.articleBody === 'string') output.push(value.articleBody);
+  for (const child of Object.values(value)) newsJsonLdBodies(child, output);
+  return output;
+}
+
+function newsExtractHtmlArticle(html, item) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const jsonBodies = [];
+  for (const script of doc.querySelectorAll('script[type="application/ld+json"]')) {
+    try { newsJsonLdBodies(JSON.parse(script.textContent || ''), jsonBodies); } catch (_) {}
+  }
+  const jsonText = newsCleanReaderText(jsonBodies.join('\n\n'), item);
+  if (newsArticleQuality(jsonText, item)) return jsonText;
+
+  doc.querySelectorAll('script,style,noscript,nav,header,footer,aside,form,button,svg,iframe,[aria-label*="advert" i],[class*="advert" i],[id*="advert" i]').forEach(node => node.remove());
+  const selectors = [
+    'article [data-testid="paragraph"]', 'article [data-testid*="body" i] p', 'article p',
+    '[data-component="ArticleBody"] p', '[data-testid="ArticleBody"] p', '[data-testid="Body"] p',
+    '.article-body p', '.story-body p', '.caas-body p', '.group p', 'main p'
+  ];
+  let paragraphs = [];
+  for (const selector of selectors) {
+    const found = [...doc.querySelectorAll(selector)]
+      .map(node => (node.textContent || '').replace(/\s+/g, ' ').trim())
+      .filter(text => text.length > 38);
+    if (found.join(' ').length > paragraphs.join(' ').length) paragraphs = found;
+  }
+  return newsCleanReaderText(paragraphs.join('\n\n'), item);
+}
+
+async function newsHtmlRequest(url, item) {
+  const attempts = NEWS_FETCHERS.map(makeUrl => newsFetchCandidate(makeUrl(url), 8500, 'text/html,application/xhtml+xml,*/*'));
+  let html;
+  try { html = await Promise.any(attempts); }
+  catch (_) { throw new Error('HTML gateways failed'); }
+  const text = newsExtractHtmlArticle(html, item);
+  if (!newsArticleQuality(text, item)) throw new Error('HTML contained no article body');
+  return { text, mode: 'full', via: 'html', resolvedUrl: url };
+}
+
+function newsSourceDomainHint(source = '') {
+  const s = String(source).toLowerCase();
+  const map = [
+    ['reuters', 'reuters.com'], ['cnbc', 'cnbc.com'], ['marketwatch', 'marketwatch.com'],
+    ['yahoo', 'finance.yahoo.com'], ['bloomberg', 'bloomberg.com'], ['wall street journal', 'wsj.com'],
+    ['wsj', 'wsj.com'], ['associated press', 'apnews.com'], ['ap news', 'apnews.com'],
+    ['cnn', 'cnn.com'], ['techcrunch', 'techcrunch.com'], ['the verge', 'theverge.com'],
+    ['fortune', 'fortune.com'], ['forbes', 'forbes.com'], ['business insider', 'businessinsider.com']
+  ];
+  return map.find(([name]) => s.includes(name))?.[1] || '';
+}
+
+function newsExtractSearchUrls(raw = '', item = {}) {
+  const urls = [];
+  const patterns = [
+    /\]\((https?:\/\/[^)\s]+)\)/g,
+    /^URL Source:\s*(https?:\/\/\S+)/gmi,
+    /https?:\/\/[^\s<>"')\]]+/g
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(raw))) urls.push(match[1] || match[0]);
+  }
+  const hint = newsSourceDomainHint(item.src);
+  const filtered = [...new Set(urls.map(url => newsSafeUrl(url.replace(/[.,;:]+$/, ''))).filter(Boolean))]
+    .filter(url => {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, '');
+        return !/(^|\.)jina\.ai$|(^|\.)google\.com$|(^|\.)news\.google\.com$|(^|\.)gstatic\.com$/i.test(host);
+      } catch (_) { return false; }
+    });
+  return filtered.sort((a, b) => {
+    const ah = hint && a.includes(hint) ? 1 : 0;
+    const bh = hint && b.includes(hint) ? 1 : 0;
+    return bh - ah;
+  }).slice(0, 5);
+}
+
+async function newsSearchArticleUrls(item) {
+  const cleanTitle = String(item.title || '').replace(/["“”]/g, '').slice(0, 180);
+  const hint = newsSourceDomainHint(item.src);
+  const query = `"${cleanTitle}" ${hint ? 'site:' + hint : String(item.src || '')}`.trim();
+  const searchUrl = 'https://s.jina.ai/' + encodeURIComponent(query);
+  let response;
+  try {
+    response = await fetch(searchUrl, {
+      signal: newsAbortSignal(10000),
+      headers: { Accept: 'text/plain', 'X-Respond-With': 'markdown', 'X-Cache-Tolerance': '21600' },
+      cache: 'force-cache'
+    });
+  } catch (_) {}
+  if (!response?.ok) {
+    response = await fetch(searchUrl, { signal: newsAbortSignal(10000), headers: { Accept: 'text/plain' }, cache: 'force-cache' });
+  }
+  if (!response.ok) throw new Error('Search HTTP ' + response.status);
+  return newsExtractSearchUrls(await response.text(), item);
+}
+
+async function newsTryArticleUrl(url, item) {
+  const domain = (() => { try { return new URL(url).hostname; } catch (_) { return ''; } })();
+  const engine = /reuters\.com|cnbc\.com|bloomberg\.com|wsj\.com/i.test(domain) ? 'browser' : 'auto';
+  const tasks = [
+    newsReaderRequest(url, item, engine),
+    newsHtmlRequest(url, item)
+  ];
+  return Promise.any(tasks);
 }
 
 async function newsFetchArticle(item) {
   const key = newsArticleKey(item);
   const cached = newsCache.articles[key];
-  if (cached?.text && Date.now() - cached.savedAt < 7 * 24 * 60 * 60 * 1000) return cached.text;
+  if (cached && Date.now() - Number(cached.savedAt || 0) < NEWS_ARTICLE_TTL) {
+    if (typeof cached === 'string') return { text: cached, mode: 'full', via: 'cache', resolvedUrl: item.link };
+    if (cached.text) return cached;
+  }
 
-  // The reader follows redirects and returns clean text; links are removed before display.
-  const readerUrl = 'https://r.jina.ai/' + item.link;
-  const response = await fetch(readerUrl, {
-    signal: newsAbortSignal(12000),
-    headers: { Accept: 'text/plain' },
-    cache: 'force-cache'
-  });
-  if (!response.ok) throw new Error('Article HTTP ' + response.status);
-  const text = newsCleanReaderText(await response.text());
-  if (text.length < 250) throw new Error('Article text unavailable');
+  const summary = newsCleanReaderText(item.feedContent || item.desc || '', item);
+  const directCandidates = [];
+  const decodedGoogle = newsDecodeLegacyGoogleUrl(item.link);
+  if (decodedGoogle) directCandidates.push(decodedGoogle);
+  if (item.resolvedLink) directCandidates.push(newsSafeUrl(item.resolvedLink));
+  if (!newsIsGoogleNewsUrl(item.link)) directCandidates.push(newsSafeUrl(item.link));
+  const uniqueDirect = [...new Set(directCandidates.filter(Boolean))];
 
-  newsCache.articles[key] = { text, savedAt: Date.now() };
-  newsStoreArticles();
-  return text;
+  for (const url of uniqueDirect.slice(0, 2)) {
+    try {
+      const result = await newsTryArticleUrl(url, item);
+      const stored = { ...result, savedAt: Date.now() };
+      newsCache.articles[key] = stored;
+      newsStoreArticles();
+      return stored;
+    } catch (error) {
+      console.warn('[News] Direct article extraction failed:', item.src, error?.message || error);
+    }
+  }
+
+  // Google News links are identifiers, not dependable article pages. Search the exact headline,
+  // resolve the publisher URL, then run the same internal reader on that URL.
+  try {
+    const searchUrls = await newsSearchArticleUrls(item);
+    for (const url of searchUrls.slice(0, 3)) {
+      try {
+        const result = await newsTryArticleUrl(url, item);
+        const stored = { ...result, via: 'search+' + result.via, savedAt: Date.now() };
+        newsCache.articles[key] = stored;
+        newsStoreArticles();
+        return stored;
+      } catch (_) {}
+    }
+  } catch (error) {
+    console.warn('[News] Article search fallback failed:', error?.message || error);
+  }
+
+  if (summary.length >= 120) {
+    const stored = { text: summary, mode: 'summary', via: 'feed', resolvedUrl: '', savedAt: Date.now() };
+    newsCache.articles[key] = stored;
+    newsStoreArticles();
+    return stored;
+  }
+  throw new Error('Article text unavailable');
 }
+
+window.newsValidateReaderImage = function(img) {
+  try {
+    const ratio = img.naturalWidth / Math.max(1, img.naturalHeight);
+    if (img.naturalHeight < 150 || ratio > 3.4) img.style.display = 'none';
+  } catch (_) {}
+};
 
 window.openNewsArticle = async function(index) {
   const item = newsCache._displayed?.[index];
@@ -2550,32 +2951,56 @@ window.openNewsArticle = async function(index) {
   newsRenderVersion++;
   const el = document.getElementById('newsContent');
   const subtabs = document.getElementById('newsSubtabs');
+  const filters = document.getElementById('newsAssetFilters');
   if (subtabs) subtabs.style.display = 'none';
+  filters?.classList.remove('show');
 
-  const initialText = item.feedContent || item.desc || '';
+  const initialText = newsCleanReaderText(item.feedContent || item.desc || '', item);
+  const articleDir = newsTextDir(`${item.title || ''} ${initialText}`);
+  const tag = item.tagSym ? `<span class="news-item-sym">${newsEscape(item.tagSym)}</span>` : '';
   el.innerHTML = `<div class="news-reader">
     <div class="news-reader-head">
       <button class="news-reader-back" onclick="renderNews()"><i class="ph-thin ph-arrow-right"></i> חזרה לחדשות</button>
-      <div class="news-reader-meta"><span>${newsEscape(item.src)}</span><span>${newsEscape(newsTimeAgo(item.pubDate))}</span></div>
+      <div class="news-reader-meta"><span>${newsEscape(item.src)}</span><span>${newsEscape(newsTimeAgo(item.pubDate))}</span>${tag}</div>
     </div>
-    ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
-    <div class="news-reader-title">${newsEscape(item.title)}</div>
-    <div class="news-reader-body" id="newsArticleBody">
-      ${initialText ? newsReaderParagraphs(initialText) : '<p>טוען את תוכן הכתבה…</p>'}
-      <div class="loading-row" id="newsArticleLoading"><div class="spinner"></div>טוען את הכתבה המלאה בתוך האתר…</div>
+    <div class="news-reader-status" id="newsReaderStatus"><i class="ph-thin ph-circle-notch ph-sm fi-spin"></i> טוען כתבה מלאה בתוך האתר</div>
+    ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onload="newsValidateReaderImage(this)" onerror="this.style.display='none'">` : ''}
+    <div class="news-reader-title" dir="${articleDir}">${newsEscape(item.title)}</div>
+    <div class="news-reader-body" dir="${articleDir}" id="newsArticleBody">
+      ${initialText ? `<div class="news-reader-lead">${newsReaderParagraphs(initialText)}</div>` : '<p>טוען את תוכן הכתבה…</p>'}
+      <div class="loading-row" id="newsArticleLoading"><div class="spinner"></div>מחלץ ומנקה את גוף הכתבה…</div>
     </div>
   </div>`;
 
   try {
-    const text = await newsFetchArticle(item);
+    const result = await newsFetchArticle(item);
     const body = document.getElementById('newsArticleBody');
-    if (body) body.innerHTML = newsReaderParagraphs(text) || newsReaderParagraphs(initialText);
+    const status = document.getElementById('newsReaderStatus');
+    if (body) {
+      const paragraphs = newsReaderParagraphs(result.text);
+      body.innerHTML = paragraphs || newsReaderParagraphs(initialText);
+      if (result.mode === 'summary') {
+        body.innerHTML += '<div class="news-reader-note">האתר המפרסם חסם גישה אוטומטית לגוף המלא. מוצג כאן התקציר המלא שסופק בפיד, מבלי להוציא אותך מהאתר.</div>';
+      }
+    }
+    if (status) {
+      const full = result.mode !== 'summary';
+      status.className = 'news-reader-status ' + (full ? 'full' : 'summary');
+      status.innerHTML = full
+        ? '<i class="ph-thin ph-check-circle ph-sm"></i> כתבה מלאה במצב קריאה פנימי'
+        : '<i class="ph-thin ph-file-text ph-sm"></i> תקציר מוטמע מהמקור';
+    }
   } catch (error) {
     console.warn('[News] Full article unavailable:', error?.message || error);
     document.getElementById('newsArticleLoading')?.remove();
     const body = document.getElementById('newsArticleBody');
+    const status = document.getElementById('newsReaderStatus');
     if (body && !initialText) {
-      body.innerHTML = '<p>המקור לא מאפשר טעינה של גוף הכתבה המלא. הכותרת והתקציר נשמרו בתוך האתר.</p>';
+      body.innerHTML = '<p>לא התקבל מהמקור תוכן שניתן להציג. הכתבה נשארת בתוך האתר ולא נפתח חלון חיצוני.</p>';
+    }
+    if (status) {
+      status.className = 'news-reader-status summary';
+      status.innerHTML = '<i class="ph-thin ph-warning-circle ph-sm"></i> המקור לא סיפק גוף כתבה זמין';
     }
   }
 };
