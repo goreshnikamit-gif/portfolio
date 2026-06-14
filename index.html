@@ -1969,10 +1969,14 @@ let newsLastFetch = { world: 0, mine: 0 };
 const NEWS_TTL = 15 * 60 * 1000;
 const NEWS_STALE_TTL = 24 * 60 * 60 * 1000;
 const NEWS_ARTICLE_TTL = 7 * 24 * 60 * 60 * 1000;
-const NEWS_STORAGE_KEY = 'vector_news_cache_v6';
-const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v4';
+const NEWS_STORAGE_KEY = 'vector_news_cache_v7';
+const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v5';
 
 const NEWS_PER_ASSET = 10;
+const NEWS_MIN_PREVIEW_CHARS = 80;
+const NEWS_READER_UI_TIMEOUT = 4000;
+const NEWS_READER_NEGATIVE_TTL = 6 * 60 * 60 * 1000;
+const newsArticleInflight = new Map();
 const NEWS_WORLD_FILTERS = [
   { id: 'all',        label: 'הכל',       icon: 'ph-squares-four' },
   { id: 'markets',    label: 'שווקים',    icon: 'ph-chart-line-up' },
@@ -1994,6 +1998,14 @@ const NEWS_WORLD_FEEDS = [
   { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets OR Federal Reserve OR earnings) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
   { src: 'CNBC Markets', url: 'https://www.cnbc.com/id/20409666/device/rss/rss.html' },
   { src: 'Google News · Economy', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(economy OR inflation OR interest rates OR bonds OR oil OR gold OR business) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
+];
+
+// Dedicated crypto feeds provide real summaries instead of headline-only search results.
+// They are fetched once and then matched locally to each crypto asset in the portfolio.
+const NEWS_CRYPTO_FEEDS = [
+  { src: 'CoinDesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/' },
+  { src: 'Decrypt', url: 'https://decrypt.co/feed' },
+  { src: 'Cointelegraph', url: 'https://cointelegraph.com/rss' },
 ];
 
 const NEWS_WORLD_TERMS = [
@@ -2318,15 +2330,34 @@ function newsWorldEmptyHtml(filter = newsWorldFilter) {
 }
 
 function newsPreviewText(item) {
-  const title = newsNormaliseTitle(item?.title || '').toLowerCase();
+  const rawTitle = newsStripHtml(item?.title || '').trim();
   const desc = newsStripHtml(item?.desc || item?.feedContent || '').trim();
   if (desc.length < 42) return '';
+  const title = newsNormaliseTitle(rawTitle).toLowerCase();
   const normalized = newsNormaliseTitle(desc).toLowerCase();
-  if (normalized === title || normalized.startsWith(title + ' ')) {
-    const tail = desc.slice(item.title?.length || 0).replace(/^\s*[-–—|:]\s*/, '').trim();
-    return tail.length >= 42 ? tail : '';
+  const similarity = newsTitleSimilarity(rawTitle, desc);
+  if (normalized === title || normalized.startsWith(title + ' ') || (similarity > 0.72 && desc.length < rawTitle.length + 150)) {
+    const tail = desc.slice(rawTitle.length).replace(/^\s*[-–—|:]\s*/, '').trim();
+    return tail.length >= 55 ? tail : '';
   }
   return desc;
+}
+
+function newsHasUsefulPreview(item) {
+  const preview = newsPreviewText(item);
+  if (preview.length < NEWS_MIN_PREVIEW_CHARS) return false;
+  const words = preview.split(/\s+/).filter(Boolean);
+  if (words.length < 13) return false;
+  if (/^(read more|click here|full coverage|view full coverage|latest news)/i.test(preview)) return false;
+  if (/enable javascript|access denied|sign in to continue|subscribe to continue/i.test(preview.toLowerCase())) return false;
+  return true;
+}
+
+function newsIsDisplayableStory(item) {
+  if (!item?.title || !item?.link) return false;
+  const cached = newsCache.articles[newsArticleKey(item)];
+  if (cached?.mode === 'full' && cached?.text) return true;
+  return newsHasUsefulPreview(item);
 }
 
 function newsApplyMineFilter(items) {
@@ -2409,12 +2440,9 @@ function newsWorldScore(item) {
 function newsCurateWorld(items) {
   const deduped = newsDedupe(items)
     .filter(item => newsWorldScore(item) > -100)
-    .filter(item => {
-      const preview = newsPreviewText(item);
-      // Google News headline-only entries are the main source of empty reader pages.
-      // Keep them only when a useful feed summary exists; direct publisher/Finnhub links remain eligible.
-      return preview.length >= 42 || !newsIsGoogleNewsUrl(item.link);
-    })
+    // Never publish a card that only contains a headline. A usable summary is the
+    // minimum contract for remaining fully inside the site when extraction is blocked.
+    .filter(newsIsDisplayableStory)
     .map(item => ({ ...item, worldTags: newsWorldTags(item) }));
   const primary = deduped.filter(item => newsWorldScore(item) >= 1);
   const primaryKeys = new Set(primary.map(item => item.link));
@@ -2533,6 +2561,13 @@ async function newsFetchAssetRss(asset) {
   return items.slice(0, 24).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
 }
 
+async function newsFetchCryptoPool() {
+  const results = await Promise.allSettled(NEWS_CRYPTO_FEEDS.map(feed => newsFetchRss(feed.url, feed.src)));
+  return newsDedupe(results.flatMap(result => result.status === 'fulfilled' ? result.value : []))
+    .filter(newsIsDisplayableStory)
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+}
+
 function newsDedupePerAsset(items) {
   const seen = new Set();
   return items.filter(item => {
@@ -2543,7 +2578,7 @@ function newsDedupePerAsset(items) {
   });
 }
 
-async function newsFetchStoriesForAsset(asset, general = []) {
+async function newsFetchStoriesForAsset(asset, general = [], cryptoPool = []) {
   const rssPromise = newsFetchAssetRss(asset).catch(error => {
     console.warn('[News] Asset RSS failed:', asset.sym, error?.message || error);
     return [];
@@ -2556,7 +2591,7 @@ async function newsFetchStoriesForAsset(asset, general = []) {
       return [];
     });
   } else {
-    primaryPromise = Promise.resolve(general
+    primaryPromise = Promise.resolve([...cryptoPool, ...general]
       .filter(item => newsAssetMatchesItem(item, asset))
       .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind })));
   }
@@ -2564,9 +2599,13 @@ async function newsFetchStoriesForAsset(asset, general = []) {
   const [primary, rss] = await Promise.all([primaryPromise, rssPromise]);
   const merged = newsDedupePerAsset([...primary, ...rss])
     .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }))
+    // Quality beats a fake quota: headline-only results are never shown because they
+    // cannot provide an acceptable in-site reading experience when a publisher blocks extraction.
+    .filter(newsIsDisplayableStory)
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
-  // Always reserve an independent quota per portfolio asset. No global 30/60-item cap.
+  // Up to ten recent, usable stories per asset. If only seven pass the quality gate,
+  // show seven rather than three broken cards that spin and end with a title only.
   return merged.slice(0, NEWS_PER_ASSET);
 }
 
@@ -2590,14 +2629,20 @@ async function newsLoadMine(force = false) {
   }
 
   const hasCrypto = assets.some(asset => asset.kind === 'crypto');
-  const general = hasCrypto
-    ? await newsFetchFinnhubGeneral().catch(error => {
-        console.warn('[News] General crypto feed failed:', error?.message || error);
-        return [];
-      })
-    : [];
+  const [general, cryptoPool] = hasCrypto
+    ? await Promise.all([
+        newsFetchFinnhubGeneral().catch(error => {
+          console.warn('[News] General crypto feed failed:', error?.message || error);
+          return [];
+        }),
+        newsFetchCryptoPool().catch(error => {
+          console.warn('[News] Dedicated crypto feeds failed:', error?.message || error);
+          return [];
+        })
+      ])
+    : [[], []];
 
-  const perAsset = await newsMapLimit(assets, 3, asset => newsFetchStoriesForAsset(asset, general));
+  const perAsset = await newsMapLimit(assets, 3, asset => newsFetchStoriesForAsset(asset, general, cryptoPool));
   if (signature !== newsPortfolioSignature()) return newsCache.mine || [];
 
   const fresh = newsFilterMineItems(perAsset.flat(), assets)
@@ -2618,8 +2663,9 @@ async function newsLoadMine(force = false) {
 }
 
 function newsCardsHtml(items) {
-  newsCache._displayed = items;
-  return '<div class="news-list">' + items.map((item, index) => {
+  const displayItems = items.filter(newsIsDisplayableStory);
+  newsCache._displayed = displayItems;
+  return '<div class="news-list">' + displayItems.map((item, index) => {
     const sym = item.tagSym
       ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
       : '';
@@ -2631,7 +2677,7 @@ function newsCardsHtml(items) {
         <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
       </div>
       <div class="news-item-title">${newsEscape(item.title)}</div>
-      ${preview ? `<div class="news-item-desc">${newsEscape(preview)}</div>` : '<div class="news-item-desc">תוכן הכתבה ייטען במצב הקריאה הפנימי</div>'}
+      ${preview ? `<div class="news-item-desc">${newsEscape(preview)}</div>` : ''}
       ${sym}
     </div>`;
   }).join('') + '</div>';
@@ -2821,7 +2867,7 @@ function newsArticleQuality(text = '', item = {}) {
 async function newsReaderRequest(url, item, engine = 'auto') {
   const readerUrl = 'https://r.jina.ai/' + url;
   const options = {
-    signal: newsAbortSignal(14000),
+    signal: newsAbortSignal(8000),
     headers: {
       Accept: 'text/plain',
       'X-Respond-With': 'frontmatter',
@@ -2835,7 +2881,7 @@ async function newsReaderRequest(url, item, engine = 'auto') {
     response = await fetch(readerUrl, options);
   } catch (_) {}
   if (!response?.ok) {
-    response = await fetch(readerUrl, { signal: newsAbortSignal(14000), headers: { Accept: 'text/plain' }, cache: 'force-cache' });
+    response = await fetch(readerUrl, { signal: newsAbortSignal(8000), headers: { Accept: 'text/plain' }, cache: 'force-cache' });
   }
   if (!response.ok) throw new Error('Reader HTTP ' + response.status);
   const raw = await response.text();
@@ -2886,7 +2932,7 @@ function newsExtractHtmlArticle(html, item) {
 }
 
 async function newsHtmlRequest(url, item) {
-  const attempts = NEWS_FETCHERS.map(makeUrl => newsFetchCandidate(makeUrl(url), 8500, 'text/html,application/xhtml+xml,*/*'));
+  const attempts = NEWS_FETCHERS.map(makeUrl => newsFetchCandidate(makeUrl(url), 5500, 'text/html,application/xhtml+xml,*/*'));
   let html;
   try { html = await Promise.any(attempts); }
   catch (_) { throw new Error('HTML gateways failed'); }
@@ -2944,7 +2990,7 @@ async function newsSearchArticleUrls(item) {
   ];
   const results = await Promise.allSettled(endpoints.map(async endpoint => {
     const response = await fetch(endpoint, {
-      signal: newsAbortSignal(11000),
+      signal: newsAbortSignal(6500),
       headers: { Accept: 'text/plain', 'X-Respond-With': 'markdown', 'X-Cache-Tolerance': '21600' },
       cache: 'force-cache'
     });
@@ -2965,7 +3011,7 @@ async function newsResolveGoogleCandidates(item) {
     'https://api.allorigins.win/raw?url=' + encodeURIComponent(item.link)
   ];
   const results = await Promise.allSettled(endpoints.map(async endpoint => {
-    const response = await fetch(endpoint, { signal: newsAbortSignal(10000), headers: { Accept: 'text/plain,text/html,*/*' }, cache: 'force-cache' });
+    const response = await fetch(endpoint, { signal: newsAbortSignal(6500), headers: { Accept: 'text/plain,text/html,*/*' }, cache: 'force-cache' });
     if (!response.ok) throw new Error('Google resolve HTTP ' + response.status);
     return response.text();
   }));
@@ -2986,69 +3032,84 @@ async function newsTryArticleUrl(url, item) {
   return Promise.any(tasks);
 }
 
-async function newsFetchArticle(item) {
+function newsPromiseTimeout(promise, ms, message = 'News request timed out') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function newsTryArticleCandidates(urls, item, limit = 4) {
+  const candidates = [...new Set((urls || []).map(newsSafeUrl).filter(Boolean))].slice(0, limit);
+  if (!candidates.length) throw new Error('No article candidates');
+  return Promise.any(candidates.map(url => newsTryArticleUrl(url, item)));
+}
+
+async function newsFetchArticleCore(item) {
   const key = newsArticleKey(item);
   const cached = newsCache.articles[key];
   if (cached && Date.now() - Number(cached.savedAt || 0) < NEWS_ARTICLE_TTL) {
     if (typeof cached === 'string') return { text: cached, mode: 'full', via: 'cache', resolvedUrl: item.link };
+    if (cached.mode === 'unavailable' && Date.now() - Number(cached.savedAt || 0) < NEWS_READER_NEGATIVE_TTL) {
+      throw new Error('Article recently marked unavailable');
+    }
     if (cached.text) return cached;
   }
 
-  const summary = newsCleanReaderText(item.feedContent || item.desc || '', item);
+  const summary = newsCleanReaderText(newsPreviewText(item), item);
   const directCandidates = [];
   const decodedGoogle = newsDecodeLegacyGoogleUrl(item.link);
   if (decodedGoogle) directCandidates.push(decodedGoogle);
   if (item.resolvedLink) directCandidates.push(newsSafeUrl(item.resolvedLink));
   if (!newsIsGoogleNewsUrl(item.link)) directCandidates.push(newsSafeUrl(item.link));
 
+  // Candidate discovery and extraction now run concurrently. The old implementation
+  // could wait through many sequential 10–14 second attempts before giving up.
+  const attempts = [];
+  if (directCandidates.length) attempts.push(newsTryArticleCandidates(directCandidates, item, 3));
   if (newsIsGoogleNewsUrl(item.link)) {
-    // Sometimes the reader follows the Google News handoff directly; try it before search.
-    try {
-      const result = await newsReaderRequest(item.link, item, 'browser');
-      const stored = { ...result, via: 'google-handoff', savedAt: Date.now() };
-      newsCache.articles[key] = stored;
-      newsStoreArticles();
-      return stored;
-    } catch (_) {}
-    try { directCandidates.push(...await newsResolveGoogleCandidates(item)); }
-    catch (_) {}
-  }
-
-  const uniqueDirect = [...new Set(directCandidates.filter(Boolean))];
-  for (const url of uniqueDirect.slice(0, 5)) {
-    try {
-      const result = await newsTryArticleUrl(url, item);
-      const stored = { ...result, savedAt: Date.now() };
-      newsCache.articles[key] = stored;
-      newsStoreArticles();
-      return stored;
-    } catch (error) {
-      console.warn('[News] Direct article extraction failed:', item.src, error?.message || error);
-    }
+    attempts.push(newsReaderRequest(item.link, item, 'browser'));
+    attempts.push((async () => {
+      const [resolved, searched] = await Promise.allSettled([
+        newsResolveGoogleCandidates(item),
+        newsSearchArticleUrls(item)
+      ]);
+      const urls = [
+        ...(resolved.status === 'fulfilled' ? resolved.value : []),
+        ...(searched.status === 'fulfilled' ? searched.value : [])
+      ];
+      return newsTryArticleCandidates(urls, item, 4);
+    })());
+  } else {
+    attempts.push((async () => newsTryArticleCandidates(await newsSearchArticleUrls(item), item, 3))());
   }
 
   try {
-    const searchUrls = await newsSearchArticleUrls(item);
-    for (const url of searchUrls.slice(0, 6)) {
-      try {
-        const result = await newsTryArticleUrl(url, item);
-        const stored = { ...result, via: 'search+' + result.via, savedAt: Date.now() };
-        newsCache.articles[key] = stored;
-        newsStoreArticles();
-        return stored;
-      } catch (_) {}
-    }
-  } catch (error) {
-    console.warn('[News] Article search fallback failed:', error?.message || error);
-  }
-
-  if (summary.length >= 55) {
-    const stored = { text: summary, mode: 'summary', via: 'feed', resolvedUrl: '', savedAt: Date.now() };
+    const result = await newsPromiseTimeout(Promise.any(attempts), 15000, 'Article extraction deadline exceeded');
+    const stored = { ...result, savedAt: Date.now() };
     newsCache.articles[key] = stored;
     newsStoreArticles();
     return stored;
+  } catch (error) {
+    if (summary.length >= NEWS_MIN_PREVIEW_CHARS) {
+      const stored = { text: summary, mode: 'summary', via: 'feed', resolvedUrl: '', savedAt: Date.now() };
+      newsCache.articles[key] = stored;
+      newsStoreArticles();
+      return stored;
+    }
+    newsCache.articles[key] = { mode: 'unavailable', text: '', savedAt: Date.now() };
+    newsStoreArticles();
+    throw error;
   }
-  throw new Error('Article text unavailable');
+}
+
+function newsFetchArticle(item) {
+  const key = newsArticleKey(item);
+  if (newsArticleInflight.has(key)) return newsArticleInflight.get(key);
+  const task = newsFetchArticleCore(item).finally(() => newsArticleInflight.delete(key));
+  newsArticleInflight.set(key, task);
+  return task;
 }
 
 window.newsValidateReaderImage = function(img) {
@@ -3068,55 +3129,54 @@ window.openNewsArticle = async function(index) {
   if (subtabs) subtabs.style.display = 'none';
   filters?.classList.remove('show');
 
-  const initialText = newsCleanReaderText(item.feedContent || item.desc || '', item);
+  const initialText = newsCleanReaderText(newsPreviewText(item), item);
   const articleDir = newsTextDir(`${item.title || ''} ${initialText}`);
   const tag = item.tagSym ? `<span class="news-item-sym">${newsEscape(item.tagSym)}</span>` : '';
+  const hasSummary = initialText.length >= NEWS_MIN_PREVIEW_CHARS;
   el.innerHTML = `<div class="news-reader">
     <div class="news-reader-head">
       <button class="news-reader-back" onclick="renderNews()"><i class="ph-thin ph-arrow-right"></i> חזרה לחדשות</button>
       <div class="news-reader-meta"><span>${newsEscape(item.src)}</span><span>${newsEscape(newsTimeAgo(item.pubDate))}</span>${tag}</div>
     </div>
-    <div class="news-reader-status" id="newsReaderStatus"><i class="ph-thin ph-circle-notch ph-sm fi-spin"></i> טוען כתבה מלאה בתוך האתר</div>
+    <div class="news-reader-status ${hasSummary ? 'summary' : ''}" id="newsReaderStatus">${hasSummary
+      ? '<i class="ph-thin ph-file-text ph-sm"></i> תקציר מוטמע — מנסה להשלים את גוף הכתבה ברקע'
+      : '<i class="ph-thin ph-warning-circle ph-sm"></i> תוכן הכתבה אינו זמין'}</div>
     ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onload="newsValidateReaderImage(this)" onerror="this.style.display='none'">` : ''}
     <div class="news-reader-title" dir="${articleDir}">${newsEscape(item.title)}</div>
     <div class="news-reader-body" dir="${articleDir}" id="newsArticleBody">
-      ${initialText ? `<div class="news-reader-lead">${newsReaderParagraphs(initialText)}</div>` : '<p>טוען את תוכן הכתבה…</p>'}
-      <div class="loading-row" id="newsArticleLoading"><div class="spinner"></div>מחלץ ומנקה את גוף הכתבה…</div>
+      ${hasSummary ? `<div class="news-reader-lead">${newsReaderParagraphs(initialText)}</div>` : '<div class="news-reader-note">הכתבה הזאת אינה כוללת תקציר או גוף זמין ולכן לא אמורה להופיע בפיד. אפשר לחזור לחדשות.</div>'}
     </div>
   </div>`;
 
+  if (!hasSummary) return;
+
   try {
-    const result = await newsFetchArticle(item);
+    // The UI never spins indefinitely. After 6.5 seconds it keeps the useful summary
+    // on screen, while the slower extraction may finish in the background and be cached.
+    const result = await newsPromiseTimeout(newsFetchArticle(item), NEWS_READER_UI_TIMEOUT, 'Reader UI timeout');
     const body = document.getElementById('newsArticleBody');
     const status = document.getElementById('newsReaderStatus');
-    if (body) {
-      const paragraphs = newsReaderParagraphs(result.text);
-      body.innerHTML = paragraphs || newsReaderParagraphs(initialText);
-      if (result.mode === 'summary') {
-        body.innerHTML += '<div class="news-reader-note">האתר המפרסם חסם גישה אוטומטית לגוף המלא. מוצג כאן התקציר המלא שסופק בפיד, מבלי להוציא אותך מהאתר.</div>';
-      }
-    }
-    if (status) {
-      const full = result.mode !== 'summary';
-      status.className = 'news-reader-status ' + (full ? 'full' : 'summary');
-      status.innerHTML = full
-        ? '<i class="ph-thin ph-check-circle ph-sm"></i> כתבה מלאה במצב קריאה פנימי'
-        : '<i class="ph-thin ph-file-text ph-sm"></i> תקציר מוטמע מהמקור';
+    if (!body || !status) return;
+    const paragraphs = newsReaderParagraphs(result.text);
+    if (result.mode === 'full' && paragraphs) {
+      body.innerHTML = paragraphs;
+      status.className = 'news-reader-status full';
+      status.innerHTML = '<i class="ph-thin ph-check-circle ph-sm"></i> כתבה מלאה במצב קריאה פנימי';
+    } else {
+      body.innerHTML = `<div class="news-reader-lead">${newsReaderParagraphs(initialText)}</div>`;
+      status.className = 'news-reader-status summary';
+      status.innerHTML = '<i class="ph-thin ph-file-text ph-sm"></i> תקציר איכותי מהמקור';
     }
   } catch (error) {
-    console.warn('[News] Full article unavailable:', error?.message || error);
-    document.getElementById('newsArticleLoading')?.remove();
-    const body = document.getElementById('newsArticleBody');
+    console.warn('[News] Reader switched to summary:', error?.message || error);
     const status = document.getElementById('newsReaderStatus');
-    if (body && !initialText) {
-      body.innerHTML = `<div class="news-reader-lead"><p>${newsEscape(item.title)}</p></div><div class="news-reader-note">המקור פרסם כותרת ללא תקציר זמין וחסם חילוץ אוטומטי של גוף הכתבה. נשארת בתוך האתר ולא מתבצע מעבר החוצה.</div>`;
-    }
     if (status) {
       status.className = 'news-reader-status summary';
-      status.innerHTML = '<i class="ph-thin ph-warning-circle ph-sm"></i> המקור לא סיפק גוף כתבה זמין';
+      status.innerHTML = '<i class="ph-thin ph-file-text ph-sm"></i> תקציר איכותי מהמקור';
     }
   }
 };
+
 
 
 function renderInsights() {
