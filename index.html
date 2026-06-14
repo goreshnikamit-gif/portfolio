@@ -232,6 +232,9 @@ body.light .news-subtab.active { color: #F4EFE5; }
 .news-reader-meta { display: flex; align-items: center; gap: 14px; color: var(--t3); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 .news-reader-body { font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; font-size: 15px; line-height: 1.75; color: var(--t1); }
 .news-reader-body p { margin: 0 0 14px 0; }
+.news-reader-body { max-width: 900px; }
+.news-reader-body .loading-row { border-top: 1px solid var(--b1); margin-top: 18px; padding-top: 18px; }
+
 .news-reader-img { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 6px; }
 
 /* ── PAGES ── */
@@ -1921,30 +1924,29 @@ async function renderCryptoPage() {
 // INSIGHTS
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
-// NEWS — resilient RSS headlines + portfolio-specific news
+// NEWS — fast cached headlines + in-app article reader
 // ═══════════════════════════════════════════
 let newsTab = 'world';
-const newsCache = { world: null, mine: null, _displayed: [] };
+const newsCache = { world: null, mine: null, _displayed: [], articles: {} };
 let newsLastFetch = { world: 0, mine: 0 };
-const NEWS_TTL = 15 * 60 * 1000;       // avoid hammering free RSS gateways
-const NEWS_STALE_TTL = 6 * 60 * 60 * 1000;
-const NEWS_MAX_MINE_ASSETS = 12;
-const NEWS_STORAGE_KEY = 'vector_news_cache_v2';
+const NEWS_TTL = 20 * 60 * 1000;
+const NEWS_STALE_TTL = 24 * 60 * 60 * 1000;
+const NEWS_MAX_MINE_ASSETS = 8;
+const NEWS_STORAGE_KEY = 'vector_news_cache_v3';
+const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v1';
 
-// Prefer a direct request (works when a feed permits CORS), then fall back to
-// independent public gateways. No single gateway is treated as mandatory.
+// Race several gateways instead of waiting for each one sequentially.
+// The first valid response wins, so a broken gateway cannot delay the page.
 const NEWS_FETCHERS = [
   url => url,
   url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
   url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
-  url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
 ];
 
 const NEWS_WORLD_FEEDS = [
-  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
-  { src: 'Google News · Business', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(business OR economy OR interest rates) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
+  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets OR Federal Reserve) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
   { src: 'CNBC Markets', url: 'https://www.cnbc.com/id/20409666/device/rss/rss.html' },
-  { src: 'MarketWatch', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories' },
+  { src: 'Google News · Economy', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(economy OR inflation OR interest rates OR business) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
 ];
 
 window.setNewsTab = (t) => {
@@ -2000,24 +2002,25 @@ function newsAbortSignal(ms) {
   return controller.signal;
 }
 
+async function newsFetchCandidate(url) {
+  const response = await fetch(url, {
+    signal: newsAbortSignal(5500),
+    headers: { Accept: 'application/rss+xml, application/xml, text/xml, text/plain, */*' },
+    cache: 'no-store'
+  });
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  const body = await response.text();
+  if (!body || body.length < 80) throw new Error('Empty response');
+  return body;
+}
+
 async function newsFetchText(url) {
-  let lastError = null;
-  for (const makeUrl of NEWS_FETCHERS) {
-    try {
-      const response = await fetch(makeUrl(url), {
-        signal: newsAbortSignal(9000),
-        headers: { Accept: 'application/rss+xml, application/xml, text/xml, text/plain, */*' },
-        cache: 'no-store'
-      });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const body = await response.text();
-      if (!body || body.length < 80) throw new Error('Empty response');
-      return body;
-    } catch (error) {
-      lastError = error;
-    }
+  const attempts = NEWS_FETCHERS.map(makeUrl => newsFetchCandidate(makeUrl(url)));
+  try {
+    return await Promise.any(attempts);
+  } catch (error) {
+    throw new Error('All news gateways failed');
   }
-  throw lastError || new Error('All news gateways failed');
 }
 
 function newsNodeText(node, selectors) {
@@ -2033,7 +2036,7 @@ function newsParseFeed(xmlText, srcLabel) {
   const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
   if (xml.querySelector('parsererror')) throw new Error('Invalid RSS/XML');
 
-  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 30);
+  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 28);
   return nodes.map(node => {
     const rawTitle = newsNodeText(node, ['title']);
     const title = newsNormaliseTitle(rawTitle);
@@ -2048,13 +2051,13 @@ function newsParseFeed(xmlText, srcLabel) {
 
     const pubRaw = newsNodeText(node, ['pubDate', 'published', 'updated', 'dc\\:date']);
     const pubDate = pubRaw && !Number.isNaN(Date.parse(pubRaw)) ? new Date(pubRaw) : new Date();
-    const rawDesc = newsNodeText(node, ['description', 'summary', 'content\\:encoded', 'content']);
-    const desc = newsStripHtml(rawDesc).slice(0, 420);
+    const rawContent = newsNodeText(node, ['content\\:encoded', 'content', 'description', 'summary']);
+    const desc = newsStripHtml(rawContent).slice(0, 520);
 
     const media = node.getElementsByTagName('media:content')[0] || node.getElementsByTagName('media:thumbnail')[0];
     let img = media?.getAttribute('url') || node.querySelector('enclosure[type^="image"]')?.getAttribute('url') || '';
     if (!img) {
-      const match = rawDesc.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const match = rawContent.match(/<img[^>]+src=["']([^"']+)["']/i);
       if (match) img = match[1];
     }
 
@@ -2063,6 +2066,7 @@ function newsParseFeed(xmlText, srcLabel) {
       link: newsSafeUrl(link),
       pubDate,
       desc,
+      feedContent: newsStripHtml(rawContent),
       img: newsSafeUrl(img),
       src: srcLabel
     };
@@ -2109,6 +2113,8 @@ function newsLoadStored() {
       newsCache[type] = stored[type].items.map(item => ({ ...item, pubDate: new Date(item.pubDate) }));
       newsLastFetch[type] = Number(stored[type].savedAt) || 0;
     }
+    const articles = JSON.parse(localStorage.getItem(NEWS_ARTICLE_STORAGE_KEY) || '{}');
+    if (articles && typeof articles === 'object') newsCache.articles = articles;
   } catch (_) {}
 }
 
@@ -2119,14 +2125,23 @@ function newsStore(type, items) {
     localStorage.setItem(NEWS_STORAGE_KEY, JSON.stringify(stored));
   } catch (_) {}
 }
+
+function newsStoreArticles() {
+  try {
+    const entries = Object.entries(newsCache.articles)
+      .sort((a, b) => (b[1]?.savedAt || 0) - (a[1]?.savedAt || 0))
+      .slice(0, 25);
+    localStorage.setItem(NEWS_ARTICLE_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch (_) {}
+}
 newsLoadStored();
 
-async function newsLoadWorld() {
-  if (newsCache.world && Date.now() - newsLastFetch.world < NEWS_TTL) return newsCache.world;
-  const results = await newsMapLimit(NEWS_WORLD_FEEDS, 3, feed => newsFetchRss(feed.url, feed.src));
+async function newsLoadWorld(force = false) {
+  if (!force && newsCache.world && Date.now() - newsLastFetch.world < NEWS_TTL) return newsCache.world;
+  const results = await Promise.all(NEWS_WORLD_FEEDS.map(feed => newsFetchRss(feed.url, feed.src)));
   const fresh = newsDedupe(results.flat())
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 50);
+    .slice(0, 42);
 
   if (fresh.length) {
     newsCache.world = fresh;
@@ -2138,8 +2153,8 @@ async function newsLoadWorld() {
   return [];
 }
 
-async function newsLoadMine() {
-  if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) return newsCache.mine;
+async function newsLoadMine(force = false) {
+  if (!force && newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) return newsCache.mine;
 
   const stocks = (S.stocks || []).map(s => ({ sym: s.sym, name: s.name, kind: 'stock' }));
   const crypto = (S.crypto || []).map(c => ({ sym: c.sym, name: c.name, kind: 'crypto' }));
@@ -2154,20 +2169,17 @@ async function newsLoadMine() {
     const q = asset.kind === 'crypto'
       ? `"${asset.name}" cryptocurrency when:7d`
       : `("${asset.sym}" stock OR "${asset.name}") when:7d`;
-    return {
-      ...asset,
-      url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`
-    };
+    return { ...asset, url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en` };
   });
 
-  const results = await newsMapLimit(feeds, 3, async feed => {
+  const results = await newsMapLimit(feeds, 4, async feed => {
     const items = await newsFetchRss(feed.url, 'Google News');
-    return items.slice(0, 6).map(item => ({ ...item, tagSym: feed.sym, tagName: feed.name }));
+    return items.slice(0, 5).map(item => ({ ...item, tagSym: feed.sym, tagName: feed.name }));
   });
 
   const fresh = newsDedupe(results.flat())
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
+    .slice(0, 45);
 
   if (fresh.length) {
     newsCache.mine = fresh;
@@ -2179,11 +2191,42 @@ async function newsLoadMine() {
   return [];
 }
 
+function newsCardsHtml(items) {
+  newsCache._displayed = items;
+  return '<div class="news-list">' + items.map((item, index) => {
+    const sym = item.tagSym
+      ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
+      : '';
+    return `<div class="news-item" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
+      <div class="news-item-head">
+        <span class="news-item-src">${newsEscape(item.src)}</span>
+        <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
+      </div>
+      <div class="news-item-title">${newsEscape(item.title)}</div>
+      ${item.desc ? `<div class="news-item-desc">${newsEscape(item.desc)}</div>` : ''}
+      ${sym}
+    </div>`;
+  }).join('') + '</div>';
+}
+
 async function renderNews() {
   const el = document.getElementById('newsContent');
   if (!el) return;
   const subtabs = document.getElementById('newsSubtabs');
   if (subtabs) subtabs.style.display = '';
+
+  const cached = newsCache[newsTab];
+  // Stale-while-revalidate: show saved news instantly, then refresh quietly.
+  if (cached?.length) {
+    el.innerHTML = newsCardsHtml(cached);
+    const loader = newsTab === 'world' ? newsLoadWorld(true) : newsLoadMine(true);
+    loader.then(items => {
+      if (items?.length && document.getElementById('newsContent') === el && subtabs?.style.display !== 'none') {
+        el.innerHTML = newsCardsHtml(items);
+      }
+    }).catch(() => {});
+    return;
+  }
 
   el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
   try {
@@ -2196,36 +2239,71 @@ async function renderNews() {
       }
       return;
     }
-
-    newsCache._displayed = items;
-    el.innerHTML = '<div class="news-list">' + items.map((item, index) => {
-      const sym = item.tagSym
-        ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
-        : '';
-      return `<div class="news-item" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
-        <div class="news-item-head">
-          <span class="news-item-src">${newsEscape(item.src)}</span>
-          <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
-        </div>
-        <div class="news-item-title">${newsEscape(item.title)}</div>
-        ${item.desc ? `<div class="news-item-desc">${newsEscape(item.desc)}</div>` : ''}
-        ${sym}
-      </div>`;
-    }).join('') + '</div>';
+    el.innerHTML = newsCardsHtml(items);
   } catch (error) {
     console.error('[News] Render failed:', error);
     el.innerHTML = '<div class="news-empty">שגיאה בטעינת חדשות.<br>בדקי חיבור לאינטרנט ונסי שוב.</div>';
   }
 }
 
-window.openNewsArticle = function(index) {
+function newsArticleKey(item) {
+  return btoa(unescape(encodeURIComponent(item.link))).replace(/[^a-z0-9]/gi, '').slice(-80);
+}
+
+function newsCleanReaderText(raw = '') {
+  let text = String(raw).replace(/\r/g, '');
+  // Jina Reader returns markdown with metadata before the actual article.
+  const contentMarker = text.indexOf('Markdown Content:');
+  if (contentMarker >= 0) text = text.slice(contentMarker + 'Markdown Content:'.length);
+  text = text
+    .replace(/^Title:.*$/gmi, '')
+    .replace(/^URL Source:.*$/gmi, '')
+    .replace(/^Published Time:.*$/gmi, '')
+    .replace(/^Warning:.*$/gmi, '')
+    .replace(/!\[[^\]]*\]\([^\)]+\)/g, '')
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*+]\s+/gm, '• ')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return text.slice(0, 24000);
+}
+
+function newsReaderParagraphs(text = '') {
+  const chunks = String(text).split(/\n\s*\n/).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length > 35);
+  return chunks.slice(0, 45).map(p => `<p>${newsEscape(p)}</p>`).join('');
+}
+
+async function newsFetchArticle(item) {
+  const key = newsArticleKey(item);
+  const cached = newsCache.articles[key];
+  if (cached?.text && Date.now() - cached.savedAt < 7 * 24 * 60 * 60 * 1000) return cached.text;
+
+  // Reader endpoint converts most public article pages to clean text and follows redirects.
+  const readerUrl = 'https://r.jina.ai/' + item.link;
+  const response = await fetch(readerUrl, {
+    signal: newsAbortSignal(12000),
+    headers: { Accept: 'text/plain' },
+    cache: 'force-cache'
+  });
+  if (!response.ok) throw new Error('Article HTTP ' + response.status);
+  const text = newsCleanReaderText(await response.text());
+  if (text.length < 250) throw new Error('Article text unavailable');
+
+  newsCache.articles[key] = { text, savedAt: Date.now() };
+  newsStoreArticles();
+  return text;
+}
+
+window.openNewsArticle = async function(index) {
   const item = newsCache._displayed?.[index];
-  if (!item?.link) return;
+  if (!item) return;
   const el = document.getElementById('newsContent');
   const subtabs = document.getElementById('newsSubtabs');
   if (subtabs) subtabs.style.display = 'none';
 
-  const safeLink = newsEscape(item.link);
+  const initialText = item.feedContent || item.desc || '';
   el.innerHTML = `<div class="news-reader">
     <div class="news-reader-head">
       <button class="news-reader-back" onclick="renderNews()"><i class="ph-thin ph-arrow-right"></i> חזרה לחדשות</button>
@@ -2233,11 +2311,24 @@ window.openNewsArticle = function(index) {
     </div>
     ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
     <div class="news-reader-title">${newsEscape(item.title)}</div>
-    <div class="news-reader-body">
-      ${item.desc ? `<p>${newsEscape(item.desc)}</p>` : '<p>המקור לא סיפק תקציר לכתבה זו.</p>'}
-      <p style="margin-top:22px"><a href="${safeLink}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:7px;background:var(--ac);color:#fff;text-decoration:none;padding:10px 16px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:13px;font-weight:700">לכתבה המלאה באתר המקור <i class="ph-thin ph-arrow-square-out"></i></a></p>
+    <div class="news-reader-body" id="newsArticleBody">
+      ${initialText ? newsReaderParagraphs(initialText) : '<p>טוען את תוכן הכתבה…</p>'}
+      <div class="loading-row" id="newsArticleLoading"><div class="spinner"></div>טוען את הכתבה המלאה בתוך האתר…</div>
     </div>
   </div>`;
+
+  try {
+    const text = await newsFetchArticle(item);
+    const body = document.getElementById('newsArticleBody');
+    if (body) body.innerHTML = newsReaderParagraphs(text) || newsReaderParagraphs(initialText);
+  } catch (error) {
+    console.warn('[News] Full article unavailable:', error?.message || error);
+    document.getElementById('newsArticleLoading')?.remove();
+    const body = document.getElementById('newsArticleBody');
+    if (body && !initialText) {
+      body.innerHTML = '<p>המקור לא מאפשר טעינה של גוף הכתבה המלא. הכותרת והתקציר נשמרו בתוך האתר.</p>';
+    }
+  }
 };
 
 function renderInsights() {
