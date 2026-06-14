@@ -1005,8 +1005,6 @@ if (localStorage.getItem('google_pending_redirect')) {
     <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-warning ph-sm"></i> התראות מערכת וחריגות אלוקציה</div><div id="insTips"></div></div>
   </div>
 
-</div>
-
   <div class="page" id="page-news">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i class="fi fi-tr-newspaper" style="margin-left:8px"></i>חדשות</div></div>
     <div class="news-subtabs" id="newsSubtabs">
@@ -1018,6 +1016,8 @@ if (localStorage.getItem('google_pending_redirect')) {
       <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
     </div></div>
   </div>
+
+</div>
 
 <nav class="nav">
   <button class="ni active" data-p="dash" onclick="goPage('dash',this)"><span class="ni-ico"><i class="ph-thin ph-house"></i></span><span class="ni-lbl">דשבורד</span></button>
@@ -1924,19 +1924,19 @@ async function renderCryptoPage() {
 // INSIGHTS
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
-// NEWS — fast cached headlines + in-app article reader
+// NEWS — fast market feed + portfolio-only tags + in-app reader
 // ═══════════════════════════════════════════
 let newsTab = 'world';
+let newsRenderVersion = 0;
+let newsMineSignature = '';
 const newsCache = { world: null, mine: null, _displayed: [], articles: {} };
 let newsLastFetch = { world: 0, mine: 0 };
-const NEWS_TTL = 20 * 60 * 1000;
+const NEWS_TTL = 15 * 60 * 1000;
 const NEWS_STALE_TTL = 24 * 60 * 60 * 1000;
-const NEWS_MAX_MINE_ASSETS = 8;
-const NEWS_STORAGE_KEY = 'vector_news_cache_v3';
-const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v1';
+const NEWS_STORAGE_KEY = 'vector_news_cache_v4';
+const NEWS_ARTICLE_STORAGE_KEY = 'vector_news_articles_v2';
 
-// Race several gateways instead of waiting for each one sequentially.
-// The first valid response wins, so a broken gateway cannot delay the page.
+// RSS is only a fallback/enrichment layer. Direct finance news is attempted in parallel.
 const NEWS_FETCHERS = [
   url => url,
   url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
@@ -1944,15 +1944,31 @@ const NEWS_FETCHERS = [
 ];
 
 const NEWS_WORLD_FEEDS = [
-  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets OR Federal Reserve) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
+  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets OR Federal Reserve OR earnings) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
   { src: 'CNBC Markets', url: 'https://www.cnbc.com/id/20409666/device/rss/rss.html' },
-  { src: 'Google News · Economy', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(economy OR inflation OR interest rates OR business) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
+  { src: 'Google News · Economy', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(economy OR inflation OR interest rates OR bonds OR oil OR gold OR business) when:1d') + '&hl=en-US&gl=US&ceid=US:en' },
+];
+
+const NEWS_WORLD_TERMS = [
+  'stock', 'stocks', 'share', 'shares', 'market', 'markets', 'wall street', 'nasdaq', 'dow',
+  's&p', 'earnings', 'revenue', 'profit', 'forecast', 'guidance', 'investor', 'investment',
+  'fed', 'federal reserve', 'interest rate', 'rates', 'inflation', 'economy', 'economic',
+  'gdp', 'jobs', 'employment', 'recession', 'treasury', 'bond', 'yield', 'dollar', 'currency',
+  'oil', 'gold', 'silver', 'commodity', 'commodities', 'bitcoin', 'crypto', 'ethereum',
+  'ipo', 'merger', 'acquisition', 'trade', 'tariff', 'central bank', 'bank', 'fund', 'etf',
+  'futures', 'index', 'indices', 'analyst', 'business', 'company', 'sector', 'technology'
+];
+const NEWS_WORLD_EXCLUDE = [
+  'my husband', 'my wife', 'my fiancé', 'my fiance', 'my plumber', 'my adviser', 'my advisor',
+  'dear tax guy', 'social security benefit', 'retirement seminar', 'annuity', 'inheritance dispute',
+  'credit-card debt', 'credit card debt', 'mortgage advice', 'should i retire', 'can i afford to retire'
 ];
 
 window.setNewsTab = (t) => {
-  newsTab = t;
-  document.getElementById('newsTabWorld')?.classList.toggle('active', t === 'world');
-  document.getElementById('newsTabMine')?.classList.toggle('active', t === 'mine');
+  newsTab = t === 'mine' ? 'mine' : 'world';
+  newsRenderVersion++;
+  document.getElementById('newsTabWorld')?.classList.toggle('active', newsTab === 'world');
+  document.getElementById('newsTabMine')?.classList.toggle('active', newsTab === 'mine');
   renderNews();
 };
 
@@ -1960,6 +1976,10 @@ function newsEscape(value = '') {
   return String(value).replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   })[ch]);
+}
+
+function newsEscapeRegex(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function newsSafeUrl(value = '') {
@@ -2004,7 +2024,7 @@ function newsAbortSignal(ms) {
 
 async function newsFetchCandidate(url) {
   const response = await fetch(url, {
-    signal: newsAbortSignal(5500),
+    signal: newsAbortSignal(5000),
     headers: { Accept: 'application/rss+xml, application/xml, text/xml, text/plain, */*' },
     cache: 'no-store'
   });
@@ -2018,7 +2038,7 @@ async function newsFetchText(url) {
   const attempts = NEWS_FETCHERS.map(makeUrl => newsFetchCandidate(makeUrl(url)));
   try {
     return await Promise.any(attempts);
-  } catch (error) {
+  } catch (_) {
     throw new Error('All news gateways failed');
   }
 }
@@ -2036,10 +2056,9 @@ function newsParseFeed(xmlText, srcLabel) {
   const xml = new DOMParser().parseFromString(xmlText, 'text/xml');
   if (xml.querySelector('parsererror')) throw new Error('Invalid RSS/XML');
 
-  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 28);
+  const nodes = [...xml.querySelectorAll('item, entry')].slice(0, 30);
   return nodes.map(node => {
-    const rawTitle = newsNodeText(node, ['title']);
-    const title = newsNormaliseTitle(rawTitle);
+    const title = newsNormaliseTitle(newsNodeText(node, ['title']));
 
     let link = newsNodeText(node, ['link']);
     if (!link) {
@@ -2082,10 +2101,55 @@ async function newsFetchRss(url, srcLabel) {
   }
 }
 
+async function newsFetchJson(url, timeout = 6000) {
+  const response = await fetch(url, {
+    signal: newsAbortSignal(timeout),
+    headers: { Accept: 'application/json' },
+    cache: 'no-store'
+  });
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid news response');
+  return data;
+}
+
+function newsFinnhubItem(row, tagSym = '', tagName = '') {
+  const title = newsNormaliseTitle(row?.headline || '');
+  const link = newsSafeUrl(row?.url || '');
+  if (!title || !link) return null;
+  const timestamp = Number(row?.datetime || 0);
+  return {
+    title,
+    link,
+    pubDate: timestamp ? new Date(timestamp * 1000) : new Date(),
+    desc: newsStripHtml(row?.summary || '').slice(0, 520),
+    feedContent: newsStripHtml(row?.summary || ''),
+    img: newsSafeUrl(row?.image || ''),
+    src: newsStripHtml(row?.source || 'Market News'),
+    tagSym,
+    tagName
+  };
+}
+
+async function newsFetchFinnhubGeneral() {
+  const url = `https://finnhub.io/api/v1/news?category=general&token=${encodeURIComponent(FINNHUB_KEY)}`;
+  const rows = await newsFetchJson(url, 6000);
+  return rows.map(row => newsFinnhubItem(row)).filter(Boolean);
+}
+
+async function newsFetchFinnhubCompany(asset) {
+  const to = new Date();
+  const from = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+  const fmt = d => d.toISOString().slice(0, 10);
+  const url = `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(asset.sym)}&from=${fmt(from)}&to=${fmt(to)}&token=${encodeURIComponent(FINNHUB_KEY)}`;
+  const rows = await newsFetchJson(url, 5500);
+  return rows.slice(0, 10).map(row => newsFinnhubItem(row, asset.sym, asset.name)).filter(Boolean);
+}
+
 function newsDedupe(items) {
   const seen = new Set();
   return items.filter(item => {
-    const key = (item.title || '').toLowerCase().replace(/[^a-z0-9א-ת]+/g, ' ').trim().slice(0, 110);
+    const key = (item.title || '').toLowerCase().replace(/[^a-z0-9א-ת]+/g, ' ').trim().slice(0, 120);
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -2093,6 +2157,7 @@ function newsDedupe(items) {
 }
 
 async function newsMapLimit(values, limit, worker) {
+  if (!values.length) return [];
   const output = new Array(values.length);
   let cursor = 0;
   async function run() {
@@ -2105,23 +2170,84 @@ async function newsMapLimit(values, limit, worker) {
   return output;
 }
 
+function newsCurrentAssets() {
+  const map = new Map();
+  for (const stock of (S.stocks || [])) {
+    const sym = String(stock.sym || '').trim().toUpperCase();
+    if (sym) map.set('stock:' + sym, { sym, name: String(stock.name || sym).trim(), kind: 'stock' });
+  }
+  for (const coin of (S.crypto || [])) {
+    const sym = String(coin.sym || '').trim().toUpperCase();
+    if (sym) map.set('crypto:' + sym, { sym, name: String(coin.name || sym).trim(), kind: 'crypto' });
+  }
+  return [...map.values()];
+}
+
+function newsPortfolioSignature(assets = newsCurrentAssets()) {
+  return assets.map(a => `${a.kind}:${a.sym}:${a.name.toLowerCase()}`).sort().join('|');
+}
+
+function newsFilterMineItems(items, assets) {
+  const bySym = new Map(assets.map(a => [a.sym.toUpperCase(), a]));
+  return items.map(item => {
+    const asset = bySym.get(String(item.tagSym || '').toUpperCase());
+    if (!asset) return null;
+    return { ...item, tagSym: asset.sym, tagName: asset.name };
+  }).filter(Boolean);
+}
+
+function newsAssetMatchesItem(item, asset) {
+  const text = `${item.title || ''} ${item.desc || ''}`.replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  const symbol = newsEscapeRegex(asset.sym);
+  const symbolPattern = new RegExp(`(^|[^A-Z0-9])\\$?${symbol}([^A-Z0-9]|$)`, 'i');
+  if (symbolPattern.test(text)) return true;
+  const name = String(asset.name || '').trim();
+  if (name.length < 3) return false;
+  const namePattern = new RegExp(`(^|[^A-Z0-9])${newsEscapeRegex(name)}([^A-Z0-9]|$)`, 'i');
+  return namePattern.test(text);
+}
+
+function newsWorldScore(item) {
+  const text = `${item.title || ''} ${item.desc || ''}`.toLowerCase();
+  if (NEWS_WORLD_EXCLUDE.some(term => text.includes(term))) return -100;
+  let score = 0;
+  for (const term of NEWS_WORLD_TERMS) if (text.includes(term)) score++;
+  if (/\b(up|down|rises?|falls?|jumps?|drops?|rall(?:y|ies)|selloff|record high|record low)\b/i.test(text)) score++;
+  if (/\b[A-Z]{2,5}\b/.test(item.title || '')) score++;
+  return score;
+}
+
+function newsCurateWorld(items) {
+  const deduped = newsDedupe(items).filter(item => newsWorldScore(item) > -100);
+  const primary = deduped.filter(item => newsWorldScore(item) >= 1);
+  const primaryKeys = new Set(primary.map(item => item.link));
+  const backup = deduped.filter(item => !primaryKeys.has(item.link));
+  return [...primary, ...backup]
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+    .slice(0, 45);
+}
+
 function newsLoadStored() {
   try {
     const stored = JSON.parse(localStorage.getItem(NEWS_STORAGE_KEY) || '{}');
+    const currentSignature = newsPortfolioSignature();
     for (const type of ['world', 'mine']) {
       if (!Array.isArray(stored[type]?.items)) continue;
+      if (type === 'mine' && stored[type]?.signature !== currentSignature) continue;
       newsCache[type] = stored[type].items.map(item => ({ ...item, pubDate: new Date(item.pubDate) }));
       newsLastFetch[type] = Number(stored[type].savedAt) || 0;
+      if (type === 'mine') newsMineSignature = currentSignature;
     }
     const articles = JSON.parse(localStorage.getItem(NEWS_ARTICLE_STORAGE_KEY) || '{}');
     if (articles && typeof articles === 'object') newsCache.articles = articles;
   } catch (_) {}
 }
 
-function newsStore(type, items) {
+function newsStore(type, items, signature = '') {
   try {
     const stored = JSON.parse(localStorage.getItem(NEWS_STORAGE_KEY) || '{}');
-    stored[type] = { savedAt: Date.now(), items };
+    stored[type] = { savedAt: Date.now(), items, ...(type === 'mine' ? { signature } : {}) };
     localStorage.setItem(NEWS_STORAGE_KEY, JSON.stringify(stored));
   } catch (_) {}
 }
@@ -2136,58 +2262,162 @@ function newsStoreArticles() {
 }
 newsLoadStored();
 
+function newsRefreshVisible(type, items) {
+  if (newsTab !== type || S.curPage !== 'news') return;
+  const subtabs = document.getElementById('newsSubtabs');
+  const content = document.getElementById('newsContent');
+  if (!content || subtabs?.style.display === 'none') return;
+  content.innerHTML = items.length ? newsCardsHtml(items) : content.innerHTML;
+}
+
 async function newsLoadWorld(force = false) {
   if (!force && newsCache.world && Date.now() - newsLastFetch.world < NEWS_TTL) return newsCache.world;
-  const results = await Promise.all(NEWS_WORLD_FEEDS.map(feed => newsFetchRss(feed.url, feed.src)));
-  const fresh = newsDedupe(results.flat())
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 42);
 
-  if (fresh.length) {
-    newsCache.world = fresh;
+  const sourceTasks = [
+    newsFetchFinnhubGeneral(),
+    ...NEWS_WORLD_FEEDS.map(feed => newsFetchRss(feed.url, feed.src))
+  ];
+
+  const firstUsable = Promise.any(sourceTasks.map(task => task.then(items => {
+    const curated = newsCurateWorld(items);
+    if (curated.length < 4) throw new Error('Not enough useful market stories');
+    return curated;
+  })));
+  const allSettled = Promise.allSettled(sourceTasks);
+
+  try {
+    const first = await firstUsable;
+    newsCache.world = first;
     newsLastFetch.world = Date.now();
-    newsStore('world', fresh);
-    return fresh;
+    newsStore('world', first);
+
+    allSettled.then(results => {
+      const combined = newsCurateWorld(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+      if (combined.length > first.length) {
+        newsCache.world = combined;
+        newsLastFetch.world = Date.now();
+        newsStore('world', combined);
+        newsRefreshVisible('world', combined);
+      }
+    }).catch(() => {});
+    return first;
+  } catch (error) {
+    console.warn('[News] Fast world sources unavailable:', error?.message || error);
+    const results = await allSettled;
+    const combined = newsCurateWorld(results.flatMap(result => result.status === 'fulfilled' ? result.value : []));
+    if (combined.length) {
+      newsCache.world = combined;
+      newsLastFetch.world = Date.now();
+      newsStore('world', combined);
+      return combined;
+    }
   }
+
   if (newsCache.world && Date.now() - newsLastFetch.world < NEWS_STALE_TTL) return newsCache.world;
   return [];
 }
 
-async function newsLoadMine(force = false) {
-  if (!force && newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) return newsCache.mine;
+function newsAssetRssQuery(asset) {
+  const query = asset.kind === 'crypto'
+    ? `("${asset.name}" OR "${asset.sym}") cryptocurrency when:7d`
+    : `("${asset.sym}" stock OR "${asset.name}") when:7d`;
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+}
 
-  const stocks = (S.stocks || []).map(s => ({ sym: s.sym, name: s.name, kind: 'stock' }));
-  const crypto = (S.crypto || []).map(c => ({ sym: c.sym, name: c.name, kind: 'crypto' }));
-  const assets = [...stocks, ...crypto].slice(0, NEWS_MAX_MINE_ASSETS);
+async function newsFetchAssetRss(asset) {
+  const items = await newsFetchRss(newsAssetRssQuery(asset), 'Google News');
+  return items.slice(0, 7).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name }));
+}
+
+async function newsEnrichMineWithRss(missingAssets, baseItems, signature) {
+  if (!missingAssets.length) return baseItems;
+  const results = await newsMapLimit(missingAssets, 3, async asset => {
+    try { return await newsFetchAssetRss(asset); }
+    catch (_) { return []; }
+  });
+  if (signature !== newsPortfolioSignature()) return baseItems;
+  const assets = newsCurrentAssets();
+  const enriched = newsDedupe(newsFilterMineItems([...baseItems, ...results.flat()], assets))
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+    .slice(0, 60);
+  if (enriched.length) {
+    newsCache.mine = enriched;
+    newsMineSignature = signature;
+    newsLastFetch.mine = Date.now();
+    newsStore('mine', enriched, signature);
+    newsRefreshVisible('mine', enriched);
+  }
+  return enriched;
+}
+
+async function newsLoadMine(force = false) {
+  const assets = newsCurrentAssets();
+  const signature = newsPortfolioSignature(assets);
+  if (signature !== newsMineSignature) {
+    newsCache.mine = null;
+    newsLastFetch.mine = 0;
+    newsMineSignature = signature;
+  }
+  if (!force && newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) {
+    return newsFilterMineItems(newsCache.mine, assets);
+  }
   if (!assets.length) {
     newsCache.mine = [];
     newsLastFetch.mine = Date.now();
+    newsStore('mine', [], signature);
     return [];
   }
 
-  const feeds = assets.map(asset => {
-    const q = asset.kind === 'crypto'
-      ? `"${asset.name}" cryptocurrency when:7d`
-      : `("${asset.sym}" stock OR "${asset.name}") when:7d`;
-    return { ...asset, url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en` };
-  });
+  const stockAssets = assets.filter(a => a.kind === 'stock');
+  const cryptoAssets = assets.filter(a => a.kind === 'crypto');
 
-  const results = await newsMapLimit(feeds, 4, async feed => {
-    const items = await newsFetchRss(feed.url, 'Google News');
-    return items.slice(0, 5).map(item => ({ ...item, tagSym: feed.sym, tagName: feed.name }));
+  const stockPromise = newsMapLimit(stockAssets, 3, async asset => {
+    try { return await newsFetchFinnhubCompany(asset); }
+    catch (error) {
+      console.warn('[News] Company feed failed:', asset.sym, error?.message || error);
+      return [];
+    }
   });
+  const cryptoPromise = cryptoAssets.length
+    ? newsFetchFinnhubGeneral().catch(error => {
+        console.warn('[News] Crypto market feed failed:', error?.message || error);
+        return [];
+      })
+    : Promise.resolve([]);
 
-  const fresh = newsDedupe(results.flat())
+  const [companyResults, general] = await Promise.all([stockPromise, cryptoPromise]);
+  let collected = companyResults.flat();
+
+  for (const asset of cryptoAssets) {
+    const matches = general
+      .filter(item => newsAssetMatchesItem(item, asset))
+      .slice(0, 8)
+      .map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name }));
+    collected.push(...matches);
+  }
+
+  let fresh = newsDedupe(newsFilterMineItems(collected, assets))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 45);
+    .slice(0, 60);
+
+  const covered = new Set(fresh.map(item => String(item.tagSym || '').toUpperCase()));
+  const missingAssets = assets.filter(asset => !covered.has(asset.sym));
 
   if (fresh.length) {
     newsCache.mine = fresh;
+    newsMineSignature = signature;
     newsLastFetch.mine = Date.now();
-    newsStore('mine', fresh);
+    newsStore('mine', fresh, signature);
+    // Fill missing holdings quietly; the first direct results appear immediately.
+    newsEnrichMineWithRss(missingAssets, fresh, signature).catch(() => {});
     return fresh;
   }
-  if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_STALE_TTL) return newsCache.mine;
+
+  fresh = await newsEnrichMineWithRss(missingAssets, [], signature);
+  if (fresh.length) return fresh;
+  if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_STALE_TTL) {
+    return newsFilterMineItems(newsCache.mine, assets);
+  }
   return [];
 }
 
@@ -2210,29 +2440,40 @@ function newsCardsHtml(items) {
 }
 
 async function renderNews() {
+  const requestedTab = newsTab;
+  const version = ++newsRenderVersion;
   const el = document.getElementById('newsContent');
   if (!el) return;
   const subtabs = document.getElementById('newsSubtabs');
   if (subtabs) subtabs.style.display = '';
 
-  const cached = newsCache[newsTab];
-  // Stale-while-revalidate: show saved news instantly, then refresh quietly.
+  if (requestedTab === 'mine') {
+    const signature = newsPortfolioSignature();
+    if (signature !== newsMineSignature) {
+      newsCache.mine = null;
+      newsLastFetch.mine = 0;
+      newsMineSignature = signature;
+    }
+  }
+
+  const cached = newsCache[requestedTab];
   if (cached?.length) {
-    el.innerHTML = newsCardsHtml(cached);
-    const loader = newsTab === 'world' ? newsLoadWorld(true) : newsLoadMine(true);
+    const safeCached = requestedTab === 'mine' ? newsFilterMineItems(cached, newsCurrentAssets()) : cached;
+    el.innerHTML = newsCardsHtml(safeCached);
+    const loader = requestedTab === 'world' ? newsLoadWorld(true) : newsLoadMine(true);
     loader.then(items => {
-      if (items?.length && document.getElementById('newsContent') === el && subtabs?.style.display !== 'none') {
-        el.innerHTML = newsCardsHtml(items);
-      }
+      if (version !== newsRenderVersion || newsTab !== requestedTab) return;
+      if (items?.length && subtabs?.style.display !== 'none') el.innerHTML = newsCardsHtml(items);
     }).catch(() => {});
     return;
   }
 
   el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
   try {
-    const items = newsTab === 'world' ? await newsLoadWorld() : await newsLoadMine();
+    const items = requestedTab === 'world' ? await newsLoadWorld() : await newsLoadMine();
+    if (version !== newsRenderVersion || newsTab !== requestedTab) return;
     if (!items.length) {
-      if (newsTab === 'mine' && !((S.stocks || []).length + (S.crypto || []).length)) {
+      if (requestedTab === 'mine' && !newsCurrentAssets().length) {
         el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
       } else {
         el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
@@ -2241,18 +2482,24 @@ async function renderNews() {
     }
     el.innerHTML = newsCardsHtml(items);
   } catch (error) {
+    if (version !== newsRenderVersion || newsTab !== requestedTab) return;
     console.error('[News] Render failed:', error);
     el.innerHTML = '<div class="news-empty">שגיאה בטעינת חדשות.<br>בדקי חיבור לאינטרנט ונסי שוב.</div>';
   }
 }
 
 function newsArticleKey(item) {
-  return btoa(unescape(encodeURIComponent(item.link))).replace(/[^a-z0-9]/gi, '').slice(-80);
+  const raw = String(item?.link || item?.title || 'article');
+  let hash = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    hash ^= raw.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return 'a' + (hash >>> 0).toString(36);
 }
 
 function newsCleanReaderText(raw = '') {
   let text = String(raw).replace(/\r/g, '');
-  // Jina Reader returns markdown with metadata before the actual article.
   const contentMarker = text.indexOf('Markdown Content:');
   if (contentMarker >= 0) text = text.slice(contentMarker + 'Markdown Content:'.length);
   text = text
@@ -2265,6 +2512,7 @@ function newsCleanReaderText(raw = '') {
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^[-*+]\s+/gm, '• ')
     .replace(/\*\*|__|`/g, '')
+    .replace(/https?:\/\/\S+/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return text.slice(0, 24000);
@@ -2280,7 +2528,7 @@ async function newsFetchArticle(item) {
   const cached = newsCache.articles[key];
   if (cached?.text && Date.now() - cached.savedAt < 7 * 24 * 60 * 60 * 1000) return cached.text;
 
-  // Reader endpoint converts most public article pages to clean text and follows redirects.
+  // The reader follows redirects and returns clean text; links are removed before display.
   const readerUrl = 'https://r.jina.ai/' + item.link;
   const response = await fetch(readerUrl, {
     signal: newsAbortSignal(12000),
@@ -2299,6 +2547,7 @@ async function newsFetchArticle(item) {
 window.openNewsArticle = async function(index) {
   const item = newsCache._displayed?.[index];
   if (!item) return;
+  newsRenderVersion++;
   const el = document.getElementById('newsContent');
   const subtabs = document.getElementById('newsSubtabs');
   if (subtabs) subtabs.style.display = 'none';
@@ -2330,6 +2579,7 @@ window.openNewsArticle = async function(index) {
     }
   }
 };
+
 
 function renderInsights() {
   const {c, st, g} = tots();
