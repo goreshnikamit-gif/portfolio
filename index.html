@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Fixes: cross-device Firebase sync, Israel calendar-day P&L, fast US open quotes, non-overlapping refresh, stable card rendering (2026-06-18) -->
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -9,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<!-- Combined fixes: Firebase cross-device sync + Israel calendar-day P&L (2026-06-18) -->
+<meta name="app-version" content="2026-06-18-sync-mobile-v2">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1470,8 +1471,8 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getAuth, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -1489,44 +1490,123 @@ const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const auth = getAuth(fbApp);
 let DOC = null;
+let activeSnapshotUnsubscribe = null;
+let cloudWriteQueue = Promise.resolve();
+let resolveFirebaseAuthReady;
+let firebaseAuthReadyResolved = false;
 
-// Firebase Auth is the source of truth across browsers and devices.
-// The app waits for this promise before reading the user's Firestore document.
-window.fbApp = fbApp;
-window.firebaseReady = true;
+window.firebaseApp = fbApp;
+window.firebaseAuth = auth;
 window.firebaseUser = null;
-let _resolveAuthReady;
-window.firebaseAuthReady = new Promise(resolve => { _resolveAuthReady = resolve; });
+window.firebaseReady = false;
+window.firebaseSyncState = 'initializing';
+window.firebaseAuthReady = new Promise(resolve => { resolveFirebaseAuthReady = resolve; });
 
-window.fbSave = async (data) => {
-  if (!DOC || !window.firebaseUser) return false;
-  try {
-    await setDoc(DOC, { ...data, ownerUid: window.firebaseUser.uid }, { merge: true });
-    return true;
-  } catch(e) {
-    console.warn('FB save:', e);
-    return false;
+function emitFirebaseState(name, detail = {}) {
+  document.dispatchEvent(new CustomEvent(name, { detail }));
+}
+
+function markFirebaseReady() {
+  window.firebaseReady = true;
+  if (!firebaseAuthReadyResolved) {
+    firebaseAuthReadyResolved = true;
+    resolveFirebaseAuthReady?.();
   }
+  emitFirebaseState('firebaseReady', { user: window.firebaseUser });
+}
+
+function setCloudUser(user) {
+  window.firebaseUser = user || null;
+  DOC = user ? doc(db, 'portfolio', user.uid) : null;
+  window.firebaseSyncState = user ? 'connected' : 'signed-out';
+  emitFirebaseState('firebase-auth-changed', { user: window.firebaseUser });
+}
+
+window.fbSave = (data = {}) => {
+  const user = auth.currentUser;
+  if (!user || !DOC) {
+    window.firebaseSyncState = 'local-only';
+    emitFirebaseState('firebase-sync-state', { state: 'local-only' });
+    return Promise.resolve({ saved: false, reason: 'not-authenticated' });
+  }
+
+  const payload = {
+    ...data,
+    ownerUid: user.uid,
+    updatedAt: Number(data.updatedAt) || Date.now(),
+    updatedAtServer: serverTimestamp(),
+  };
+
+  window.firebaseSyncState = 'saving';
+  emitFirebaseState('firebase-sync-state', { state: 'saving' });
+
+  const run = async () => {
+    try {
+      await setDoc(DOC, payload, { merge: true });
+      window.firebaseSyncState = 'synced';
+      window.firebaseLastSyncAt = Date.now();
+      window.firebaseLastError = null;
+      emitFirebaseState('firebase-sync-state', { state: 'synced', at: window.firebaseLastSyncAt });
+      return { saved: true };
+    } catch (error) {
+      window.firebaseSyncState = 'error';
+      window.firebaseLastError = error;
+      emitFirebaseState('firebase-sync-state', { state: 'error', error });
+      console.error('Firestore save failed:', error);
+      return { saved: false, error };
+    }
+  };
+
+  cloudWriteQueue = cloudWriteQueue.then(run, run);
+  return cloudWriteQueue;
 };
+
+window.fbWaitForPendingWrites = () => cloudWriteQueue.catch(() => {});
+
 window.fbLoad = async () => {
-  if (!DOC || !window.firebaseUser) return null;
+  if (!auth.currentUser || !DOC) return null;
   try {
-    const s = await getDoc(DOC);
-    return s.exists() ? s.data() : null;
-  } catch(e) {
-    console.warn('FB load:', e);
-    return null;
+    const snapshot = await getDoc(DOC);
+    window.firebaseLastError = null;
+    return snapshot.exists() ? snapshot.data() : null;
+  } catch (error) {
+    window.firebaseSyncState = 'error';
+    window.firebaseLastError = error;
+    emitFirebaseState('firebase-sync-state', { state: 'error', error });
+    console.error('Firestore load failed:', error);
+    throw error;
   }
 };
+
 window.fbListen = (cb) => {
-  if (!DOC || !window.firebaseUser) return null;
-  return onSnapshot(
+  if (activeSnapshotUnsubscribe) {
+    activeSnapshotUnsubscribe();
+    activeSnapshotUnsubscribe = null;
+  }
+  if (!auth.currentUser || !DOC) return () => {};
+
+  activeSnapshotUnsubscribe = onSnapshot(
     DOC,
-    s => { if (s.exists()) cb(s.data()); },
-    e => console.warn('FB listen:', e)
+    snapshot => {
+      if (snapshot.exists()) cb(snapshot.data(), snapshot);
+    },
+    error => {
+      window.firebaseSyncState = 'error';
+      window.firebaseLastError = error;
+      emitFirebaseState('firebase-sync-state', { state: 'error', error });
+      console.error('Firestore listener failed:', error);
+    }
   );
+  return activeSnapshotUnsubscribe;
 };
-window.fbSignOut = () => signOut(auth);
+
+window.fbSignOut = async () => {
+  if (activeSnapshotUnsubscribe) {
+    activeSnapshotUnsubscribe();
+    activeSnapshotUnsubscribe = null;
+  }
+  await signOut(auth);
+};
 
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
@@ -1596,7 +1676,7 @@ const localPortfolio = () => {
 
 async function finishAuth(user, mode) {
   const uid = user.uid;
-  window.firebaseUser = user;
+  setCloudUser(user);
   const err = document.getElementById('lockErr');
   const prevOwner = localStorage.getItem('data_owner_uid');
   // a DIFFERENT Google user on this device — never inherit the previous user's local data
@@ -1607,9 +1687,16 @@ async function finishAuth(user, mode) {
   DOC = doc(db, 'portfolio', uid);
 
   let exists = false;
-  try { exists = (await getDoc(DOC)).exists(); } catch(_) {}
+  try {
+    exists = (await getDoc(DOC)).exists();
+  } catch (error) {
+    window.firebaseSyncState = 'error';
+    window.firebaseLastError = error;
+    if (err) err.textContent = 'החשבון התחבר, אך אין גישה למסד הנתונים. בדקו את Firestore Rules.';
+    console.error('Could not read the user portfolio document:', error);
+  }
 
-  if (!exists) {
+  if (!exists && !window.firebaseLastError) {
     // real account creation: profile doc + starting portfolio
     // (migrates local-mode work if this device belonged to no one / to this user)
     const seed = (prevOwner && prevOwner !== uid) ? { crypto: [], stocks: [] } : localPortfolio();
@@ -1618,13 +1705,31 @@ async function finishAuth(user, mode) {
         ownerUid: uid,
         profile: { email: user.email || '', name: user.displayName || '', photo: user.photoURL || '' },
         createdAt: Date.now(),
+        updatedAt: Date.now(),
+        updatedAtServer: serverTimestamp(),
         crypto: seed.crypto,
         stocks: seed.stocks,
       }, { merge: true });
-    } catch(_) {}
-    if (mode === 'login' && err) err.textContent = 'לא נמצא חשבון קיים — נפתח לך חשבון חדש';
-  } else if (mode === 'signup' && err) {
-    err.textContent = 'כבר קיים חשבון לכתובת הזו — חוברת אליו';
+      window.firebaseSyncState = 'synced';
+      window.firebaseLastError = null;
+      if (mode === 'login' && err) err.textContent = 'לא נמצא תיק קיים — נפתח עבורך תיק ענן חדש';
+    } catch(error) {
+      window.firebaseSyncState = 'error';
+      window.firebaseLastError = error;
+      if (err) err.textContent = 'התחברת, אך שמירת התיק בענן נכשלה. בדקו את Firestore Rules.';
+      console.error('Could not create the user portfolio document:', error);
+    }
+  } else {
+    // Keep the profile fresh without touching the saved portfolio.
+    try {
+      await setDoc(DOC, {
+        profile: { email: user.email || '', name: user.displayName || '', photo: user.photoURL || '' },
+        lastLoginAt: Date.now(),
+      }, { merge: true });
+    } catch (error) {
+      console.warn('Profile refresh failed:', error);
+    }
+    if (mode === 'signup' && err) err.textContent = 'כבר קיים חשבון לכתובת הזו — חוברת אליו';
   }
 
   localStorage.setItem('google_auth_ts', Date.now().toString());
@@ -1724,45 +1829,34 @@ window.doGoogleLogin = async () => {
 };
 
 window.checkAuthAndShow = () => {
-  const googleTs = parseInt(localStorage.getItem('google_auth_ts') || '0');
-  const googleEmail = localStorage.getItem('google_auth_email');
-  const googleUid = localStorage.getItem('google_auth_uid');
-  const bioTs = parseInt(sessionStorage.getItem('bio_ts') || '0');
-  const now = Date.now();
-  const googleValid = !!googleEmail && (now - googleTs) < SESSION_24H;
-  const bioValid = (now - bioTs) < SESSION_BIO;
-  if (googleValid && googleUid) DOC = doc(db, 'portfolio', googleUid);
+  const user = auth.currentUser;
   const googleBtn = document.getElementById('googleBtn');
   const bioBtn = document.getElementById('bioBtn');
   const authTitle = document.getElementById('authTitle');
-  if (googleValid && bioValid) { window.proceedToApp(); return; }
   const lockDiv = document.getElementById('lockDiv');
   const swapBtn = document.getElementById('swapBtn');
   const lockNote = document.getElementById('lockNote');
-  if (googleValid && !bioValid) {
-    authTitle.textContent = 'אמת טביעת אצבע';
-    googleBtn.style.display = 'none';
-    if (lockDiv) lockDiv.style.display = 'none';
-    if (swapBtn) swapBtn.style.display = 'none';
-    if (lockNote) lockNote.style.display = 'none';
-    const aForm = document.getElementById('authForm');
-    if (aForm) aForm.style.display = 'none';
-    const aDivG = document.getElementById('lockDivGoogle');
-    if (aDivG) aDivG.style.display = 'none';
-    bioBtn.style.display = 'flex';
-    document.getElementById('authIco').textContent = '👆';
-    document.getElementById('authLbl').textContent = 'טביעת אצבע / זיהוי פנים';
+  const aForm = document.getElementById('authForm');
+  const aDivG = document.getElementById('lockDivGoogle');
+
+  if (user) {
+    setCloudUser(user);
+    localStorage.setItem('google_auth_ts', Date.now().toString());
+    localStorage.setItem('google_auth_email', user.email || '');
+    localStorage.setItem('google_auth_uid', user.uid);
+    if (typeof window.proceedToApp === 'function') window.proceedToApp();
+    else window._proceedAfterAppBoot = true;
     return;
   }
-  authTitle.textContent = 'כניסה למערכת';
-  googleBtn.style.display = 'flex';
+
+  if (authTitle) authTitle.textContent = 'כניסה למערכת';
+  if (googleBtn) googleBtn.style.display = 'flex';
   if (lockDiv) lockDiv.style.display = 'flex';
   if (swapBtn) swapBtn.style.display = '';
-  const aForm = document.getElementById('authForm');
+  if (lockNote) lockNote.style.display = authMode === 'signup' ? 'block' : 'none';
   if (aForm) aForm.style.display = '';
-  const aDivG = document.getElementById('lockDivGoogle');
   if (aDivG) aDivG.style.display = '';
-  bioBtn.style.display = 'none';
+  if (bioBtn) bioBtn.style.display = 'none';
 };
 
 window.doBiometric = async () => {
@@ -1813,46 +1907,44 @@ window.doLogout = async () => {
   localStorage.removeItem('bio_cred');
   sessionStorage.removeItem('bio_ts');
   if (window.fbSignOut) await window.fbSignOut();
+  setCloudUser(null);
   location.reload();
 };
-document.dispatchEvent(new Event('firebaseReady'));
-
-// Keep one persistent auth listener. On mobile Google redirect, the old custom
-// event could fire before the app registered its listener, leaving DOC unset.
-let _authReadyDone = false;
-async function handleFirebaseUser(user, mode = 'login') {
-  window.firebaseUser = user || null;
-  if (user) {
-    await finishAuth(user, mode);
-  } else {
-    DOC = null;
-  }
-
-  if (!_authReadyDone) {
-    _authReadyDone = true;
-    _resolveAuthReady(user || null);
-  }
-  window.checkAuthAndShow();
-}
-
-onAuthStateChanged(auth, user => {
-  handleFirebaseUser(user, localStorage.getItem('google_auth_mode') || 'login')
-    .catch(err => console.warn('Auth state setup failed:', err));
+// Firebase Auth is the source of truth. Persist the session on this domain and
+// bind the Firestore document whenever the authenticated user changes.
+setPersistence(auth, browserLocalPersistence).catch(error => {
+  console.warn('Could not enable local Firebase Auth persistence:', error);
 });
 
-if (localStorage.getItem('google_pending_redirect')) {
+getRedirectResult(auth).then(async result => {
+  if (result?.user) {
+    const mode = localStorage.getItem('google_auth_mode') || 'login';
+    localStorage.removeItem('google_auth_mode');
+    localStorage.removeItem('google_pending_redirect');
+    await finishAuth(result.user, mode);
+  }
+}).catch(error => {
   localStorage.removeItem('google_pending_redirect');
-  getRedirectResult(auth).then(async result => {
-    if (result?.user) {
-      const mode = localStorage.getItem('google_auth_mode') || 'login';
-      localStorage.removeItem('google_auth_mode');
-      await handleFirebaseUser(result.user, mode);
-      window.proceedToApp();
+  console.warn('Google redirect result failed:', error);
+});
+
+onAuthStateChanged(auth, async user => {
+  try {
+    setCloudUser(user);
+    if (user) {
+      // Ensure the per-user document exists even when the session was restored
+      // after a reload, on another tab, or after a redirect login.
+      const snapshot = await getDoc(DOC);
+      if (!snapshot.exists()) await finishAuth(user, 'login');
     }
-  }).catch(err => {
-    console.warn('Google redirect result:', err);
-  });
-}
+  } catch (error) {
+    window.firebaseLastError = error;
+    console.error('Firebase auth initialization failed:', error);
+  } finally {
+    markFirebaseReady();
+    window.checkAuthAndShow();
+  }
+});
 </script>
 
 <div id="lockScreen">
@@ -2236,17 +2328,52 @@ function loadLS(k, d) {
 }
 
 let lastLocalEdit = 0;
+let lastRemoteAppliedAt = 0;
 function markEdit() { lastLocalEdit = Date.now(); }
-function saveLS() {
-  markEdit();
+function persistPortfolioLocally() {
   try {
     localStorage.setItem('pc', JSON.stringify(S.crypto));
     localStorage.setItem('ps', JSON.stringify(S.stocks));
   } catch(_) {}
+}
+function currentCloudPortfolioPayload() {
+  return {
+    crypto: S.crypto,
+    stocks: S.stocks,
+    preferences: {
+      currency: S.currency || localStorage.getItem('currency') || 'ils',
+      language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
+      tickerMarket: localStorage.getItem('tkMkt') || 'us',
+    },
+    updatedAt: Date.now(),
+  };
+}
+function saveLS() {
+  markEdit();
+  persistPortfolioLocally();
+  try { localStorage.setItem('portfolio_sync_pending', '1'); } catch(_) {}
   if (window.fbSave) {
-    window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
+    window.fbSave(currentCloudPortfolioPayload()).then(result => {
+      if (result?.saved) {
+        try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
+      }
+      syncStatusRefresh?.();
+    });
   }
 }
+window.syncPortfolioNow = async () => {
+  if (!window.fbSave) return { saved: false, reason: 'firebase-not-ready' };
+  const result = await window.fbSave(currentCloudPortfolioPayload());
+  if (result?.saved) {
+    try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
+  }
+  return result;
+};
+window.addEventListener('online', () => {
+  if (localStorage.getItem('portfolio_sync_pending') === '1' && window.firebaseUser) {
+    window.syncPortfolioNow();
+  }
+});
 
 const S = {
   fx: 3.65,
@@ -2286,72 +2413,6 @@ async function getFX() {
   if (fxInput) fxInput.value = S.fx.toFixed(3);
 }
 
-// ── Israel calendar-day helpers ─────────────────────────────────────
-// Every "daily" number is anchored to the civil day in Israel, regardless
-// of the device timezone.
-const APP_TIME_ZONE = 'Asia/Jerusalem';
-
-function normalizeEpochMs(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return n < 1e12 ? n * 1000 : n; // APIs may return seconds or milliseconds
-}
-
-function datePartsInTimeZone(value = Date.now(), timeZone = APP_TIME_ZONE) {
-  const ms = normalizeEpochMs(value) ?? Number(value);
-  const d = new Date(ms);
-  if (Number.isNaN(d.getTime())) return null;
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(d);
-  const out = {};
-  for (const part of parts) {
-    if (part.type !== 'literal') out[part.type] = part.value;
-  }
-  return {
-    year: Number(out.year), month: Number(out.month), day: Number(out.day),
-    hour: Number(out.hour), minute: Number(out.minute), second: Number(out.second),
-  };
-}
-
-function dateKeyInTimeZone(value = Date.now(), timeZone = APP_TIME_ZONE) {
-  const p = datePartsInTimeZone(value, timeZone);
-  if (!p) return '';
-  return `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
-}
-
-function todayIsraelDateKey() {
-  return dateKeyInTimeZone(Date.now(), APP_TIME_ZONE);
-}
-
-function timeZoneOffsetMs(value, timeZone = APP_TIME_ZONE) {
-  const ms = normalizeEpochMs(value) ?? Number(value);
-  const p = datePartsInTimeZone(ms, timeZone);
-  if (!p) return 0;
-  const representedAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-  return representedAsUtc - Math.floor(ms / 1000) * 1000;
-}
-
-function startOfTodayInTimeZoneMs(timeZone = APP_TIME_ZONE) {
-  const p = datePartsInTimeZone(Date.now(), timeZone);
-  if (!p) return Date.now();
-  const localMidnightAsUtc = Date.UTC(p.year, p.month - 1, p.day, 0, 0, 0, 0);
-  let guess = localMidnightAsUtc;
-  // Multiple passes handle daylight-saving offset transitions safely.
-  for (let i = 0; i < 3; i++) {
-    guess = localMidnightAsUtc - timeZoneOffsetMs(guess, timeZone);
-  }
-  return guess;
-}
-
-function timestampIsTodayInIsrael(value) {
-  const ms = normalizeEpochMs(value);
-  return !!ms && dateKeyInTimeZone(ms, APP_TIME_ZONE) === todayIsraelDateKey();
-}
-
 async function getCrypto() {
   const syms = [...new Set(S.crypto.map(a => BN[a.sym]).filter(Boolean))];
   if (!syms.length) return;
@@ -2382,18 +2443,15 @@ async function getCrypto() {
     }));
   }
   // Pull the first 1-minute candle at 00:00 Israel time for each asset.
-  // Binance's native daily candle resets at 00:00 UTC, which is 02:00/03:00
-  // in Israel and therefore cannot be used for an Israeli calendar day.
+  // Binance's native 1d candle resets at 00:00 UTC (02:00/03:00 in Israel),
+  // so using it would make the first hours of the Israeli day incorrect.
   const israelDayKey = todayIsraelDateKey();
   const israelDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
   await Promise.all(S.crypto.map(async a => {
     const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
     try {
       const endTime = Math.min(Date.now(), israelDayStartMs + 5 * 60 * 1000);
-      const r = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${israelDayStartMs}&endTime=${endTime}&limit=1`,
-        { signal: AbortSignal.timeout(8000) }
-      );
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${israelDayStartMs}&endTime=${endTime}&limit=1`, { signal: AbortSignal.timeout(8000) });
       const kl = await r.json();
       if (Array.isArray(kl) && kl[0]) {
         const openTime = Number(kl[0][0]);
@@ -2597,44 +2655,106 @@ async function fetchYahooQuote(sym) {
   return null;
 }
 
+
+// ── U.S. regular-session helpers ─────────────────────────────────
+// For a U.S. ticker, daily P&L starts only at 09:30 New York time.
+// After the close it remains visible until the Israeli calendar day resets.
+function newYorkClockParts(at = Date.now()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date(at));
+  const get = type => parts.find(p => p.type === type)?.value;
+  return { weekday: get('weekday'), hour: Number(get('hour')), minute: Number(get('minute')) };
+}
+
+function hasUsRegularSessionStartedToday(at = Date.now()) {
+  const p = newYorkClockParts(at);
+  if (!['Mon','Tue','Wed','Thu','Fri'].includes(p.weekday)) return false;
+  return (p.hour * 60 + p.minute) >= (9 * 60 + 30);
+}
+
+function isUsRegularMarketOpenNow(at = Date.now()) {
+  const p = newYorkClockParts(at);
+  if (!['Mon','Tue','Wed','Thu','Fri'].includes(p.weekday)) return false;
+  const mins = p.hour * 60 + p.minute;
+  return mins >= (9 * 60 + 30) && mins < (16 * 60);
+}
+
+function isUsTickerSymbol(sym = '') {
+  return !!sym && !String(sym).includes('.');
+}
+
+function stockHasEligibleTodayQuote(stock) {
+  const p = S.sp[stock.sym];
+  if (!p?.price || !timestampIsTodayInIsrael(p.quoteTime)) return false;
+  if (isUsTickerSymbol(stock.sym) && !hasUsRegularSessionStartedToday()) return false;
+  return true;
+}
+
+async function fetchFinnhubQuote(sym) {
+  try {
+    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000), cache: 'no-store' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (!(Number(d.c) > 0) || !(Number(d.pc) > 0)) return null;
+    return {
+      price: Number(d.c), prevClose: Number(d.pc),
+      high: Number(d.h) || Number(d.c), low: Number(d.l) || Number(d.c),
+      open: Number(d.o) || null, currency: 'USD',
+      quoteTime: normalizeEpochMs(d.t), marketState: null,
+      source: 'finnhub',
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function newerQuote(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const ta = normalizeEpochMs(a.quoteTime) || 0;
+  const tb = normalizeEpochMs(b.quoteTime) || 0;
+  return tb > ta ? b : a;
+}
+
 async function getStocks() {
-  await Promise.all(S.stocks.map(async s => {
-    // For any stock with an exchange suffix (.TA, .MI, .L, .DE etc.), try Google Finance first
-    // Google supports all global exchanges while Yahoo has CORS issues from file://
+  await Promise.all(S.stocks.map(async stock => {
     let q = null;
-    const hasSuffix = s.sym.includes('.');
+    const hasSuffix = stock.sym.includes('.');
+
     if (hasSuffix) {
-      q = await fetchGoogleFinanceQuote(s.sym);
-      if (!q) {
-        q = await fetchYahooQuote(s.sym);   // Google failed → Yahoo fallback
-      } else if (!q.quoteTime) {
-        // Google sometimes exposes price but not a usable trade timestamp.
-        // Yahoo metadata is used only to establish whether the quote is from today.
-        const yMeta = await fetchYahooQuote(s.sym);
-        if (yMeta) {
-          q.quoteTime = yMeta.quoteTime;
-          q.marketState = yMeta.marketState;
-          q.exchangeTimeZone = yMeta.exchangeTimeZone;
-        }
+      q = await fetchGoogleFinanceQuote(stock.sym);
+      if (q && !q.quoteTime) {
+        const yMeta = await fetchYahooQuote(stock.sym);
+        if (yMeta) q = {
+          ...q,
+          prevClose: yMeta.prevClose ?? q.prevClose,
+          quoteTime: yMeta.quoteTime,
+          marketState: yMeta.marketState,
+          exchangeTimeZone: yMeta.exchangeTimeZone,
+          open: yMeta.open ?? q.open,
+          high: yMeta.high ?? q.high,
+          low: yMeta.low ?? q.low,
+        };
       }
+      if (!q) q = await fetchYahooQuote(stock.sym);
     } else {
-      q = await fetchYahooQuote(s.sym);
+      // Direct US quote first: public Yahoo proxies can lag around the opening bell.
+      q = await fetchFinnhubQuote(stock.sym);
+      if (!q || (hasUsRegularSessionStartedToday() && !timestampIsTodayInIsrael(q.quoteTime))) {
+        q = newerQuote(q, await fetchYahooQuote(stock.sym));
+      }
     }
-    // Fallback to Finnhub for US tickers only (no dot in symbol)
-    if (!q && !s.sym.includes('.')) {
-      try {
-        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${s.sym}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(9000) });
-        if (r.ok) {
-          const d = await r.json();
-          if (d.c && d.pc) q = {
-            price: d.c, prevClose: d.pc, high: d.h, low: d.l, currency: 'USD',
-            quoteTime: normalizeEpochMs(d.t), marketState: null,
-          };
-        }
-      } catch (_) {}
-    }
+
     if (q) {
-      S.sp[s.sym] = {
+      const previous = S.sp[stock.sym];
+      const incomingTs = normalizeEpochMs(q.quoteTime) || 0;
+      const previousTs = normalizeEpochMs(previous?.quoteTime) || 0;
+      if (previous?.price && previousTs > incomingTs && incomingTs > 0) return;
+
+      S.sp[stock.sym] = {
         price: q.price, prevClose: q.prevClose,
         change: ((q.price - q.prevClose) / q.prevClose) * 100,
         changeAmt: q.price - q.prevClose,
@@ -2642,18 +2762,19 @@ async function getStocks() {
         currency: q.currency,
         high52w: q.high52w, low52w: q.low52w,
         marketCap: q.marketCap, peRatio: q.peRatio,
-        quoteTime: normalizeEpochMs(q.quoteTime),
+        quoteTime: incomingTs || previousTs || null,
         marketState: q.marketState ?? null,
         exchangeTimeZone: q.exchangeTimeZone ?? null,
+        source: q.source || (hasSuffix ? 'global' : 'market'),
         _failCount: 0,
+        _unavailable: false,
       };
     } else {
-      // Track failure count; after 3 retries, mark as "unavailable" so shimmer stops
-      const ent = S.sp[s.sym] || {};
+      const ent = S.sp[stock.sym] || {};
       ent._failCount = (ent._failCount || 0) + 1;
-      ent._unavailable = ent._failCount >= 3;
-      S.sp[s.sym] = ent;
-      console.warn(`[Yahoo] Failed to fetch ${s.sym} (attempt ${ent._failCount})`);
+      ent._unavailable = ent._failCount >= 3 && !ent.price;
+      S.sp[stock.sym] = ent;
+      console.warn(`[Market data] Failed to refresh ${stock.sym} (attempt ${ent._failCount})`);
     }
   }));
 }
@@ -2938,15 +3059,82 @@ function todayEnLabel() {
   return fDate(new Date());
 }
 
+// ── Calendar-day helpers ─────────────────────────────────────────────
+// Every "daily" number in the app is anchored to the civil day in Israel,
+// regardless of the device timezone. This prevents yesterday's US session
+// from appearing as today's P&L before Wall Street opens.
+const APP_TIME_ZONE = 'Asia/Jerusalem';
+
+function normalizeEpochMs(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n < 1e12 ? n * 1000 : n; // APIs may return seconds or milliseconds
+}
+
+function datePartsInTimeZone(value = Date.now(), timeZone = APP_TIME_ZONE) {
+  const ms = normalizeEpochMs(value) ?? Number(value);
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const out = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') out[part.type] = part.value;
+  }
+  return {
+    year: Number(out.year), month: Number(out.month), day: Number(out.day),
+    hour: Number(out.hour), minute: Number(out.minute), second: Number(out.second),
+  };
+}
+
+function dateKeyInTimeZone(value = Date.now(), timeZone = APP_TIME_ZONE) {
+  const p = datePartsInTimeZone(value, timeZone);
+  if (!p) return '';
+  return `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+function todayIsraelDateKey() {
+  return dateKeyInTimeZone(Date.now(), APP_TIME_ZONE);
+}
+
+function timeZoneOffsetMs(value, timeZone = APP_TIME_ZONE) {
+  const ms = normalizeEpochMs(value) ?? Number(value);
+  const p = datePartsInTimeZone(ms, timeZone);
+  if (!p) return 0;
+  const representedAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return representedAsUtc - Math.floor(ms / 1000) * 1000;
+}
+
+function startOfTodayInTimeZoneMs(timeZone = APP_TIME_ZONE) {
+  const p = datePartsInTimeZone(Date.now(), timeZone);
+  if (!p) return Date.now();
+  const localMidnightAsUtc = Date.UTC(p.year, p.month - 1, p.day, 0, 0, 0, 0);
+  let guess = localMidnightAsUtc;
+  // Two passes handle daylight-saving offsets safely.
+  for (let i = 0; i < 3; i++) {
+    guess = localMidnightAsUtc - timeZoneOffsetMs(guess, timeZone);
+  }
+  return guess;
+}
+
+function timestampIsTodayInIsrael(value) {
+  const ms = normalizeEpochMs(value);
+  return !!ms && dateKeyInTimeZone(ms, APP_TIME_ZONE) === todayIsraelDateKey();
+}
+
 const cpnl = (a) => {
-  // Crypto trades continuously. Daily P&L starts at 00:00 in Israel,
-  // not at UTC midnight and not from Binance's rolling 24-hour change.
+  // Crypto trades continuously. Daily P&L is measured from 00:00 Israel time,
+  // not from Binance's rolling 24h change and not from 00:00 UTC.
   const p = S.cp[a.id];
   if (!p?.usd || !cQty(a)) return null;
   if (p.openToday && p.openTodayDateKey === todayIsraelDateKey()) {
     return (p.usd - p.openToday) * cQty(a) * S.fx;
   }
-  // No reliable Israeli-midnight opening price: show no stale/rolling result.
+  // Never substitute a rolling 24h figure for a calendar-day figure.
   return null;
 };
 
@@ -2961,11 +3149,7 @@ const sv = (s) => {
 const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
-
-  // A stock contributes only when its latest regular-market quote belongs to
-  // today's civil date in Israel. Before the US market opens, the latest quote
-  // is still from yesterday and therefore contributes exactly zero.
-  if (!timestampIsTodayInIsrael(p.quoteTime)) return 0;
+  if (!stockHasEligibleTodayQuote(s)) return 0;
 
   const sh = getShares(s);
   if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
@@ -3386,153 +3570,6 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'Нет позиции для продажи',
     'עבור לדולר':'Переключить на USD','עבור לשקל':'Переключить на ILS',
     'מתוך':'из','בפוזיציה':'в позиции','מעדכן נתונים...':'Обновление данных...','הכל':'Всё',
-    'נתוני מסחר':'Торговые данные',
-    'פוזיציית החזקה':'Позиция',
-    'שינוי יומי':'Дневное изм.',
-    'מספר מניות':'Кол-во акций',
-    'שווי כולל':'Общая стоим.',
-    'נתח בתיק':'Доля портфеля',
-    'מחיר שוק':'Рыночная цена',
-    'פתיחה':'Открытие',
-    'גבוה יומי':'Макс. дня',
-    'נמוך יומי':'Мин. дня',
-    'סגירה קודמת':'Пред. закрытие',
-    'היסטוריית קניות':'История покупок',
-    'פוזיציה נייטרלית':'Нейтральная позиция',
-    'מחיר כניסה ממוצע':'Сред. цена входа',
-    'ערך נוכחי':'Тек. стоимость',
-    'ערך ביחידה':'За единицу',
-    'משקל בתיק':'Вес в портфеле',
-    'מחיר $':'Цена $',
-    'וולטיליות 24ש':'Волат. 24ч',
-    'שינוי 24ש':'Изм. 24ч',
-    'שווי כולל נומינלי':'Номин. стоимость',
-    'נתוני מסחר':'Datos de mercado',
-    'פוזיציית החזקה':'Posición',
-    'שינוי יומי':'Cambio diario',
-    'מספר מניות':'Nº de acciones',
-    'שווי כולל':'Valor total',
-    'נתח בתיק':'% cartera',
-    'מחיר שוק':'Precio mercado',
-    'פתיחה':'Apertura',
-    'גבוה יומי':'Máx. del día',
-    'נמוך יומי':'Mín. del día',
-    'סגירה קודמת':'Cierre ant.',
-    'היסטוריית קניות':'Historial compras',
-    'פוזיציה נייטרלית':'Posición neutral',
-    'מחיר כניסה ממוצע':'Precio entrada med.',
-    'ערך נוכחי':'Valor actual',
-    'ערך ביחידה':'Por unidad',
-    'משקל בתיק':'Peso cartera',
-    'מחיר $':'Precio $',
-    'וולטיליות 24ש':'Volat. 24h',
-    'שינוי 24ש':'Cambio 24h',
-    'שווי כולל נומינלי':'Valor nominal',
-    'נתוני מסחר':'Données de marché',
-    'פוזיציית החזקה':'Position',
-    'שינוי יומי':'Variation du jour',
-    'מספר מניות':'Nb d\'actions',
-    'שווי כולל':'Valeur totale',
-    'נתח בתיק':'Part du portef.',
-    'מחיר שוק':'Prix du marché',
-    'פתיחה':'Ouverture',
-    'גבוה יומי':'Plus haut',
-    'נמוך יומי':'Plus bas',
-    'סגירה קודמת':'Clôture préc.',
-    'היסטוריית קניות':'Historique achats',
-    'פוזיציה נייטרלית':'Position neutre',
-    'מחיר כניסה ממוצע':'Prix d\'entrée moy.',
-    'ערך נוכחי':'Valeur actuelle',
-    'ערך ביחידה':'Par unité',
-    'משקל בתיק':'Poids portef.',
-    'מחיר $':'Prix $',
-    'וולטיליות 24ש':'Volat. 24h',
-    'שינוי 24ש':'Var. 24h',
-    'שווי כולל נומינלי':'Valeur nominale',
-    'נתוני מסחר':'بيانات التداول',
-    'פוזיציית החזקה':'مركز الحيازة',
-    'שינוי יומי':'التغير اليومي',
-    'מספר מניות':'عدد الأسهم',
-    'שווי כולל':'القيمة الإجمالية',
-    'נתח בתיק':'حصة المحفظة',
-    'מחיר שוק':'سعر السوق',
-    'פתיחה':'الافتتاح',
-    'גבוה יומי':'أعلى اليوم',
-    'נמוך יומי':'أدنى اليوم',
-    'סגירה קודמת':'الإغلاق السابق',
-    'היסטוריית קניות':'سجل الشراء',
-    'פוזיציה נייטרלית':'مركز محايد',
-    'מחיר כניסה ממוצע':'متوسط سعر الدخول',
-    'ערך נוכחי':'القيمة الحالية',
-    'ערך ביחידה':'لكل وحدة',
-    'משקל בתיק':'الوزن في المحفظة',
-    'מחיר $':'السعر $',
-    'וולטיליות 24ש':'تقلب 24س',
-    'שינוי 24ש':'تغير 24س',
-    'שווי כולל נומינלי':'القيمة الاسمية',
-    'נתוני מסחר':'Handelsdaten',
-    'פוזיציית החזקה':'Position',
-    'שינוי יומי':'Tagesänderung',
-    'מספר מניות':'Anzahl Aktien',
-    'שווי כולל':'Gesamtwert',
-    'נתח בתיק':'Portfolioanteil',
-    'מחיר שוק':'Marktpreis',
-    'פתיחה':'Eröffnung',
-    'גבוה יומי':'Tageshoch',
-    'נמוך יומי':'Tagestief',
-    'סגירה קודמת':'Vorh. Schluss',
-    'היסטוריית קניות':'Kaufhistorie',
-    'פוזיציה נייטרלית':'Neutrale Position',
-    'מחיר כניסה ממוצע':'Ø Einstiegspreis',
-    'ערך נוכחי':'Akt. Wert',
-    'ערך ביחידה':'Pro Einheit',
-    'משקל בתיק':'Portfoliogewicht',
-    'מחיר $':'Preis $',
-    'וולטיליות 24ש':'Volat. 24h',
-    'שינוי 24ש':'Änd. 24h',
-    'שווי כולל נומינלי':'Nominalwert',
-    'נתוני מסחר':'交易数据',
-    'פוזיציית החזקה':'持仓',
-    'שינוי יומי':'日变动',
-    'מספר מניות':'股数',
-    'שווי כולל':'总价值',
-    'נתח בתיק':'组合占比',
-    'מחיר שוק':'市价',
-    'פתיחה':'开盘',
-    'גבוה יומי':'日高',
-    'נמוך יומי':'日低',
-    'סגירה קודמת':'前收盘',
-    'היסטוריית קניות':'买入历史',
-    'פוזיציה נייטרלית':'中性持仓',
-    'מחיר כניסה ממוצע':'平均入场价',
-    'ערך נוכחי':'当前价值',
-    'ערך ביחידה':'每单位',
-    'משקל בתיק':'组合权重',
-    'מחיר $':'价格 $',
-    'וולטיליות 24ש':'24h波动',
-    'שינוי 24ש':'24h变动',
-    'שווי כולל נומינלי':'名义总值',
-    'נתוני מסחר':'Handelsgegevens',
-    'פוזיציית החזקה':'Positie',
-    'שינוי יומי':'Dagwijziging',
-    'מספר מניות':'Aantal aandelen',
-    'שווי כולל':'Totale waarde',
-    'נתח בתיק':'Portefeuilledeel',
-    'מחיר שוק':'Marktprijs',
-    'פתיחה':'Opening',
-    'גבוה יומי':'Daghoogste',
-    'נמוך יומי':'Daglaagste',
-    'סגירה קודמת':'Vorige slot',
-    'היסטוריית קניות':'Aankoopgeschiedenis',
-    'פוזיציה נייטרלית':'Neutrale positie',
-    'מחיר כניסה ממוצע':'Gem. instapprijs',
-    'ערך נוכחי':'Huidige waarde',
-    'ערך ביחידה':'Per eenheid',
-    'משקל בתיק':'Portefeuillegewicht',
-    'מחיר $':'Prijs $',
-    'וולטיליות 24ש':'Volat. 24u',
-    'שינוי 24ש':'Wijz. 24u',
-    'שווי כולל נומינלי':'Nominale waarde',
   },
   es: {
     'דשבורד':'Panel','מניות':'Acciones','קריפטו':'Cripto','חדשות':'Noticias','תובנות':'Insights',
@@ -3930,53 +3967,41 @@ function goPage(id, btn) {
 // ═══════════════════════════════════════════
 // SPARKLINES
 // ═══════════════════════════════════════════
-async function drawSpark(cid, key, isCrypto, isUp) {
-  // Find ALL elements with this ID — the same symbol can appear on dashboard AND on stocks/crypto page simultaneously.
-  // getElementById returns only the first; we need to draw on all of them.
+async function drawSpark(cid, key, isCrypto, isUp, animate = true) {
   const containers = Array.from(document.querySelectorAll(`[id="${cid}"]`));
   if (!containers.length) return;
-  // If any container hasn't laid out yet, wait one frame and retry
   if (containers.some(c => !c.clientWidth)) {
     await new Promise(r => requestAnimationFrame(r));
-    if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 50));
+    if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 30));
   }
+
   let prices = S.sparks[key];
   if (!prices) {
     if (isCrypto) {
-      // 30-day crypto history → ~30 points for a naturally curvy line
       const h = await getCryptoHist(key, 30);
       prices = h.map(([, p]) => p);
     } else {
-      // 1-month stock history (Yahoo daily candles) → ~22 trading-day points
       try {
         const data = await getStockHist(key, '1mo');
         if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
       } catch (_) {}
-      // fallback if Yahoo blocks: still better than 3 points — interpolate intraday-style noise
       if (!prices?.length) {
         const p = S.sp[key];
-        // Use known prices if we have them, otherwise a generic sine wave so the area isn't empty
-        const open  = p?.prevClose ?? 100;
+        const open = p?.prevClose ?? 100;
         const close = p?.price ?? (open * (isUp ? 1.05 : 0.95));
-        // Hash the symbol to a stable per-symbol seed so each ticker gets a unique fake curve
         let seed = 0;
         for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
-        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;             // 0.7–1.7
-        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;        // 1.2–2.5
-        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;        // 0.3–1.1
-        const phase = (Math.abs(seed >> 3) % 628) / 100;           // 0–2π
-        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;       // 0.22–0.4
+        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;
+        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;
+        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;
+        const phase = (Math.abs(seed >> 3) % 628) / 100;
+        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;
         const n = 30;
         prices = Array.from({ length: n }, (_, i) => {
           const t = i / (n - 1);
           const trend = open + (close - open) * t;
-          const wave = (
-            Math.sin(i * f1 + phase) +
-            Math.sin(i * f2 + phase * 1.7) * 0.6 +
-            Math.sin(i * f3 + phase * 0.4) * 0.4
-          );
-          const noise = wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
-          return trend + noise;
+          const wave = Math.sin(i * f1 + phase) + Math.sin(i * f2 + phase * 1.7) * 0.6 + Math.sin(i * f3 + phase * 0.4) * 0.4;
+          return trend + wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
         });
       }
     }
@@ -3985,8 +4010,8 @@ async function drawSpark(cid, key, isCrypto, isUp) {
   if (!prices?.length || prices.length < 2) return;
 
   const col = isUp ? upColor() : downColor();
-  // Use the first container to measure width; same logical width for all instances.
-  const W = containers[0].clientWidth || containers[0].offsetWidth || 320, H = 56;
+  const W = containers[0].clientWidth || containers[0].offsetWidth || 320;
+  const H = 56;
   const mn = Math.min(...prices), mx = Math.max(...prices);
   const range = mx - mn || 1;
   const pts = prices.map((p, i) => {
@@ -3995,32 +4020,29 @@ async function drawSpark(cid, key, isCrypto, isUp) {
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   const d = 'M ' + pts.join(' L ');
-
-  // measure path length for dash animation
-  const tmp = document.createElementNS('http://www.w3.org/2000/svg','path');
-  tmp.setAttribute('d', d);
-  document.body.appendChild(tmp);
-  const len = Math.ceil(tmp.getTotalLength()) + 10;
-  document.body.removeChild(tmp);
-
-  // fill area path (closed, no animation — just fades in with the line)
   const fillD = d + ` L ${W},${H} L 0,${H} Z`;
+
+  let len = 0;
+  if (animate) {
+    const tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tmp.setAttribute('d', d);
+    document.body.appendChild(tmp);
+    len = Math.ceil(tmp.getTotalLength()) + 10;
+    document.body.removeChild(tmp);
+  }
+
+  const fillAttrs = animate
+    ? `opacity="0" style="animation:fadeIn 1.2s cubic-bezier(.55,.2,.2,1) .15s forwards"`
+    : `opacity="1"`;
+  const lineAttrs = animate
+    ? `class="spark-path" style="--dash-len:${len};stroke-dasharray:${len};stroke-dashoffset:${len};animation:drawLine 1.2s cubic-bezier(.55,.2,.2,1) forwards"`
+    : `style="stroke-dasharray:none;stroke-dashoffset:0"`;
 
   const svgHTML = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
-      <defs>
-        <linearGradient id="sg_${cid}_${Math.random().toString(36).slice(2,8)}" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stop-color="${col}" stop-opacity="0.18"/>
-          <stop offset="1" stop-color="${col}" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <path d="${fillD}" fill="${col}" fill-opacity="0.12" opacity="0" style="animation:fadeIn 2.4s cubic-bezier(.55,.2,.2,1) .3s forwards"/>
-      <path class="spark-path" d="${d}" fill="none"
-        stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-        style="--dash-len:${len}; stroke-dasharray:${len}; stroke-dashoffset:${len};
-               animation: drawLine 2.4s cubic-bezier(.55,.2,.2,1) forwards;"/>
+      <path d="${fillD}" fill="${col}" fill-opacity="0.12" ${fillAttrs}/>
+      <path ${lineAttrs} d="${d}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
-  // draw on EVERY container with this id (dashboard + page may both have it)
   containers.forEach(c => { c.innerHTML = svgHTML; });
 }
 
@@ -4060,23 +4082,54 @@ function cardHTML(o) {
 
 function renderDashCrypto() {
   const g = document.getElementById('dCGrid');
+  if (!g) return;
   const sorted = [...S.crypto].sort((a, b) => cv(b) - cv(a));
+  const signature = sorted.map(a => a.id || a.sym).join('|');
+  const animate = S._dashCryptoSignature !== signature;
+
   g.innerHTML = sorted.map((a, idx) => {
-    const p = S.cp[a.id], pu = p?.usd, pi = pu ? pu * S.fx : null;
-    const html = cardHTML({sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)});
-    return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`);
+    const p = S.cp[a.id], pu = p?.usd;
+    const html = cardHTML({
+      sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',
+      value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,
+      priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',
+      priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)
+    });
+    return animate
+      ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 45}ms"`)
+      : html;
   }).join('');
-  sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 40));
+
+  const draw = () => sorted.forEach(a => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0, animate));
+  animate ? requestAnimationFrame(draw) : draw();
+  S._dashCryptoSignature = signature;
 }
 
 function renderDashStocks() {
   const g = document.getElementById('dSGrid');
-  g.innerHTML = S.stocks.map((s, idx) => {
-    const p = S.sp[s.sym], pu = p?.price;
-    const html = cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ / Equity',priceStr:pu?`<span>${fPriceNative(pu, S.sp[s.sym]?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s),pnlTotal:stockTotalPnl(s)});
-    return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`);
+  if (!g) return;
+  const signature = S.stocks.map(stock => stock.sym).join('|');
+  const animate = S._dashStockSignature !== signature;
+
+  g.innerHTML = S.stocks.map((stock, idx) => {
+    const p = S.sp[stock.sym], pu = p?.price;
+    const html = cardHTML({
+      sym:stock.sym,name:stock.name,icon:stock.icon,color:stock.color,type:'stock',
+      value:sv(stock),qtyLabel:'NASDAQ / Equity',
+      priceStr:pu?`<span>${fPriceNative(pu, p?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',
+      priceUSD:pu,change:p?.change??null,pnlDay:spnl(stock),pnlTotal:stockTotalPnl(stock)
+    });
+    return animate
+      ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 45}ms"`)
+      : html;
   }).join('');
-  S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 40); });
+
+  const draw = () => S.stocks.forEach(stock => {
+    const p = S.sp[stock.sym];
+    if (p) drawSpark(`spk_${stock.sym}`, stock.sym, false, p.change >= 0, animate);
+  });
+  animate ? requestAnimationFrame(draw) : draw();
+  S._dashStockSignature = signature;
 }
 
 function updateKPIs() {
@@ -4115,8 +4168,6 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  if (window.fbSave) window.fbSave({portfolioTotal: Math.round(g), updatedAt: Date.now()});
-  fetch('https://portfolio-d3745-default-rtdb.europe-west1.firebasedatabase.app/portfolioTotal.json', {method:'PUT', body: JSON.stringify(Math.round(g))});
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
   const pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
   const badge = document.getElementById('chgBadge');
@@ -4126,14 +4177,18 @@ function updateKPIs() {
   const pnlPctStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
   pnlEl.innerHTML = `${pnlAbsStr} <span style="opacity:.75;font-size:.78em">(${pnlPctStr})</span>`;
   pnlEl.style.color = pnlTotal >= 0 ? 'var(--gr)' : 'var(--rd)';
-  // When all stocks contribute 0 to today's P&L (US market closed), show a small hint
-  const stocksPnl = S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
-  const cryptoOnly = S.stocks.length > 0 && stocksPnl === 0 && S.crypto.length > 0;
+  // Describe which asset classes have eligible data; a genuine 0.00% stock move is still stock data.
+  const eligibleStocks = S.stocks.filter(stockHasEligibleTodayQuote).length;
+  const hasUsStocks = S.stocks.some(stock => isUsTickerSymbol(stock.sym));
+  const waitingForOpeningData = hasUsStocks && hasUsRegularSessionStartedToday() && eligibleStocks === 0;
+  const cryptoOnly = S.stocks.length > 0 && eligibleStocks === 0 && S.crypto.length > 0 && !waitingForOpeningData;
   const hintEl = document.getElementById('cryptoOnlyHint');
   if (hintEl) {
-    hintEl.innerHTML = cryptoOnly
-      ? `<span class="crypto-only-hint"><i class="fi fi-tr-coins"></i>קריפטו בלבד</span>`
-      : '';
+    hintEl.innerHTML = waitingForOpeningData
+      ? `<span class="crypto-only-hint" style="color:var(--gd);border-color:color-mix(in srgb,var(--gd) 35%,transparent);background:color-mix(in srgb,var(--gd) 12%,transparent)"><i class="fi fi-tr-clock-three"></i>ממתין לנתוני מניות</span>`
+      : cryptoOnly
+        ? `<span class="crypto-only-hint"><i class="fi fi-tr-coins"></i>קריפטו בלבד</span>`
+        : '';
   }
   let best = null, bc = -Infinity;
   S.crypto.forEach(a => { const ch = cc(a); if (ch != null && ch > bc) { bc = ch; best = a.sym; } });
@@ -4143,16 +4198,37 @@ function updateKPIs() {
 }
 
 function renderAlloc(c, st) {
-  const lbs = [], vs = [], cls = [];
-  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { lbs.push(a.sym); vs.push(v); cls.push(a.color + 'cc'); } });
-  S.stocks.forEach(s => { lbs.push(s.sym); vs.push(sv(s)); cls.push(s.color + 'cc'); });
+  const labels = [], values = [], colors = [];
+  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { labels.push(a.sym); values.push(v); colors.push(a.color + 'cc'); } });
+  S.stocks.forEach(stock => { labels.push(stock.sym); values.push(sv(stock)); colors.push(stock.color + 'cc'); });
 
   const labelColor = brandColor('t2');
   const opt = {plugins:{legend:{position:'right',labels:{color:labelColor,font:{family:'JetBrains Mono',size:9},padding:4,boxWidth:6}}},cutout:'70%',animation:{duration:400}};
-  if (S.aC) S.aC.destroy();
-  S.aC = new Chart(document.getElementById('allocChart'), {type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'transparent'}]},options:opt});
-  if (S.sC) S.sC.destroy();
-  S.sC = new Chart(document.getElementById('splitChart'), {type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:[accentCol()+'cc', upColor()+'cc'],borderWidth:1,borderColor:'transparent'}]},options:opt});
+
+  if (!S.aC) {
+    S.aC = new Chart(document.getElementById('allocChart'), {
+      type:'doughnut', data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:1,borderColor:'transparent'}]}, options:opt
+    });
+  } else {
+    S.aC.data.labels = labels;
+    S.aC.data.datasets[0].data = values;
+    S.aC.data.datasets[0].backgroundColor = colors;
+    S.aC.options.plugins.legend.labels.color = labelColor;
+    S.aC.update('none');
+  }
+
+  const splitData = [c, st];
+  const splitColors = [accentCol()+'cc', upColor()+'cc'];
+  if (!S.sC) {
+    S.sC = new Chart(document.getElementById('splitChart'), {
+      type:'doughnut', data:{labels:['קריפטו','מניות'],datasets:[{data:splitData,backgroundColor:splitColors,borderWidth:1,borderColor:'transparent'}]}, options:opt
+    });
+  } else {
+    S.sC.data.datasets[0].data = splitData;
+    S.sC.data.datasets[0].backgroundColor = splitColors;
+    S.sC.options.plugins.legend.labels.color = labelColor;
+    S.sC.update('none');
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -5395,7 +5471,17 @@ function drawSChart(prices, labels, sym) {
 // ═══════════════════════════════════════════
 let edTab = 'stock';
 function openEditor(tab) { edTab = tab || 'stock'; document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd(); }
-function closeEd() { document.getElementById('edOv').classList.remove('open'); document.body.style.overflow = ''; }
+function closeEd() {
+  document.getElementById('edOv').classList.remove('open');
+  document.body.style.overflow = '';
+  if (window._pendingRemotePortfolio) {
+    const pending = window._pendingRemotePortfolio;
+    window._pendingRemotePortfolio = null;
+    if (typeof applyCloudPortfolio === 'function' && applyCloudPortfolio(pending)) {
+      renderDashCrypto(); renderDashStocks(); updateKPIs();
+    }
+  }
+}
 
 function renderEd() {
   const el  = document.getElementById('edContent'); const iC  = edTab === 'crypto'; const list = iC ? S.crypto : S.stocks;
@@ -5466,6 +5552,9 @@ function renderEd() {
       </button>
       <button class="sync-btn primary" id="syncSignOut" onclick="syncSignOut()" style="display:none">
         <i class="ph-thin ph-sign-out"></i> התנתק
+      </button>
+      <button class="sync-btn" id="syncReload" onclick="reloadPortfolioFromCloud()">
+        <i class="ph-thin ph-cloud-arrow-down"></i> טען מחדש מהענן
       </button>
       <div class="sync-row">
         <button class="sync-btn" onclick="exportPortfolio()">
@@ -6186,25 +6275,48 @@ async function renderDashPeriod(period, customFrom, customTo) {
 // ═══════════════════════════════════════════
 // SYNC & REFRESH
 // ═══════════════════════════════════════════
-async function doRefresh() {
+let portfolioRefreshPromise = null;
+
+async function doRefresh({ background = false } = {}) {
+  if (portfolioRefreshPromise) return portfolioRefreshPromise;
+
   const btn = document.getElementById('refreshBtn');
   const overlay = document.getElementById('refreshOverlay');
-  if (btn) btn.classList.add('spin');
-  if (overlay) overlay.classList.add('show');
+  if (!background && btn) btn.classList.add('spin');
+  if (!background && overlay) overlay.classList.add('show');
+
+  portfolioRefreshPromise = (async () => {
+    try {
+      await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
+      renderDashCrypto();
+      renderDashStocks();
+      updateKPIs();
+      if (S.curPage === 'stocks')   renderStocksPage();
+      if (S.curPage === 'crypto')   renderCryptoPage();
+      if (S.curPage === 'insights') renderInsights();
+      updateClocks();
+      updateDailyDate();
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    }
+  })();
+
   try {
-    await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
-    renderDashCrypto(); renderDashStocks(); updateKPIs();
-    if (S.curPage === 'stocks')   renderStocksPage();
-    if (S.curPage === 'crypto')   renderCryptoPage();
-    if (S.curPage === 'insights') renderInsights();
-    updateClocks();
-    updateDailyDate();
-  } catch (e) {
-    console.error('Refresh failed:', e);
+    await portfolioRefreshPromise;
   } finally {
-    if (btn) btn.classList.remove('spin');
-    if (overlay) overlay.classList.remove('show');
+    portfolioRefreshPromise = null;
+    if (!background && btn) btn.classList.remove('spin');
+    if (!background && overlay) overlay.classList.remove('show');
   }
+}
+
+function scheduleNextPortfolioRefresh() {
+  if (appRefreshTimer) clearTimeout(appRefreshTimer);
+  const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
+  appRefreshTimer = setTimeout(async () => {
+    await doRefresh({ background: true });
+    scheduleNextPortfolioRefresh();
+  }, delay);
 }
 
 
@@ -6221,6 +6333,7 @@ setInterval(updateClocks, 30000);
 function updateDailyDate() {
   const el = document.getElementById('dailyDate');
   if (!el) return;
+  const isEn = document.documentElement.lang === 'en' || document.documentElement.dir === 'ltr';
   el.textContent = new Date().toLocaleDateString(_dateLocale(), {
     day: '2-digit', month: '2-digit', year: '2-digit', timeZone: APP_TIME_ZONE,
   });
@@ -6231,98 +6344,188 @@ setInterval(updateDailyDate, 5 * 60 * 1000);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet(); closeEd(); } });
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js');
+      await registration.update();
+    } catch (error) {
+      console.warn('Service worker update failed:', error);
+    }
+  });
 }
 let dp;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; document.getElementById('installBanner').classList.add('show'); });
 document.getElementById('installBtn').addEventListener('click', async () => { if (!dp) return; dp.prompt(); await dp.userChoice; dp = null; document.getElementById('installBanner').classList.remove('show'); });
 
-window.proceedToApp = async function() {
-  // Prevent startup from running twice (e.g. redirect result + auth listener).
-  if (window._appStarting) return window._appStarting;
+let appStarted = false;
+let appRefreshTimer = null;
+let portfolioSnapshotUnsubscribe = null;
 
-  window._appStarting = (async () => {
-    document.getElementById('lockScreen').classList.add('hidden');
-    document.getElementById('app').style.display = '';
-    document.querySelector('.topbar').style.display = '';
-    document.querySelector('.nav').style.display = '';
-    tkStart();
+function applyCloudPortfolio(data, { force = false } = {}) {
+  if (!data || typeof data !== 'object') return false;
+  const remoteUpdatedAt = Number(data.updatedAt) || 0;
+  if (!force && remoteUpdatedAt && remoteUpdatedAt < lastLocalEdit) return false;
 
-    // Wait until Firebase restores the actual authenticated user and sets DOC.
-    // A timeout still lets explicit Offline mode open without hanging forever.
-    if (window.firebaseAuthReady) {
-      await Promise.race([
-        window.firebaseAuthReady,
-        new Promise(resolve => setTimeout(resolve, 6000))
-      ]);
+  let changed = false;
+  if (Array.isArray(data.crypto)) {
+    S.crypto = data.crypto;
+    changed = true;
+  }
+  if (Array.isArray(data.stocks)) {
+    S.stocks = normalizeStocks(data.stocks);
+    changed = true;
+  }
+  if (data.preferences && typeof data.preferences === 'object') {
+    if (data.preferences.currency) {
+      S.currency = data.preferences.currency;
+      localStorage.setItem('currency', data.preferences.currency);
     }
+    if (data.preferences.language) localStorage.setItem('lang', data.preferences.language);
+    if (data.preferences.tickerMarket) localStorage.setItem('tkMkt', data.preferences.tickerMarket);
+  }
+  if (!changed) return false;
 
-    if (window.fbLoad && window.firebaseUser) {
-      try {
-        const fbData = await window.fbLoad();
-        if (fbData) {
-          // Firestore is authoritative for a signed-in user, including empty
-          // arrays, so deletions sync correctly to every device.
-          if (Array.isArray(fbData.crypto)) S.crypto = fbData.crypto;
-          if (Array.isArray(fbData.stocks)) S.stocks = normalizeStocks(fbData.stocks);
-          fixIcons(S.crypto, 'crypto');
-          fixIcons(S.stocks, 'stock');
-          try {
-            localStorage.setItem('pc', JSON.stringify(S.crypto));
-            localStorage.setItem('ps', JSON.stringify(S.stocks));
-            localStorage.setItem('data_owner_uid', window.firebaseUser.uid);
-          } catch(_) {}
-        }
-      } catch (e) {
-        console.warn('Firebase load failed, using local data:', e);
-      }
+  lastRemoteAppliedAt = Math.max(lastRemoteAppliedAt, remoteUpdatedAt, Date.now());
+  fixIcons(S.crypto, 'crypto');
+  fixIcons(S.stocks, 'stock');
+  persistPortfolioLocally();
+  return true;
+}
+
+function renderPortfolioImmediately() {
+  renderDashCrypto();
+  renderDashStocks();
+  updateKPIs();
+  if (S.curPage === 'stocks' && typeof renderStocksPage === 'function') renderStocksPage();
+  if (S.curPage === 'crypto' && typeof renderCryptoPage === 'function') renderCryptoPage();
+  if (S.curPage === 'insights' && typeof renderInsights === 'function') renderInsights();
+}
+
+window.reloadPortfolioFromCloud = async function({ silent = false } = {}) {
+  try {
+    if (window.firebaseAuthReady) await window.firebaseAuthReady;
+    if (!window.firebaseUser || !window.fbLoad) {
+      if (!silent) alert('אין כרגע משתמש Google מחובר.');
+      return { loaded: false, reason: 'not-authenticated' };
     }
-
-    doRefresh();
-    if (!window._portfolioRefreshTimer) {
-      window._portfolioRefreshTimer = setInterval(doRefresh, 45000);
+    window.firebaseSyncState = 'loading';
+    syncStatusRefresh?.();
+    const data = await window.fbLoad();
+    if (!data) {
+      if (!silent) alert('לא נמצא תיק שמור בענן עבור המשתמש הזה.');
+      return { loaded: false, reason: 'not-found' };
     }
-
-    if (window.fbListen && window.firebaseUser && !window._portfolioUnsubscribeStarted) {
-      window._portfolioUnsubscribeStarted = true;
-      window._portfolioUnsubscribe = window.fbListen(data => {
-        // Never overwrite changes while the editor is open or with an older snapshot.
-        if (document.getElementById('edOv')?.classList.contains('open')) return;
-        if ((data?.updatedAt || 0) < lastLocalEdit) return;
-
-        if (Array.isArray(data?.crypto)) S.crypto = data.crypto;
-        if (Array.isArray(data?.stocks)) S.stocks = normalizeStocks(data.stocks);
-        fixIcons(S.crypto, 'crypto');
-        fixIcons(S.stocks, 'stock');
-
-        try {
-          localStorage.setItem('pc', JSON.stringify(S.crypto));
-          localStorage.setItem('ps', JSON.stringify(S.stocks));
-        } catch(_) {}
-
-        renderDashCrypto();
-        renderDashStocks();
-        updateKPIs();
-      });
+    const applied = applyCloudPortfolio(data, { force: true });
+    if (applied) {
+      renderPortfolioImmediately();
+      doRefresh();
     }
-
-    // After signup: jump to the tab matching the user's investment interest.
-    if (window._pendingPrefs && window._pendingPrefs.length) {
-      const prefs = window._pendingPrefs;
-      window._pendingPrefs = null;
-      const target = prefs.includes('crypto') && !prefs.includes('stocks') ? 'crypto'
-                   : prefs.includes('stocks') ? 'stocks'
-                   : prefs.includes('crypto') ? 'crypto'
-                   : 'stocks';
-      setTimeout(() => {
-        const btn = document.querySelector(`[data-p="${target}"]`);
-        if (typeof goPage === 'function') goPage(target, btn);
-      }, 700);
-    }
-  })();
-
-  return window._appStarting;
+    window.firebaseSyncState = 'synced';
+    syncStatusRefresh?.();
+    if (!silent) alert(applied ? 'התיק נטען מהענן בהצלחה ✓' : 'המסמך בענן לא כלל נתוני תיק תקינים.');
+    return { loaded: applied, data };
+  } catch (error) {
+    window.firebaseSyncState = 'error';
+    window.firebaseLastError = error;
+    syncStatusRefresh?.();
+    console.error('Manual cloud reload failed:', error);
+    if (!silent) alert('טעינת התיק מהענן נכשלה: ' + (error?.message || error));
+    return { loaded: false, reason: 'error', error };
+  }
 };
+
+async function connectCloudForCurrentUser({ loadFirst = true } = {}) {
+  if (portfolioSnapshotUnsubscribe) {
+    portfolioSnapshotUnsubscribe();
+    portfolioSnapshotUnsubscribe = null;
+  }
+  if (!window.firebaseUser) return;
+
+  if (loadFirst && window.fbLoad) {
+    try {
+      const fbData = await window.fbLoad();
+      if (fbData) {
+        const applied = applyCloudPortfolio(fbData, { force: true });
+        if (applied) renderPortfolioImmediately();
+      } else {
+        await window.syncPortfolioNow?.();
+      }
+    } catch (error) {
+      console.warn('Firebase load failed, using local data:', error);
+    }
+  }
+
+  if (window.fbListen) {
+    portfolioSnapshotUnsubscribe = window.fbListen(data => {
+      if (document.getElementById('edOv')?.classList.contains('open')) {
+        window._pendingRemotePortfolio = data;
+        return;
+      }
+      if (!applyCloudPortfolio(data)) return;
+      renderPortfolioImmediately();
+      syncStatusRefresh?.();
+    });
+  }
+
+  if (localStorage.getItem('portfolio_sync_pending') === '1') {
+    window.syncPortfolioNow?.();
+  }
+}
+
+window.proceedToApp = async function() {
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').style.display = '';
+  document.querySelector('.topbar').style.display = '';
+  document.querySelector('.nav').style.display = '';
+  tkStart();
+
+  if (appStarted) return;
+  appStarted = true;
+
+  try {
+    if (window.firebaseAuthReady) await window.firebaseAuthReady;
+  } catch (_) {}
+
+  await connectCloudForCurrentUser({ loadFirst: true });
+  renderPortfolioImmediately();
+
+  // Market prices refresh in the background; synchronized holdings are already visible.
+  doRefresh({ background: true });
+  scheduleNextPortfolioRefresh();
+
+
+
+  // After signup: jump to the tab matching the user's investment interest
+  if (window._pendingPrefs && window._pendingPrefs.length) {
+    const prefs = window._pendingPrefs;
+    window._pendingPrefs = null;
+    const target = prefs.includes('crypto') && !prefs.includes('stocks') ? 'crypto'
+                 : prefs.includes('stocks') ? 'stocks'
+                 : prefs.includes('crypto') ? 'crypto'
+                 : 'stocks';
+    setTimeout(() => {
+      const btn = document.querySelector(`[data-p="${target}"]`);
+      if (typeof goPage === 'function') goPage(target, btn);
+    }, 700);
+  }
+};
+
+if (window._proceedAfterAppBoot) {
+  window._proceedAfterAppBoot = false;
+  window.proceedToApp();
+}
+
+document.addEventListener('firebase-auth-changed', async event => {
+  if (!appStarted) return;
+  if (!event.detail?.user) {
+    if (portfolioSnapshotUnsubscribe) portfolioSnapshotUnsubscribe();
+    portfolioSnapshotUnsubscribe = null;
+    return;
+  }
+  await connectCloudForCurrentUser({ loadFirst: true });
+  renderPortfolioImmediately();
+  syncStatusRefresh?.();
+});
 
 function skipAuth() {
   if (confirm('מעבר למצב Offline ללא סנכרון מאובטח, להמשיך?')) window.proceedToApp();
@@ -6332,22 +6535,17 @@ function skipAuth() {
 // SYNC & BACKUP — Google auth + JSON export/import
 // ═══════════════════════════════════════════
 async function syncSignIn() {
-  if (typeof window.fbApp === 'undefined' && typeof window.signInWithPopup === 'undefined') {
-    alert('הסנכרון דורש Firebase. ודאי שאת מחוברת לאינטרנט והאפליקציה רצה מ-HTTPS (לא file://). העלי ל-GitHub Pages לחווית הסנכרון המלאה.');
-    return;
-  }
   try {
-    // Reuse the same auth flow as the lock screen
-    const btn = document.querySelector('.lock-btn');
-    if (btn) {
-      closeEd();
-      btn.click();   // triggers existing Google sign-in flow
+    closeEd();
+    if (typeof window.doGoogleLogin === 'function') {
+      window.setAuthMode?.('login');
+      await window.doGoogleLogin();
       return;
     }
-    alert('שגיאת התחברות. נסי לטעון מחדש.');
-  } catch (e) {
-    console.warn('Sign-in error:', e);
-    alert('התחברות נכשלה: ' + (e?.message || 'נסי שוב'));
+    alert('Firebase עדיין לא נטען. נסו לרענן את העמוד ולנסות שוב.');
+  } catch (error) {
+    console.warn('Sign-in error:', error);
+    alert('התחברות נכשלה: ' + (error?.message || 'נסו שוב'));
   }
 }
 
@@ -6365,7 +6563,12 @@ function syncStatusRefresh() {
   if (!status) return;
   if (isAuth) {
     status.classList.add('connected');
-    status.innerHTML = `<i class="ph-thin ph-cloud-check"></i><span>מחובר/ת: ${window.firebaseUser.email || window.firebaseUser.uid}</span>`;
+    const state = window.firebaseSyncState;
+    const suffix = state === 'saving' ? ' · שומר בענן…'
+                 : state === 'error' ? ' · שגיאת סנכרון'
+                 : state === 'synced' ? ' · מסונכרן'
+                 : '';
+    status.innerHTML = `<i class="ph-thin ph-cloud-check"></i><span>מחובר/ת: ${window.firebaseUser.email || window.firebaseUser.uid}${suffix}</span>`;
     if (signInBtn) signInBtn.style.display = 'none';
     if (signOutBtn) signOutBtn.style.display = '';
   } else {
@@ -6375,6 +6578,9 @@ function syncStatusRefresh() {
     if (signOutBtn) signOutBtn.style.display = 'none';
   }
 }
+
+document.addEventListener('firebase-sync-state', () => syncStatusRefresh());
+document.addEventListener('firebase-auth-changed', () => syncStatusRefresh());
 
 function exportPortfolio() {
   const data = {
