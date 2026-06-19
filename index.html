@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-master-history-v7">
+<meta name="app-version" content="2026-06-19-period-summary-v8-final">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
+console.info("Vector build: 2026-06-19-period-summary-v8-final");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -543,6 +544,49 @@ body.light .news-chip.active { color: #F4EFE5; }
 .news-reader-body { font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; font-size: 15px; line-height: 1.75; color: var(--t1); }
 .news-reader-body p { margin: 0 0 14px 0; }
 .news-reader-img { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 6px; }
+
+
+/* ── PERIOD PERFORMANCE SUMMARY ── */
+.period-panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.period-panel-title { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--t2); text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+.period-cache-status { min-height:18px; font-family:var(--font-mono); font-size:9.5px; color:var(--t3); display:flex; align-items:center; gap:5px; }
+.period-cache-status.fresh { color:var(--gr); }
+.period-cache-status.updating { color:var(--gd); }
+.period-cache-status.error { color:var(--rd); }
+.period-presets { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+.period-presets .pb2 { flex:0 0 auto; min-width:72px; }
+.period-date-row { margin-bottom:10px; }
+.period-result-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
+.period-initial, .period-loading, .period-error { grid-column:1/-1; padding:14px; text-align:center; color:var(--t3); font-size:11px; }
+.period-loading i, .period-initial i { vertical-align:-2px; margin-inline-end:6px; }
+.period-asset-card { background:var(--s3); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:12px; cursor:pointer; min-width:0; transition:border-color .15s, transform .15s; }
+.period-asset-card:hover { border-color:var(--ac); transform:translateY(-1px); }
+.period-asset-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; min-width:0; }
+.period-asset-icon { width:28px; height:28px; flex:0 0 28px; border-radius:var(--radius-sm); background:var(--s2); display:flex; align-items:center; justify-content:center; font-size:14px; }
+.period-asset-meta { min-width:0; }
+.period-asset-symbol { font-size:12px; font-weight:700; }
+.period-asset-name { font-size:9px; color:var(--t2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.period-asset-pct { font-size:15px; font-weight:700; margin-bottom:2px; font-family:var(--font-mono); }
+.period-asset-pnl { font-size:11px; font-weight:600; font-family:var(--font-mono); }
+.period-asset-from { font-size:8.5px; color:var(--t3); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.period-summary { grid-column:1/-1; margin-top:4px; background:var(--s1); border:1px solid var(--b2); border-radius:var(--radius-sm); padding:13px; }
+.period-summary-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.period-summary-title { font-size:11px; color:var(--t2); font-weight:700; }
+.period-summary-range { font-size:9.5px; color:var(--t3); font-family:var(--font-mono); }
+.period-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.period-summary-cell { background:var(--s2); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:10px; min-width:0; }
+.period-summary-label { font-size:9px; color:var(--t3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
+.period-summary-value { font-family:var(--font-mono); font-size:15px; font-weight:800; white-space:nowrap; }
+.period-summary-pct { font-family:var(--font-mono); font-size:10px; margin-top:3px; }
+.period-summary-note { margin-top:9px; padding-top:8px; border-top:1px solid var(--b1); color:var(--t3); font-size:9px; line-height:1.5; }
+@media (max-width:640px) {
+  .period-presets { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }
+  .period-presets .pb2 { min-width:max-content; }
+  .period-result-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .period-summary-grid { grid-template-columns:1fr; }
+  .period-date-row { align-items:stretch; }
+  .period-date-row input { flex:1; min-width:120px; }
+}
 
 /* ── HAMBURGER MENU (mobile) ── */
 #burgerBtn { display: none; }
@@ -2034,25 +2078,31 @@ onAuthStateChanged(auth, async user => {
     </div>
     </div>
 
-    <div class="filter-block" style="border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;"><i class="ph-thin ph-calendar ph-sm"></i> פילטר טווח היסטורי</div>
-      <div class="prow" id="dashPeriodRow" style="margin-bottom:10px;">
-        <button class="pb2 active" onclick="setDashPeriod('live',this)">LIVE</button>
-        <button class="pb2" onclick="setDashPeriod('1w',this)">1W</button>
-        <button class="pb2" onclick="setDashPeriod('1m',this)">1M</button>
-        <button class="pb2" onclick="setDashPeriod('3m',this)">3M</button>
-        <button class="pb2" onclick="setDashPeriod('ytd',this)">YTD</button>
-        <button class="pb2" onclick="setDashPeriod('custom',this)">CUSTOM</button>
+    <div class="filter-block period-panel" style="border-radius:var(--radius);padding:14px;margin-bottom:12px;">
+      <div class="period-panel-head">
+        <div class="period-panel-title"><i class="ph-thin ph-chart-line-up ph-sm"></i> סיכום ביצועים לפי תקופה</div>
+        <div class="period-cache-status" id="dashPeriodStatus" aria-live="polite"></div>
       </div>
-      <div id="dashDateRow" class="date-row" style="display:none;">
+      <div class="period-presets" id="dashPeriodRow">
+        <button class="pb2" onclick="setDashPeriod('today',this)">היום</button>
+        <button class="pb2" onclick="setDashPeriod('week',this)">7 ימים</button>
+        <button class="pb2 active" onclick="setDashPeriod('month',this)">החודש</button>
+        <button class="pb2" onclick="setDashPeriod('prevmonth',this)">חודש קודם</button>
+        <button class="pb2" onclick="setDashPeriod('3m',this)">3 חודשים</button>
+        <button class="pb2" onclick="setDashPeriod('ytd',this)">מתחילת השנה</button>
+        <button class="pb2" onclick="setDashPeriod('custom',this)">טווח מותאם</button>
+      </div>
+      <div id="dashDateRow" class="date-row period-date-row" style="display:none;">
         <label>מ:</label>
         <input type="date" id="dashDateFrom">
         <label>עד:</label>
         <input type="date" id="dashDateTo">
         <button class="date-go" onclick="applyDashCustom()">חשב</button>
       </div>
-      <div id="dashPeriodResult" style="display:none;margin-top:10px;">
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;" id="dashPeriodGrid"></div>
+      <div id="dashPeriodResult" style="display:block;margin-top:10px;">
+        <div class="period-result-grid" id="dashPeriodGrid">
+          <div class="period-initial"><i class="fi fi-tr-hourglass fi-spin"></i> הנתונים יופיעו מיד לאחר טעינת התיק</div>
+        </div>
       </div>
     </div>
 
@@ -3331,6 +3381,8 @@ const I18N = {
   'נכסי מניות ואקוויטי':'Stock & equity assets','קטגוריית קריפטו':'Crypto category','רווח/הפסד יומי משולב':'Combined daily P&L',
   // periods
   'שבוע אחרון':'Last week','חודש אחרון':'Last month','3 חודשים':'3 months','מתחילת שנה':'Year to date','היום':'Today',
+  '7 ימים':'7 days','החודש':'This month','חודש קודם':'Previous month','מתחילת השנה':'Year to date','טווח מותאם':'Custom range',
+  'סיכום ביצועים לפי תקופה':'Performance summary by period','סיכום רווח והפסד בתקופה':'Period profit and loss summary','כלל התיק':'Whole portfolio',
   'שינוי תקופתי':'Periodic change','תשואת תיק כוללת —':'Total portfolio return —','תאריך':'Date',
   'אין נתונים מספקים':'Insufficient data','אין היסטוריית נתונים מוקלטת':'No recorded data history','כשל בקריאה אנליטית':'Analytics read failure',
   'מ:':'From:','עד:':'To:','חשב':'Calculate','מחפש...':'Searching...','לא נמצאו תוצאות':'No results found','שגיאה בחיפוש':'Search error',
@@ -3926,6 +3978,7 @@ function goPage(id, btn) {
   S.curPage = id;
   document.getElementById('tickerBar').classList.add('show');   // always-on across pages
   document.getElementById('app').scrollTop = 0;
+  if (id === 'dash')     scheduleDashPeriodRefresh(true);
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); }
@@ -6230,87 +6283,331 @@ function addA() {
 function saveClose() { saveLS(); S.sparks = {}; S.sChg = {}; S.cChg = {}; closeEd(); doRefresh(); }
 
 // ═══════════════════════════════════════════
-// PERIOD FILTER
+// PERIOD PERFORMANCE SUMMARY — purchase-date aware + persistent cache
 // ═══════════════════════════════════════════
-let dashPeriod = 'live';
+let dashPeriod = 'month';
+let dashPeriodRequestId = 0;
+let dashPeriodInFlight = new Map();
+let dashPeriodAutoAt = 0;
+let dashPeriodLastSignature = '';
 
-function setDashPeriod(p, btn) {
-  dashPeriod = p;
-  document.querySelectorAll('#dashPeriodRow .pb2').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const dateRow = document.getElementById('dashDateRow');
-  dateRow.style.display = p === 'custom' ? 'flex' : 'none';
-  if (p !== 'custom') renderDashPeriod(p);
+const DASH_PERIOD_CACHE_KEY = 'vector_period_cache_v8';
+const DASH_PERIOD_CACHE_VERSION = 8;
+let dashPeriodCacheStore = null;
+let dashPeriodCacheSaveTimer = null;
+
+function dashReadCacheStore() {
+  if (dashPeriodCacheStore) return dashPeriodCacheStore;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DASH_PERIOD_CACHE_KEY) || 'null');
+    dashPeriodCacheStore = parsed?.version === DASH_PERIOD_CACHE_VERSION && parsed?.items
+      ? parsed : { version: DASH_PERIOD_CACHE_VERSION, items: {} };
+  } catch (_) { dashPeriodCacheStore = { version: DASH_PERIOD_CACHE_VERSION, items: {} }; }
+  return dashPeriodCacheStore;
 }
-
-async function applyDashCustom() {
-  const from = document.getElementById('dashDateFrom').value;
-  const to   = document.getElementById('dashDateTo').value;
-  if (!from || !to) { alert('יש להזין ערכי התחלה וסוף'); return; }
-  renderDashPeriod('custom', from, to);
+function dashFlushCacheStore() {
+  try { localStorage.setItem(DASH_PERIOD_CACHE_KEY, JSON.stringify(dashReadCacheStore())); } catch (_) {}
 }
-
-async function renderDashPeriod(period, customFrom, customTo) {
-  if (period === 'live') { document.getElementById('dashPeriodResult').style.display = 'none'; return; }
-  const grid   = document.getElementById('dashPeriodGrid');
-  const result = document.getElementById('dashPeriodResult');
-  result.style.display = 'block';
-  grid.innerHTML = '<div style="color:var(--t2);font-size:11px;padding:8px;grid-column:1/-1"><div class="spinner" style="display:inline-block;margin-left:6px"></div>מחשב מטריצת תשואות היסטוריות...</div>';
-
-  const labelMap = {'1w':'שבוע אחרון','1m':'חודש אחרון','3m':'3 חודשים','ytd':'מתחילת שנה'};
-  const allAssets = [
-    ...S.crypto.map(a => ({sym:a.sym,name:a.name,icon:a.icon,color:a.color,type:'crypto',val:cv(a),asset:a})),
-    ...S.stocks.map(s => ({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',val:sv(s),asset:s})),
-  ];
-
-  const changes = await Promise.all(allAssets.map(async x => {
-    if (x.type === 'crypto') {
-      if (period === 'custom') {
-        const from = new Date(customFrom).getTime(); const to   = new Date(customTo).getTime();
-        const diffDays = Math.ceil((to - from) / 86400000);
-        const hist = await getCryptoHist(x.sym, diffDays); if (!hist.length) return null;
-        const filtered = hist.filter(([t]) => t >= from && t <= to);
-        if (filtered.length < 2) return null;
-        return ((filtered[filtered.length-1][1] - filtered[0][1]) / filtered[0][1]) * 100;
-      } else { return getCryptoPeriodChange(x.asset, period); }
-    } else {
-      if (period === 'custom') {
-        const fromTs = new Date(customFrom).getTime() / 1000; const toTs   = new Date(customTo).getTime()   / 1000;
-        const diffDays = Math.ceil((toTs - fromTs) / 86400);
-        const range = diffDays<=5?'5d':diffDays<=31?'1mo':diffDays<=93?'3mo':'1y';
-        const data = await getStockHist(x.sym, range); if (!data || data.length < 2) return null;
-        const filtered = data.filter(d => d.t/1000 >= fromTs && d.t/1000 <= toTs);
-        if (filtered.length < 2) return null;
-        return ((filtered[filtered.length-1].p - filtered[0].p) / filtered[0].p) * 100;
-      } else { return getStockPeriodChange(x.sym, period); }
-    }
+function dashCachePut(key, data) {
+  const store = dashReadCacheStore();
+  store.items[key] = { ts: Date.now(), data };
+  const keys = Object.keys(store.items);
+  if (keys.length > 90) {
+    keys.sort((a,b) => (store.items[b]?.ts||0) - (store.items[a]?.ts||0));
+    keys.slice(70).forEach(k => delete store.items[k]);
+  }
+  clearTimeout(dashPeriodCacheSaveTimer);
+  dashPeriodCacheSaveTimer = setTimeout(dashFlushCacheStore, 40);
+}
+function dashCacheEntry(key) { return dashReadCacheStore().items[key] || null; }
+function dashCacheGet(key, maxAgeMs = Infinity) {
+  const entry = dashCacheEntry(key);
+  if (!entry || Date.now() - Number(entry.ts || 0) > maxAgeMs) return null;
+  return entry.data;
+}
+function dashHash(value) {
+  const str = typeof value === 'string' ? value : JSON.stringify(value);
+  let h = 2166136261;
+  for (let i=0; i<str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+}
+function dashPortfolioSignature() {
+  const cleanLots = a => (Array.isArray(a.lots) ? a.lots : []).map(l => ({
+    q:Number(l.qty)||0, p:Number(l.price)||0, d:String(l.date||'')
   }));
-
-  const periodLabel = period==='custom' ? `${customFrom} ➔ ${customTo}` : labelMap[period];
-  let totalStart = 0, totalEnd = 0;
-
-  grid.innerHTML = allAssets.map((x, i) => {
-    const chg = changes[i]; const up  = (chg || 0) >= 0;
-    const pnl = chg != null ? x.val * chg / 100 / (1 + chg / 100) : null;
-    if (chg != null) { totalEnd += x.val; totalStart += x.val / (1 + chg / 100); }
-    return `<div style="background:var(--s3);border:1px solid var(--b1);border-radius:var(--radius-sm);padding:12px;cursor:pointer" onclick="openDet('${x.sym}','${x.type}')">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="width:28px;height:28px;border-radius:var(--radius-sm);background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:14px">${x.icon}</div>
-        <div><div style="font-size:12px;font-weight:700">${x.sym}</div><div style="font-size:9px;color:var(--t2)">${x.name}</div></div>
-      </div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:2px;font-family:'JetBrains Mono'">${chg!=null?`<span style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(chg)}</span>`:'<span style="color:var(--t3)">---</span>'}</div>
-      <div style="font-size:11px;font-weight:500;font-family:'JetBrains Mono';color:${up?'var(--gr)':'var(--rd)'}">${pnl!=null?(up?'+':'')+fILS(pnl):''}</div>
-    </div>`;
+  const payload = {
+    u: window.firebaseUser?.uid || 'local',
+    s: S.stocks.map(a => ({x:a.sym,q:getShares(a),b:Number(a.baseILS)||0,l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
+    c: S.crypto.map(a => ({x:a.sym,q:cQty(a),l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
+  };
+  return dashHash(payload);
+}
+function dashSetStatus(text = '', state = '') {
+  const el = document.getElementById('dashPeriodStatus');
+  if (!el) return;
+  el.className = `period-cache-status ${state}`.trim();
+  el.textContent = text;
+}
+function dashAddDays(key, amount) {
+  const [y,m,d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y,m-1,d+amount,12)).toISOString().slice(0,10);
+}
+function dashAddMonths(key, amount) {
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(Date.UTC(y,m-1+amount,1,12));
+  const last = new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth()+1,0,12)).getUTCDate();
+  dt.setUTCDate(Math.min(d,last));
+  return dt.toISOString().slice(0,10);
+}
+function dashFirstOfMonth(key) { return key.slice(0,7) + '-01'; }
+function dashLastOfMonth(key) {
+  const firstNext = dashAddMonths(dashFirstOfMonth(key),1);
+  return dashAddDays(firstNext,-1);
+}
+function dashKeyToIsraelMidnightMs(key) {
+  const [y,m,d] = key.split('-').map(Number);
+  const localAsUtc = Date.UTC(y,m-1,d,0,0,0,0);
+  let guess = localAsUtc;
+  for (let i=0;i<3;i++) guess = localAsUtc - timeZoneOffsetMs(guess, APP_TIME_ZONE);
+  return guess;
+}
+function dashLotDateKey(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
+}
+function dashResolveRange(period, customFrom, customTo) {
+  const today = todayIsraelDateKey();
+  let fromKey = today, endKey = today, label = 'היום';
+  if (period === 'week') { fromKey = dashAddDays(today,-6); label = '7 ימים אחרונים'; }
+  else if (period === 'month') { fromKey = dashFirstOfMonth(today); label = 'החודש'; }
+  else if (period === 'prevmonth') {
+    const prev = dashAddMonths(dashFirstOfMonth(today),-1);
+    fromKey = dashFirstOfMonth(prev); endKey = dashLastOfMonth(prev); label = 'חודש קודם';
+  }
+  else if (period === '3m') { fromKey = dashAddMonths(today,-3); label = '3 חודשים אחרונים'; }
+  else if (period === 'ytd') { fromKey = today.slice(0,4)+'-01-01'; label = 'מתחילת השנה'; }
+  else if (period === 'custom') {
+    fromKey = customFrom || today; endKey = customTo || today; label = `${fromKey} ← ${endKey}`;
+  }
+  if (fromKey > endKey) [fromKey,endKey] = [endKey,fromKey];
+  if (endKey > today) endKey = today;
+  return { period, fromKey, endKey, label, includesToday:endKey===today, endBoundaryKey:endKey===today?null:dashAddDays(endKey,1) };
+}
+function dashRangeDays(fromKey,endKey) {
+  return Math.max(1,Math.round((Date.parse(endKey+'T12:00:00Z')-Date.parse(fromKey+'T12:00:00Z'))/86400000)+1);
+}
+function dashRangeLabel(range) {
+  const f = fDateShort(new Date(range.fromKey+'T12:00:00Z'));
+  const t = fDateShort(new Date(range.endKey+'T12:00:00Z'));
+  return range.fromKey===range.endKey ? f : `${f} – ${t}`;
+}
+function dashLotsForAsset(asset,type) {
+  if (Array.isArray(asset.lots) && asset.lots.length) return asset.lots.map(l=>({
+    qty:Number(l.qty)||0, price:Number(l.price)||0, dateKey:dashLotDateKey(l.date)
+  })).filter(l=>l.qty>0);
+  let qty = type==='stock' ? getShares(asset) : cQty(asset);
+  if (!(qty>0) && type==='stock' && asset.baseILS && S.sp[asset.sym]?.price>0) {
+    const factor = dashStockUsesIls(asset) ? 1 : S.fx;
+    qty = Number(asset.baseILS)/(Number(S.sp[asset.sym].price)*factor);
+  }
+  return qty>0 ? [{qty,price:0,dateKey:''}] : [];
+}
+function dashStockUsesIls(asset) {
+  const cur = String(S.sp[asset.sym]?.currency||'').toUpperCase();
+  return cur==='ILS' || cur==='ILA' || /\.TA$/i.test(asset.sym);
+}
+function dashPickPrice(series,key,{strictBefore=false}={}) {
+  if (!Array.isArray(series) || !series.length) return null;
+  let best = null;
+  for (const row of series) {
+    const dk = dateKeyInTimeZone(row.t,APP_TIME_ZONE);
+    if (!dk) continue;
+    if (strictBefore ? dk < key : dk <= key) best = Number(row.p)||best;
+    if (dk > key) break;
+  }
+  return best;
+}
+function dashReusableStockSeries(sym,fromKey) {
+  let best = null;
+  for (const [key,data] of Object.entries(S.sChg||{})) {
+    if (!key.startsWith(sym+'_') || !Array.isArray(data) || data.length<2) continue;
+    const first = dateKeyInTimeZone(data[0].t,APP_TIME_ZONE);
+    if (first && first <= dashAddDays(fromKey,-3) && (!best || data.length>best.length)) best=data;
+  }
+  return best;
+}
+async function dashGetStockSeries(sym,range) {
+  const days = dashRangeDays(range.fromKey,range.endKey);
+  const yahooRange = days<=120?'6mo':days<=370?'1y':'5y';
+  const mem = dashReusableStockSeries(sym,range.fromKey);
+  if (mem) return mem;
+  const cacheKey = `stock:${sym}:${yahooRange}`;
+  const cached = dashCacheGet(cacheKey, range.includesToday?30*60*1000:7*24*60*60*1000);
+  if (cached?.length) { S.sChg[sym+'_'+yahooRange]=cached; return cached; }
+  const stale = dashCacheEntry(cacheKey)?.data;
+  try {
+    const data = await fetchYahooCandles(sym,yahooRange);
+    if (data?.length) { dashCachePut(cacheKey,data); S.sChg[sym+'_'+yahooRange]=data; return data; }
+  } catch (_) {}
+  return Array.isArray(stale)?stale:null;
+}
+function dashNearestSample(samples,target,maxDist=3*60*60*1000) {
+  let price=null,dist=Infinity;
+  for (const s of samples) { const d=Math.abs(Number(s.t)-target); if(d<dist){dist=d;price=Number(s.p);} }
+  return dist<=maxDist && price>0 ? price : null;
+}
+async function dashGetCryptoBoundary(asset,dateKey) {
+  if (dateKey===todayIsraelDateKey() && S.cp[asset.id]?.openToday>0 && S.cp[asset.id]?.openTodayDateKey===dateKey) return Number(S.cp[asset.id].openToday);
+  const key=`crypto-boundary:${asset.sym}:${dateKey}`;
+  const cached=dashCacheGet(key,30*24*60*60*1000);
+  if (cached>0) return Number(cached);
+  const target=dashKeyToIsraelMidnightMs(dateKey), samples=[];
+  const bs=BN[asset.sym];
+  if(bs){
+    try{
+      const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(bs)}&interval=1h&startTime=${target-3*3600000}&endTime=${target+3*3600000}&limit=10`,{signal:AbortSignal.timeout(8000)});
+      const arr=await r.json();
+      if(Array.isArray(arr)) arr.forEach(k=>{const t=Number(k[0]),p=Number(k[1]);if(t&&p>0)samples.push({t,p});});
+    }catch(_){}
+  }
+  if(!samples.length){
+    const cg=CG_ID[asset.sym]||asset.id||asset.sym.toLowerCase();
+    try{
+      const r=await fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(cg)}/market_chart/range?vs_currency=usd&from=${Math.floor((target-4*3600000)/1000)}&to=${Math.ceil((target+4*3600000)/1000)}`,{signal:AbortSignal.timeout(9000)});
+      const d=await r.json(); (d?.prices||[]).forEach(([t,p])=>{if(Number(t)&&Number(p)>0)samples.push({t:Number(t),p:Number(p)});});
+    }catch(_){}
+  }
+  const price=dashNearestSample(samples,target);
+  if(price>0) dashCachePut(key,price);
+  return price;
+}
+async function dashGetFxMap(range,lotDates=[]) {
+  const all=[range.fromKey,range.endBoundaryKey||range.endKey,...lotDates.filter(Boolean)].sort();
+  const from=dashAddDays(all[0],-7), to=all[all.length-1];
+  const key=`fx:${from}:${to}`;
+  const cached=dashCacheGet(key,24*60*60*1000);
+  if(cached) return cached;
+  const stale=dashCacheEntry(key)?.data;
+  const map={};
+  try{
+    const r=await fetch(`https://api.frankfurter.app/${from}..${to}?from=USD&to=ILS`,{signal:AbortSignal.timeout(8000)});
+    const d=await r.json(); Object.entries(d?.rates||{}).forEach(([k,v])=>{const n=Number(v?.ILS);if(n>0)map[k]=n;});
+  }catch(_){}
+  if(!Object.keys(map).length && stale) return stale;
+  let last=S.fx;
+  for(let k=from;k<=to;k=dashAddDays(k,1)){ if(map[k]>0)last=map[k]; else map[k]=last; }
+  if(range.includesToday) map[todayIsraelDateKey()]=S.fx;
+  dashCachePut(key,map); return map;
+}
+function dashFxAt(map,key){ return Number(map?.[key])||S.fx; }
+async function dashMapLimit(items,limit,fn){
+  const out=new Array(items.length); let next=0;
+  async function worker(){ while(true){const i=next++;if(i>=items.length)return;out[i]=await fn(items[i],i);} }
+  await Promise.all(Array.from({length:Math.min(limit,items.length)},worker)); return out;
+}
+async function dashComputeStock(asset,range,fxMap){
+  const lots=dashLotsForAsset(asset,'stock').filter(l=>!l.dateKey||l.dateKey<=range.endKey);
+  if(!lots.length)return null;
+  const series=await dashGetStockSeries(asset.sym,range);
+  const live=S.sp[asset.sym];
+  const endPrice=range.includesToday&&live?.price>0 ? Number(live.price) : dashPickPrice(series,range.endKey);
+  if(!(endPrice>0))return null;
+  const isIls=dashStockUsesIls(asset), endFx=isIls?1:(range.includesToday?S.fx:dashFxAt(fxMap,range.endBoundaryKey||range.endKey));
+  let startValue=0,endValue=0,firstActive='';
+  for(const lot of lots){
+    const boughtInside=!!lot.dateKey && lot.dateKey>=range.fromKey;
+    const effective=boughtInside?lot.dateKey:range.fromKey;
+    let startPrice;
+    if(boughtInside&&lot.price>0) startPrice=lot.price;
+    else if(!boughtInside&&range.fromKey===todayIsraelDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
+    else startPrice=dashPickPrice(series,effective,{strictBefore:!boughtInside});
+    if(!(startPrice>0))continue;
+    const startFx=isIls?1:dashFxAt(fxMap,effective);
+    startValue+=lot.qty*startPrice*startFx;
+    endValue+=lot.qty*endPrice*endFx;
+    if(!firstActive||effective<firstActive)firstActive=effective;
+  }
+  if(!(startValue>0))return null;
+  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'stock',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive};
+}
+async function dashComputeCrypto(asset,range,fxMap){
+  const lots=dashLotsForAsset(asset,'crypto').filter(l=>!l.dateKey||l.dateKey<=range.endKey);
+  if(!lots.length)return null;
+  const endPrice=range.includesToday&&S.cp[asset.id]?.usd>0 ? Number(S.cp[asset.id].usd) : await dashGetCryptoBoundary(asset,range.endBoundaryKey);
+  if(!(endPrice>0))return null;
+  const endFx=range.includesToday?S.fx:dashFxAt(fxMap,range.endBoundaryKey);
+  let startValue=0,endValue=0,firstActive='';
+  for(const lot of lots){
+    const boughtInside=!!lot.dateKey&&lot.dateKey>=range.fromKey;
+    const effective=boughtInside?lot.dateKey:range.fromKey;
+    const startPrice=boughtInside&&lot.price>0?lot.price:await dashGetCryptoBoundary(asset,effective);
+    if(!(startPrice>0))continue;
+    startValue+=lot.qty*startPrice*dashFxAt(fxMap,effective);
+    endValue+=lot.qty*endPrice*endFx;
+    if(!firstActive||effective<firstActive)firstActive=effective;
+  }
+  if(!(startValue>0))return null;
+  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive};
+}
+async function dashComputePeriod(range){
+  const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
+  const fxMap=await dashGetFxMap(range,lotDates);
+  const descriptors=[...S.crypto.map(asset=>({asset,type:'crypto'})),...S.stocks.map(asset=>({asset,type:'stock'}))];
+  const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
+  const group=type=>{
+    const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
+    return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
+  };
+  const stocks=group('stock'),crypto=group('crypto');
+  const startValue=stocks.startValue+crypto.startValue,endValue=stocks.endValue+crypto.endValue;
+  return {range,items,stocks,crypto,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+}
+function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
+function dashSummaryCell(label,g){const up=g.pnl>=0;return `<div class="period-summary-cell"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
+function dashRenderPeriodData(data,{cached=false}={}){
+  const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
+  const cards=data.items.map(x=>{
+    const up=x.pnl>=0,from=x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'';
+    return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
-
-  const totalChg = totalStart ? ((totalEnd - totalStart) / totalStart) * 100 : 0; const totalPnl = totalEnd - totalStart;
-  grid.innerHTML += `<div style="background:var(--s1);border:1px solid var(--b2);border-radius:var(--radius-sm);padding:12px;grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
-    <div style="font-size:11px;color:var(--t2);font-weight:700">תשואת תיק כוללת — ${periodLabel}</div>
-    <div style="text-align:left">
-      <div style="font-size:16px;font-weight:800;font-family:'JetBrains Mono';color:${totalChg>=0?'var(--gr)':'var(--rd)'}">${fPct(totalChg)}</div>
-      <div style="font-size:12px;font-weight:700;font-family:'JetBrains Mono';color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div>
-    </div>
-  </div>`;
+  const rangeText=dashRangeLabel(data.range);
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  grid.innerHTML=(cards||'<div class="period-initial">אין נתונים מספקים לתקופה שנבחרה</div>')+summary;
+  dashSetStatus(cached?'מוצג מהזיכרון':'עודכן עכשיו',cached?'updating':'fresh');
+}
+function dashPeriodCacheKey(range){return `result:${dashPortfolioSignature()}:${range.fromKey}:${range.endKey}`;}
+async function renderDashPeriod(period=dashPeriod,customFrom,customTo){
+  dashPeriod=period;
+  const range=dashResolveRange(period,customFrom,customTo), key=dashPeriodCacheKey(range), grid=document.getElementById('dashPeriodGrid');
+  const req=++dashPeriodRequestId, entry=dashCacheEntry(key), ttl=range.includesToday?5*60*1000:24*60*60*1000;
+  if(entry?.data){dashRenderPeriodData(entry.data,{cached:true});if(Date.now()-entry.ts<ttl){dashSetStatus('מהזיכרון · עדכני','fresh');return entry.data;}dashSetStatus('מהזיכרון · מעדכן ברקע','updating');}
+  else if(grid)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
+  let promise=dashPeriodInFlight.get(key);
+  if(!promise){promise=dashComputePeriod(range).finally(()=>dashPeriodInFlight.delete(key));dashPeriodInFlight.set(key,promise);}
+  try{const data=await promise;dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
+  catch(e){console.error('[Period summary]',e);if(req===dashPeriodRequestId&&!entry?.data){grid.innerHTML=`<div class="period-error">לא הצלחנו לחשב את התקופה כרגע. נסה שוב בעוד רגע.</div>`;dashSetStatus('שגיאת טעינה','error');}return null;}
+}
+function setDashPeriod(p,btn){
+  dashPeriod=p; document.querySelectorAll('#dashPeriodRow .pb2').forEach(b=>b.classList.remove('active')); if(btn)btn.classList.add('active');
+  const row=document.getElementById('dashDateRow'); if(row)row.style.display=p==='custom'?'flex':'none';
+  if(p!=='custom')renderDashPeriod(p);
+}
+async function applyDashCustom(){
+  const from=document.getElementById('dashDateFrom').value,to=document.getElementById('dashDateTo').value;
+  if(!from||!to){alert('יש להזין ערכי התחלה וסוף');return;} if(from>to){alert('תאריך ההתחלה חייב להיות לפני תאריך הסיום');return;}
+  return renderDashPeriod('custom',from,to);
+}
+function scheduleDashPeriodRefresh(force=false){
+  if(!document.getElementById('dashPeriodGrid'))return;
+  const sig=dashPortfolioSignature(),now=Date.now();
+  if(!force&&sig===dashPeriodLastSignature&&now-dashPeriodAutoAt<5*60*1000)return;
+  dashPeriodLastSignature=sig;dashPeriodAutoAt=now;
+  const from=document.getElementById('dashDateFrom')?.value,to=document.getElementById('dashDateTo')?.value;
+  setTimeout(()=>renderDashPeriod(dashPeriod,dashPeriod==='custom'?from:undefined,dashPeriod==='custom'?to:undefined),0);
 }
 
 // ═══════════════════════════════════════════
@@ -6327,6 +6624,7 @@ async function doRefresh() {
     try {
       await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
       renderDashCrypto(); renderDashStocks(); updateKPIs();
+      if (S.curPage === 'dash') scheduleDashPeriodRefresh();
       if (S.curPage === 'stocks') renderStocksPage();
       if (S.curPage === 'crypto') renderCryptoPage();
       if (S.curPage === 'insights') renderInsights();
@@ -6369,7 +6667,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v8-final');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -6729,12 +7027,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const today    = new Date();
 const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
-const todayStr    = today.toISOString().split('T')[0];
+const todayStr    = todayIsraelDateKey();
 const monthAgoStr = monthAgo.toISOString().split('T')[0];
+const monthStartStr = todayStr.slice(0,7) + '-01';
 document.getElementById('dateTo').value       = todayStr;
 document.getElementById('dateFrom').value     = monthAgoStr;
 document.getElementById('dashDateTo').value   = todayStr;
-document.getElementById('dashDateFrom').value = monthAgoStr;
+document.getElementById('dashDateFrom').value = monthStartStr;
 
 document.querySelector('.topbar').style.display = 'none';
 document.querySelector('.nav').style.display    = 'none';
