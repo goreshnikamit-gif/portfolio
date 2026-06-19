@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Fixes: cross-device Firebase sync, Israel calendar-day P&L, fast US open quotes, non-overlapping refresh, stable card rendering (2026-06-18) -->
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-18-sync-mobile-v2">
+<meta name="app-version" content="2026-06-19-master-history-v7">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2655,106 +2654,62 @@ async function fetchYahooQuote(sym) {
   return null;
 }
 
-
-// ── U.S. regular-session helpers ─────────────────────────────────
-// For a U.S. ticker, daily P&L starts only at 09:30 New York time.
-// After the close it remains visible until the Israeli calendar day resets.
-function newYorkClockParts(at = Date.now()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', weekday: 'short',
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-  }).formatToParts(new Date(at));
-  const get = type => parts.find(p => p.type === type)?.value;
-  return { weekday: get('weekday'), hour: Number(get('hour')), minute: Number(get('minute')) };
-}
-
-function hasUsRegularSessionStartedToday(at = Date.now()) {
-  const p = newYorkClockParts(at);
-  if (!['Mon','Tue','Wed','Thu','Fri'].includes(p.weekday)) return false;
-  return (p.hour * 60 + p.minute) >= (9 * 60 + 30);
-}
-
-function isUsRegularMarketOpenNow(at = Date.now()) {
-  const p = newYorkClockParts(at);
-  if (!['Mon','Tue','Wed','Thu','Fri'].includes(p.weekday)) return false;
-  const mins = p.hour * 60 + p.minute;
-  return mins >= (9 * 60 + 30) && mins < (16 * 60);
-}
-
-function isUsTickerSymbol(sym = '') {
-  return !!sym && !String(sym).includes('.');
-}
-
-function stockHasEligibleTodayQuote(stock) {
-  const p = S.sp[stock.sym];
-  if (!p?.price || !timestampIsTodayInIsrael(p.quoteTime)) return false;
-  if (isUsTickerSymbol(stock.sym) && !hasUsRegularSessionStartedToday()) return false;
-  return true;
-}
-
-async function fetchFinnhubQuote(sym) {
-  try {
-    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(7000), cache: 'no-store' });
-    if (!r.ok) return null;
-    const d = await r.json();
-    if (!(Number(d.c) > 0) || !(Number(d.pc) > 0)) return null;
-    return {
-      price: Number(d.c), prevClose: Number(d.pc),
-      high: Number(d.h) || Number(d.c), low: Number(d.l) || Number(d.c),
-      open: Number(d.o) || null, currency: 'USD',
-      quoteTime: normalizeEpochMs(d.t), marketState: null,
-      source: 'finnhub',
-    };
-  } catch (_) {
-    return null;
-  }
-}
-
-function newerQuote(a, b) {
-  if (!a) return b;
-  if (!b) return a;
-  const ta = normalizeEpochMs(a.quoteTime) || 0;
-  const tb = normalizeEpochMs(b.quoteTime) || 0;
-  return tb > ta ? b : a;
-}
-
 async function getStocks() {
-  await Promise.all(S.stocks.map(async stock => {
+  const fetchFinnhubQuote = async sym => {
+    try {
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, {
+        signal: AbortSignal.timeout(7000), cache: 'no-store'
+      });
+      if (!r.ok) return null;
+      const d = await r.json();
+      if (!(d.c > 0) || !(d.pc > 0)) return null;
+      return {
+        price: d.c, prevClose: d.pc, high: d.h, low: d.l, open: d.o,
+        currency: 'USD', quoteTime: normalizeEpochMs(d.t), marketState: null,
+        exchangeTimeZone: 'America/New_York', _source: 'finnhub'
+      };
+    } catch (_) { return null; }
+  };
+
+  const fresherQuote = (a, b) => {
+    if (!a) return b;
+    if (!b) return a;
+    const at = normalizeEpochMs(a.quoteTime) || 0;
+    const bt = normalizeEpochMs(b.quoteTime) || 0;
+    if (at !== bt) return at > bt ? a : b;
+    // At the opening bell Finnhub usually updates before public Yahoo gateways.
+    if (a._source === 'finnhub') return a;
+    if (b._source === 'finnhub') return b;
+    return a;
+  };
+
+  await Promise.all(S.stocks.map(async s => {
     let q = null;
-    const hasSuffix = stock.sym.includes('.');
+    const hasSuffix = s.sym.includes('.');
 
     if (hasSuffix) {
-      q = await fetchGoogleFinanceQuote(stock.sym);
-      if (q && !q.quoteTime) {
-        const yMeta = await fetchYahooQuote(stock.sym);
-        if (yMeta) q = {
-          ...q,
-          prevClose: yMeta.prevClose ?? q.prevClose,
-          quoteTime: yMeta.quoteTime,
-          marketState: yMeta.marketState,
-          exchangeTimeZone: yMeta.exchangeTimeZone,
-          open: yMeta.open ?? q.open,
-          high: yMeta.high ?? q.high,
-          low: yMeta.low ?? q.low,
-        };
-      }
-      if (!q) q = await fetchYahooQuote(stock.sym);
+      const google = await fetchGoogleFinanceQuote(s.sym);
+      const yahoo = google?.quoteTime ? null : await fetchYahooQuote(s.sym);
+      q = fresherQuote(google, yahoo);
     } else {
-      // Direct US quote first: public Yahoo proxies can lag around the opening bell.
-      q = await fetchFinnhubQuote(stock.sym);
-      if (!q || (hasUsRegularSessionStartedToday() && !timestampIsTodayInIsrael(q.quoteTime))) {
-        q = newerQuote(q, await fetchYahooQuote(stock.sym));
-      }
+      const [fhResult, yhResult] = await Promise.allSettled([
+        fetchFinnhubQuote(s.sym),
+        fetchYahooQuote(s.sym),
+      ]);
+      const fh = fhResult.status === 'fulfilled' ? fhResult.value : null;
+      const yh = yhResult.status === 'fulfilled' ? yhResult.value : null;
+      if (yh) yh._source = 'yahoo';
+      q = fresherQuote(fh, yh);
     }
 
     if (q) {
-      const previous = S.sp[stock.sym];
-      const incomingTs = normalizeEpochMs(q.quoteTime) || 0;
-      const previousTs = normalizeEpochMs(previous?.quoteTime) || 0;
-      if (previous?.price && previousTs > incomingTs && incomingTs > 0) return;
+      const incomingTime = normalizeEpochMs(q.quoteTime) || 0;
+      const existing = S.sp[s.sym];
+      const existingTime = normalizeEpochMs(existing?.quoteTime) || 0;
+      // Never let a delayed proxy response overwrite a newer live quote.
+      if (existing?.price && existingTime > incomingTime && incomingTime > 0) return;
 
-      S.sp[stock.sym] = {
+      S.sp[s.sym] = {
         price: q.price, prevClose: q.prevClose,
         change: ((q.price - q.prevClose) / q.prevClose) * 100,
         changeAmt: q.price - q.prevClose,
@@ -2762,19 +2717,18 @@ async function getStocks() {
         currency: q.currency,
         high52w: q.high52w, low52w: q.low52w,
         marketCap: q.marketCap, peRatio: q.peRatio,
-        quoteTime: incomingTs || previousTs || null,
+        quoteTime: incomingTime || existingTime || null,
         marketState: q.marketState ?? null,
         exchangeTimeZone: q.exchangeTimeZone ?? null,
-        source: q.source || (hasSuffix ? 'global' : 'market'),
+        _source: q._source || null,
         _failCount: 0,
-        _unavailable: false,
       };
     } else {
-      const ent = S.sp[stock.sym] || {};
+      const ent = S.sp[s.sym] || {};
       ent._failCount = (ent._failCount || 0) + 1;
-      ent._unavailable = ent._failCount >= 3 && !ent.price;
-      S.sp[stock.sym] = ent;
-      console.warn(`[Market data] Failed to refresh ${stock.sym} (attempt ${ent._failCount})`);
+      ent._unavailable = ent._failCount >= 3;
+      S.sp[s.sym] = ent;
+      console.warn(`[Stocks] Failed to fetch ${s.sym} (attempt ${ent._failCount})`);
     }
   }));
 }
@@ -3126,6 +3080,15 @@ function timestampIsTodayInIsrael(value) {
   return !!ms && dateKeyInTimeZone(ms, APP_TIME_ZONE) === todayIsraelDateKey();
 }
 
+function isUsRegularMarketOpenNow(value = Date.now()) {
+  const p = datePartsInTimeZone(value, 'America/New_York');
+  if (!p) return false;
+  const weekday = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+  if (weekday === 0 || weekday === 6) return false;
+  const minutes = p.hour * 60 + p.minute;
+  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
+}
+
 const cpnl = (a) => {
   // Crypto trades continuously. Daily P&L is measured from 00:00 Israel time,
   // not from Binance's rolling 24h change and not from 00:00 UTC.
@@ -3149,7 +3112,12 @@ const sv = (s) => {
 const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
-  if (!stockHasEligibleTodayQuote(s)) return 0;
+
+  // A stock contributes to today's P&L only after its data source has emitted
+  // a quote whose timestamp belongs to today's calendar date in Israel.
+  // Before the US market opens, Yahoo/Finnhub still report the previous session;
+  // that quote is intentionally treated as 0 for the new Israeli day.
+  if (!timestampIsTodayInIsrael(p.quoteTime)) return 0;
 
   const sh = getShares(s);
   if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
@@ -3967,41 +3935,53 @@ function goPage(id, btn) {
 // ═══════════════════════════════════════════
 // SPARKLINES
 // ═══════════════════════════════════════════
-async function drawSpark(cid, key, isCrypto, isUp, animate = true) {
+async function drawSpark(cid, key, isCrypto, isUp) {
+  // Find ALL elements with this ID — the same symbol can appear on dashboard AND on stocks/crypto page simultaneously.
+  // getElementById returns only the first; we need to draw on all of them.
   const containers = Array.from(document.querySelectorAll(`[id="${cid}"]`));
   if (!containers.length) return;
+  // If any container hasn't laid out yet, wait one frame and retry
   if (containers.some(c => !c.clientWidth)) {
     await new Promise(r => requestAnimationFrame(r));
-    if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 30));
+    if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 50));
   }
-
   let prices = S.sparks[key];
   if (!prices) {
     if (isCrypto) {
+      // 30-day crypto history → ~30 points for a naturally curvy line
       const h = await getCryptoHist(key, 30);
       prices = h.map(([, p]) => p);
     } else {
+      // 1-month stock history (Yahoo daily candles) → ~22 trading-day points
       try {
         const data = await getStockHist(key, '1mo');
         if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
       } catch (_) {}
+      // fallback if Yahoo blocks: still better than 3 points — interpolate intraday-style noise
       if (!prices?.length) {
         const p = S.sp[key];
-        const open = p?.prevClose ?? 100;
+        // Use known prices if we have them, otherwise a generic sine wave so the area isn't empty
+        const open  = p?.prevClose ?? 100;
         const close = p?.price ?? (open * (isUp ? 1.05 : 0.95));
+        // Hash the symbol to a stable per-symbol seed so each ticker gets a unique fake curve
         let seed = 0;
         for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
-        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;
-        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;
-        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;
-        const phase = (Math.abs(seed >> 3) % 628) / 100;
-        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;
+        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;             // 0.7–1.7
+        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;        // 1.2–2.5
+        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;        // 0.3–1.1
+        const phase = (Math.abs(seed >> 3) % 628) / 100;           // 0–2π
+        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;       // 0.22–0.4
         const n = 30;
         prices = Array.from({ length: n }, (_, i) => {
           const t = i / (n - 1);
           const trend = open + (close - open) * t;
-          const wave = Math.sin(i * f1 + phase) + Math.sin(i * f2 + phase * 1.7) * 0.6 + Math.sin(i * f3 + phase * 0.4) * 0.4;
-          return trend + wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
+          const wave = (
+            Math.sin(i * f1 + phase) +
+            Math.sin(i * f2 + phase * 1.7) * 0.6 +
+            Math.sin(i * f3 + phase * 0.4) * 0.4
+          );
+          const noise = wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
+          return trend + noise;
         });
       }
     }
@@ -4010,8 +3990,8 @@ async function drawSpark(cid, key, isCrypto, isUp, animate = true) {
   if (!prices?.length || prices.length < 2) return;
 
   const col = isUp ? upColor() : downColor();
-  const W = containers[0].clientWidth || containers[0].offsetWidth || 320;
-  const H = 56;
+  // Use the first container to measure width; same logical width for all instances.
+  const W = containers[0].clientWidth || containers[0].offsetWidth || 320, H = 56;
   const mn = Math.min(...prices), mx = Math.max(...prices);
   const range = mx - mn || 1;
   const pts = prices.map((p, i) => {
@@ -4020,29 +4000,32 @@ async function drawSpark(cid, key, isCrypto, isUp, animate = true) {
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   const d = 'M ' + pts.join(' L ');
+
+  // measure path length for dash animation
+  const tmp = document.createElementNS('http://www.w3.org/2000/svg','path');
+  tmp.setAttribute('d', d);
+  document.body.appendChild(tmp);
+  const len = Math.ceil(tmp.getTotalLength()) + 10;
+  document.body.removeChild(tmp);
+
+  // fill area path (closed, no animation — just fades in with the line)
   const fillD = d + ` L ${W},${H} L 0,${H} Z`;
-
-  let len = 0;
-  if (animate) {
-    const tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    tmp.setAttribute('d', d);
-    document.body.appendChild(tmp);
-    len = Math.ceil(tmp.getTotalLength()) + 10;
-    document.body.removeChild(tmp);
-  }
-
-  const fillAttrs = animate
-    ? `opacity="0" style="animation:fadeIn 1.2s cubic-bezier(.55,.2,.2,1) .15s forwards"`
-    : `opacity="1"`;
-  const lineAttrs = animate
-    ? `class="spark-path" style="--dash-len:${len};stroke-dasharray:${len};stroke-dashoffset:${len};animation:drawLine 1.2s cubic-bezier(.55,.2,.2,1) forwards"`
-    : `style="stroke-dasharray:none;stroke-dashoffset:0"`;
 
   const svgHTML = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
-      <path d="${fillD}" fill="${col}" fill-opacity="0.12" ${fillAttrs}/>
-      <path ${lineAttrs} d="${d}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs>
+        <linearGradient id="sg_${cid}_${Math.random().toString(36).slice(2,8)}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="${col}" stop-opacity="0.18"/>
+          <stop offset="1" stop-color="${col}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${fillD}" fill="${col}" fill-opacity="0.12" opacity="0" style="animation:fadeIn 2.4s cubic-bezier(.55,.2,.2,1) .3s forwards"/>
+      <path class="spark-path" d="${d}" fill="none"
+        stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+        style="--dash-len:${len}; stroke-dasharray:${len}; stroke-dashoffset:${len};
+               animation: drawLine 2.4s cubic-bezier(.55,.2,.2,1) forwards;"/>
     </svg>`;
+  // draw on EVERY container with this id (dashboard + page may both have it)
   containers.forEach(c => { c.innerHTML = svgHTML; });
 }
 
@@ -4082,54 +4065,29 @@ function cardHTML(o) {
 
 function renderDashCrypto() {
   const g = document.getElementById('dCGrid');
-  if (!g) return;
   const sorted = [...S.crypto].sort((a, b) => cv(b) - cv(a));
-  const signature = sorted.map(a => a.id || a.sym).join('|');
-  const animate = S._dashCryptoSignature !== signature;
-
+  const signature = sorted.map(a => `${a.id}:${a.sym}`).join('|');
+  const animate = g.dataset.assetSignature !== signature;
+  g.dataset.assetSignature = signature;
   g.innerHTML = sorted.map((a, idx) => {
     const p = S.cp[a.id], pu = p?.usd;
-    const html = cardHTML({
-      sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',
-      value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,
-      priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',
-      priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)
-    });
-    return animate
-      ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 45}ms"`)
-      : html;
+    const html = cardHTML({sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)});
+    return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-
-  const draw = () => sorted.forEach(a => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0, animate));
-  animate ? requestAnimationFrame(draw) : draw();
-  S._dashCryptoSignature = signature;
+  if (animate) sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 40));
 }
 
 function renderDashStocks() {
   const g = document.getElementById('dSGrid');
-  if (!g) return;
-  const signature = S.stocks.map(stock => stock.sym).join('|');
-  const animate = S._dashStockSignature !== signature;
-
-  g.innerHTML = S.stocks.map((stock, idx) => {
-    const p = S.sp[stock.sym], pu = p?.price;
-    const html = cardHTML({
-      sym:stock.sym,name:stock.name,icon:stock.icon,color:stock.color,type:'stock',
-      value:sv(stock),qtyLabel:'NASDAQ / Equity',
-      priceStr:pu?`<span>${fPriceNative(pu, p?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',
-      priceUSD:pu,change:p?.change??null,pnlDay:spnl(stock),pnlTotal:stockTotalPnl(stock)
-    });
-    return animate
-      ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 45}ms"`)
-      : html;
+  const signature = S.stocks.map(s => s.sym).join('|');
+  const animate = g.dataset.assetSignature !== signature;
+  g.dataset.assetSignature = signature;
+  g.innerHTML = S.stocks.map((s, idx) => {
+    const p = S.sp[s.sym], pu = p?.price;
+    const html = cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ / Equity',priceStr:pu?`<span>${fPriceNative(pu, S.sp[s.sym]?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s),pnlTotal:stockTotalPnl(s)});
+    return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-
-  const draw = () => S.stocks.forEach(stock => {
-    const p = S.sp[stock.sym];
-    if (p) drawSpark(`spk_${stock.sym}`, stock.sym, false, p.change >= 0, animate);
-  });
-  animate ? requestAnimationFrame(draw) : draw();
-  S._dashStockSignature = signature;
+  if (animate) S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 40); });
 }
 
 function updateKPIs() {
@@ -4177,18 +4135,18 @@ function updateKPIs() {
   const pnlPctStr = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
   pnlEl.innerHTML = `${pnlAbsStr} <span style="opacity:.75;font-size:.78em">(${pnlPctStr})</span>`;
   pnlEl.style.color = pnlTotal >= 0 ? 'var(--gr)' : 'var(--rd)';
-  // Describe which asset classes have eligible data; a genuine 0.00% stock move is still stock data.
-  const eligibleStocks = S.stocks.filter(stockHasEligibleTodayQuote).length;
-  const hasUsStocks = S.stocks.some(stock => isUsTickerSymbol(stock.sym));
-  const waitingForOpeningData = hasUsStocks && hasUsRegularSessionStartedToday() && eligibleStocks === 0;
-  const cryptoOnly = S.stocks.length > 0 && eligibleStocks === 0 && S.crypto.length > 0 && !waitingForOpeningData;
+  // The label is based on quote freshness, not on the numeric stock P&L being exactly zero.
+  const freshStockQuotes = S.stocks.filter(s => timestampIsTodayInIsrael(S.sp[s.sym]?.quoteTime)).length;
   const hintEl = document.getElementById('cryptoOnlyHint');
   if (hintEl) {
-    hintEl.innerHTML = waitingForOpeningData
-      ? `<span class="crypto-only-hint" style="color:var(--gd);border-color:color-mix(in srgb,var(--gd) 35%,transparent);background:color-mix(in srgb,var(--gd) 12%,transparent)"><i class="fi fi-tr-clock-three"></i>ממתין לנתוני מניות</span>`
-      : cryptoOnly
-        ? `<span class="crypto-only-hint"><i class="fi fi-tr-coins"></i>קריפטו בלבד</span>`
-        : '';
+    if (S.stocks.length && !freshStockQuotes && S.crypto.length) {
+      const waiting = isUsRegularMarketOpenNow();
+      hintEl.innerHTML = waiting
+        ? `<span class="crypto-only-hint"><i class="fi fi-tr-clock"></i>ממתין לנתוני מניות</span>`
+        : `<span class="crypto-only-hint"><i class="fi fi-tr-coins"></i>קריפטו בלבד</span>`;
+    } else {
+      hintEl.innerHTML = '';
+    }
   }
   let best = null, bc = -Infinity;
   S.crypto.forEach(a => { const ch = cc(a); if (ch != null && ch > bc) { bc = ch; best = a.sym; } });
@@ -4198,37 +4156,16 @@ function updateKPIs() {
 }
 
 function renderAlloc(c, st) {
-  const labels = [], values = [], colors = [];
-  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { labels.push(a.sym); values.push(v); colors.push(a.color + 'cc'); } });
-  S.stocks.forEach(stock => { labels.push(stock.sym); values.push(sv(stock)); colors.push(stock.color + 'cc'); });
+  const lbs = [], vs = [], cls = [];
+  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { lbs.push(a.sym); vs.push(v); cls.push(a.color + 'cc'); } });
+  S.stocks.forEach(s => { lbs.push(s.sym); vs.push(sv(s)); cls.push(s.color + 'cc'); });
 
   const labelColor = brandColor('t2');
   const opt = {plugins:{legend:{position:'right',labels:{color:labelColor,font:{family:'JetBrains Mono',size:9},padding:4,boxWidth:6}}},cutout:'70%',animation:{duration:400}};
-
-  if (!S.aC) {
-    S.aC = new Chart(document.getElementById('allocChart'), {
-      type:'doughnut', data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:1,borderColor:'transparent'}]}, options:opt
-    });
-  } else {
-    S.aC.data.labels = labels;
-    S.aC.data.datasets[0].data = values;
-    S.aC.data.datasets[0].backgroundColor = colors;
-    S.aC.options.plugins.legend.labels.color = labelColor;
-    S.aC.update('none');
-  }
-
-  const splitData = [c, st];
-  const splitColors = [accentCol()+'cc', upColor()+'cc'];
-  if (!S.sC) {
-    S.sC = new Chart(document.getElementById('splitChart'), {
-      type:'doughnut', data:{labels:['קריפטו','מניות'],datasets:[{data:splitData,backgroundColor:splitColors,borderWidth:1,borderColor:'transparent'}]}, options:opt
-    });
-  } else {
-    S.sC.data.datasets[0].data = splitData;
-    S.sC.data.datasets[0].backgroundColor = splitColors;
-    S.sC.options.plugins.legend.labels.color = labelColor;
-    S.sC.update('none');
-  }
+  if (S.aC) S.aC.destroy();
+  S.aC = new Chart(document.getElementById('allocChart'), {type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'transparent'}]},options:opt});
+  if (S.sC) S.sC.destroy();
+  S.sC = new Chart(document.getElementById('splitChart'), {type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:[accentCol()+'cc', upColor()+'cc'],borderWidth:1,borderColor:'transparent'}]},options:opt});
 }
 
 // ═══════════════════════════════════════════
@@ -4838,186 +4775,290 @@ function renderInsights() {
 // ═══════════════════════════════════════════
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
-  el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:12px;text-align:center"><i class="fi fi-tr-hourglass fi-spin" style="vertical-align:-2px;margin-left:6px"></i>מאחזר נתוני סגירה היסטוריים משרתי ה-API...</div>';
-  const days = parseInt(document.getElementById('histDays')?.value || '30');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:12px;text-align:center"><i class="fi fi-tr-hourglass fi-spin" style="vertical-align:-2px;margin-left:6px"></i>מחשב P&L יומי לפי שעון ישראל...</div>';
+  const days = Math.max(1, parseInt(document.getElementById('histDays')?.value || '30', 10));
 
-  // Update range title
+  const addDaysKey = (key, amount) => {
+    const [y, m, d] = key.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + amount, 12, 0, 0));
+    return dt.toISOString().slice(0, 10);
+  };
+  const keyToIsraelMidnightMs = key => {
+    const [y, m, d] = key.split('-').map(Number);
+    const localMidnightAsUtc = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
+    let guess = localMidnightAsUtc;
+    for (let i = 0; i < 3; i++) guess = localMidnightAsUtc - timeZoneOffsetMs(guess, APP_TIME_ZONE);
+    return guess;
+  };
+  const lotDateKey = value => {
+    if (!value) return '';
+    const raw = String(value).trim();
+    const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    const ms = Date.parse(raw);
+    return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
+  };
+  const qtyOnDate = (asset, dateKey, type) => {
+    if (Array.isArray(asset.lots) && asset.lots.length) {
+      let qty = 0;
+      for (const lot of asset.lots) {
+        const q = parseFloat(lot.qty) || 0;
+        const lk = lotDateKey(lot.date);
+        if (!lk || lk <= dateKey) qty += q;
+      }
+      return qty;
+    }
+    return type === 'stock' ? getShares(asset) : cQty(asset);
+  };
+  const stockUsesIls = s => {
+    const currency = String(S.sp[s.sym]?.currency || '').toUpperCase();
+    return currency === 'ILS' || currency === 'ILA' || /\.TA$/i.test(s.sym);
+  };
+  const nearestSamplePrice = (samples, targetMs, maxDistanceMs = 3 * 60 * 60 * 1000) => {
+    let best = null, bestDist = Infinity;
+    for (const sample of samples) {
+      const dist = Math.abs(sample.t - targetMs);
+      if (dist < bestDist) { bestDist = dist; best = sample.p; }
+    }
+    return bestDist <= maxDistanceMs ? best : null;
+  };
+
+  const todayKey = todayIsraelDateKey();
+  const allDays = [];
+  for (let i = days - 1; i >= 0; i--) allDays.push(addDaysKey(todayKey, -i));
+  const nextDayKey = addDaysKey(allDays[allDays.length - 1], 1);
+  const boundaryKeys = [...allDays, nextDayKey];
+
   const titleEl = document.getElementById('histRangeTitle');
   if (titleEl) {
-    const fmtDate = d => fDate(d, { year: 'numeric' });
-    const dateFrom = new Date(); dateFrom.setDate(dateFrom.getDate() - days);
-    titleEl.textContent = `${fmtDate(dateFrom)} 00:00 ➔ ${fmtDate(new Date())} 00:00`;
+    const from = new Date(`${allDays[0]}T12:00:00Z`);
+    const to = new Date(`${nextDayKey}T12:00:00Z`);
+    titleEl.textContent = `${fDate(from, {year:'numeric'})} 00:00 ➔ ${fDate(to, {year:'numeric'})} 00:00`;
   }
-
-  // Convert ms timestamp to Israel date string YYYY-MM-DD (UTC+3)
-  const toILDateKey = ms => {
-    const d = new Date(ms + 3 * 60 * 60 * 1000);
-    return d.toISOString().slice(0, 10);
-  };
 
   try {
     S.stocks.forEach(s => { if (!s.shares && s.qty) s.shares = s.qty; });
 
-    // ── Stocks: Yahoo daily candles keyed by Israel date ──
+    // Historical USD/ILS by date. Missing weekend rates carry forward.
+    const fxByDay = {};
+    try {
+      const fxStart = addDaysKey(allDays[0], -7);
+      const fxEnd = nextDayKey;
+      const r = await fetch(`https://api.frankfurter.app/${fxStart}..${fxEnd}?from=USD&to=ILS`, {
+        signal: AbortSignal.timeout(9000), cache: 'no-store'
+      });
+      if (r.ok) {
+        const data = await r.json();
+        Object.entries(data?.rates || {}).forEach(([key, value]) => {
+          const rate = Number(value?.ILS);
+          if (rate > 0) fxByDay[key] = rate;
+        });
+      }
+    } catch (_) {}
+    let lastFx = S.fx;
+    for (const dk of boundaryKeys) {
+      if (fxByDay[dk] > 0) lastFx = fxByDay[dk];
+      else fxByDay[dk] = lastFx;
+    }
+
+    // Stocks: one close per exchange session, plus today's live quote when fresh.
     const stockHist = {};
     await Promise.all(S.stocks.map(async s => {
       try {
         const range = days <= 7 ? '1mo' : days <= 30 ? '3mo' : '6mo';
         const data = await fetchYahooCandles(s.sym, range);
-        if (!data?.length) return;
         const map = {};
-        data.forEach(item => {
-          map[toILDateKey(item.t)] = { c: item.p };
+        (data || []).forEach(item => {
+          const key = dateKeyInTimeZone(item.t, APP_TIME_ZONE);
+          if (key && item.p > 0) map[key] = Number(item.p);
         });
+        const live = S.sp[s.sym];
+        if (live?.price > 0 && timestampIsTodayInIsrael(live.quoteTime)) map[todayKey] = Number(live.price);
         stockHist[s.sym] = map;
-      } catch(_) {}
+      } catch (_) { stockHist[s.sym] = {}; }
     }));
 
-    // ── Crypto: Binance 1d candles, use close-time → Israel date ──
-    const cryptoHist = {};
+    // Crypto: hourly candles are sampled exactly at 00:00 Israel. This avoids
+    // Binance's UTC daily candle shifting the result into the wrong calendar day.
+    const cryptoBoundary = {};
     await Promise.all(S.crypto.map(async a => {
-      const bs = BN[a.sym]; if (!bs) return;
-      try {
-        const limit = Math.min(days + 5, 100);
-        const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&limit=${limit}`);
-        const arr = await r.json();
-        const map = {};
-        arr.forEach(k => {
-          // k[6] = close time ms — end of candle = closing price timestamp
-          map[toILDateKey(k[6])] = { c: parseFloat(k[4]) };
-        });
-        cryptoHist[a.sym] = map;
-      } catch(_) {}
+      const map = {};
+      const samples = [];
+      const startMs = keyToIsraelMidnightMs(boundaryKeys[0]) - 60 * 60 * 1000;
+      const endMs = keyToIsraelMidnightMs(nextDayKey) + 2 * 60 * 60 * 1000;
+      const bs = BN[a.sym];
+
+      if (bs) {
+        try {
+          let cursor = startMs;
+          for (let page = 0; page < 6 && cursor < endMs; page++) {
+            const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(bs)}&interval=1h&startTime=${Math.floor(cursor)}&endTime=${Math.floor(endMs)}&limit=1000`;
+            const r = await fetch(url, { signal: AbortSignal.timeout(10000), cache: 'no-store' });
+            const arr = await r.json();
+            if (!Array.isArray(arr) || !arr.length) break;
+            arr.forEach(k => {
+              const t = Number(k[0]);
+              const p = parseFloat(k[1]); // candle open = boundary price
+              if (Number.isFinite(t) && p > 0) samples.push({t, p});
+            });
+            const next = Number(arr[arr.length - 1][0]) + 60 * 60 * 1000;
+            if (!(next > cursor)) break;
+            cursor = next;
+            if (arr.length < 1000) break;
+          }
+        } catch (_) {}
+      }
+
+      if (!samples.length) {
+        const cgId = CG_ID[a.sym] || a.id || a.sym.toLowerCase();
+        try {
+          const r = await fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(cgId)}/market_chart/range?vs_currency=usd&from=${Math.floor(startMs/1000)}&to=${Math.ceil(endMs/1000)}`, {
+            signal: AbortSignal.timeout(10000), cache: 'no-store'
+          });
+          const d = await r.json();
+          (d?.prices || []).forEach(([t, p]) => { if (Number(t) && Number(p) > 0) samples.push({t:Number(t), p:Number(p)}); });
+        } catch (_) {}
+      }
+
+      for (const key of boundaryKeys) {
+        const price = nearestSamplePrice(samples, keyToIsraelMidnightMs(key));
+        if (price > 0) map[key] = price;
+      }
+      const live = S.cp[a.id]?.usd;
+      if (live > 0) map[nextDayKey] = map[nextDayKey] || (todayKey === allDays[allDays.length - 1] ? Number(live) : null);
+      cryptoBoundary[a.sym] = map;
     }));
 
-    // Build date list in Israel time
-    const allDays = [];
-    for (let i = days; i >= 0; i--) {
-      const d = new Date(Date.now() + 3 * 60 * 60 * 1000);
-      d.setUTCDate(d.getUTCDate() - i);
-      allDays.push(d.toISOString().slice(0, 10));
-    }
-
-    // Seed carry-forward from last known price before the window
-    const lastStock = {};
-    S.stocks.forEach(s => {
-      const map = stockHist[s.sym]; if (!map) return;
-      const sorted = Object.keys(map).sort();
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (sorted[i] < allDays[0]) { lastStock[s.sym] = map[sorted[i]].c; break; }
-      }
-      if (!lastStock[s.sym] && sorted.length) lastStock[s.sym] = map[sorted[0]].c;
-      if (!lastStock[s.sym] && S.sp[s.sym]?.price) lastStock[s.sym] = S.sp[s.sym].price;
-    });
-
-    const lastCrypto = {};
-    S.crypto.forEach(a => {
-      const map = cryptoHist[a.sym]; if (!map) return;
-      const sorted = Object.keys(map).sort();
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (sorted[i] < allDays[0]) { lastCrypto[a.sym] = map[sorted[i]].c; break; }
-      }
-      if (!lastCrypto[a.sym] && sorted.length) lastCrypto[a.sym] = map[sorted[0]].c;
-    });
-
-    // Build daily portfolio totals — stocks + crypto combined, with carry-forward
-    const dailyTotals = [];
-    for (const dk of allDays) {
-      let total = 0; let hasData = false;
-
-      S.stocks.forEach(s => {
-        const sh = getShares(s); if (!sh) return;
-        const map = stockHist[s.sym];
-        if (map?.[dk]) { lastStock[s.sym] = map[dk].c; hasData = true; }
-        if (lastStock[s.sym]) total += lastStock[s.sym] * sh * S.fx;
-      });
-
-      S.crypto.forEach(a => {
-        const map = cryptoHist[a.sym];
-        if (map?.[dk]) { lastCrypto[a.sym] = map[dk].c; hasData = true; }
-        if (lastCrypto[a.sym]) total += lastCrypto[a.sym] * a.qty * S.fx;
-      });
-
-      if (total > 0) dailyTotals.push({ dateKey: dk, total, hasTrading: hasData });
-    }
-
-    // P&L per day = total[i] - total[i-1]
     const rows = [];
-    for (let i = 1; i < dailyTotals.length; i++) {
-      rows.push({
-        dateKey:    dailyTotals[i].dateKey,
-        prevTotal:  dailyTotals[i-1].total,
-        total:      dailyTotals[i].total,
-        hasTrading: dailyTotals[i].hasTrading
-      });
+    for (const dateKey of allDays) {
+      const tomorrowKey = addDaysKey(dateKey, 1);
+      const fx = fxByDay[dateKey] || S.fx;
+      let stockStart = 0, stockEnd = 0, stockPnl = 0, stockHasData = false;
+      let cryptoStart = 0, cryptoEnd = 0, cryptoPnl = 0, cryptoHasData = false;
+
+      for (const s of S.stocks) {
+        const qty = qtyOnDate(s, dateKey, 'stock');
+        if (!(qty > 0)) continue;
+        const map = stockHist[s.sym] || {};
+        const keys = Object.keys(map).sort();
+        let previousClose = null;
+        let sessionClose = null;
+        for (const key of keys) {
+          if (key < dateKey) previousClose = map[key];
+          if (key === dateKey) sessionClose = map[key];
+          if (key > dateKey) break;
+        }
+        const live = S.sp[s.sym];
+        if (dateKey === todayKey && timestampIsTodayInIsrael(live?.quoteTime) && live?.price > 0) {
+          sessionClose = live.price;
+          if (live.prevClose > 0) previousClose = live.prevClose;
+        }
+        if (!(previousClose > 0)) continue;
+        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
+        const factor = stockUsesIls(s) ? 1 : fx;
+        stockStart += previousClose * qty * factor;
+        stockEnd += endPrice * qty * factor;
+        if (sessionClose > 0) {
+          stockPnl += (sessionClose - previousClose) * qty * factor;
+          stockHasData = true;
+        }
+      }
+
+      for (const a of S.crypto) {
+        const qty = qtyOnDate(a, dateKey, 'crypto');
+        if (!(qty > 0)) continue;
+        const map = cryptoBoundary[a.sym] || {};
+        const startPrice = Number(map[dateKey]);
+        let endPrice = Number(map[tomorrowKey]);
+        if (dateKey === todayKey && S.cp[a.id]?.usd > 0) endPrice = Number(S.cp[a.id].usd);
+        if (!(startPrice > 0) || !(endPrice > 0)) continue;
+        cryptoStart += startPrice * qty * fx;
+        cryptoEnd += endPrice * qty * fx;
+        cryptoPnl += (endPrice - startPrice) * qty * fx;
+        cryptoHasData = true;
+      }
+
+      const prevTotal = stockStart + cryptoStart;
+      const pnl = stockPnl + cryptoPnl;
+      const total = prevTotal + pnl;
+      if (prevTotal > 0 || total > 0) {
+        rows.push({
+          dateKey, prevTotal, total, stockPnl, cryptoPnl, pnl,
+          hasTrading: stockHasData || cryptoHasData,
+          stockHasData, cryptoHasData,
+        });
+      }
     }
     rows.reverse();
+    window.__lastHistoryRows = rows;
 
     if (!rows.length) {
       el.innerHTML = '<div style="color:var(--t3);font-size:11px;padding:8px;text-align:center">אין היסטוריית נתונים מוקלטת</div>';
       return;
     }
 
-    const chartRows   = [...rows].reverse();
+    const chartRows = [...rows].reverse();
     const chartLabels = chartRows.map(r => r.dateKey.slice(5).replace('-', '/'));
-    const chartData   = chartRows.map(r => Math.round(r.total));
+    const chartData = chartRows.map(r => Math.round(r.total));
+    const pnlCell = value => {
+      const up = value >= 0;
+      return `<span style="font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;
+    };
 
     let html = `
-    <canvas id="histChart" style="width:100%;height:150px;margin-bottom:14px"></canvas>
-    <div style="overflow-x:auto">
-    <table style="width:100%">
-      <thead>
-        <tr style="color:var(--t3);text-align:right;">
-          <th style="padding:6px 2px">תאריך</th>
-          <th style="padding:6px 2px;text-align:left;">ערך בסיס קודם</th>
-          <th style="padding:6px 2px;text-align:left;">ערך נוכחי</th>
-          <th style="padding:6px 2px;text-align:left;">P&L יומי</th>
-        </tr>
-      </thead><tbody>`;
+      <canvas id="histChart" style="width:100%;height:150px;margin-bottom:10px"></canvas>
+      <div style="font-size:10.5px;color:var(--t3);margin-bottom:12px;text-align:center">מניות + קריפטו = P&L יומי · יום קלנדרי בישראל 00:00–00:00</div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;min-width:760px">
+        <thead><tr style="color:var(--t3);text-align:right;">
+          <th style="padding:6px 4px">תאריך</th>
+          <th style="padding:6px 4px;text-align:left">ערך בסיס קודם</th>
+          <th style="padding:6px 4px;text-align:left">ערך נוכחי</th>
+          <th style="padding:6px 4px;text-align:left">מניות</th>
+          <th style="padding:6px 4px;text-align:left">קריפטו</th>
+          <th style="padding:6px 4px;text-align:left">P&L יומי</th>
+        </tr></thead><tbody>`;
 
     for (const row of rows) {
-      const { dateKey, prevTotal, total, hasTrading } = row;
-      const dateStr = fDateShort(new Date(dateKey));
-      const pnl = total - prevTotal; const pct = prevTotal ? (pnl / prevTotal * 100) : 0;
-      const up  = pnl >= 0; const dim = hasTrading ? '' : 'opacity:0.5';
-
-      html += `<tr style="${dim}">
-        <td style="padding:7px 2px;color:var(--t2)">${dateStr}${hasTrading?'':' 🔒'}</td>
-        <td style="padding:7px 2px;text-align:left;">${fILS(prevTotal)}</td>
-        <td style="padding:7px 2px;text-align:left;">${fILS(total)}</td>
-        <td style="padding:7px 2px;text-align:left;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(pnl)} (${fPct(pct)})</td>
+      const dateStr = fDateShort(new Date(`${row.dateKey}T12:00:00Z`));
+      const pct = row.prevTotal ? (row.pnl / row.prevTotal * 100) : 0;
+      const up = row.pnl >= 0;
+      html += `<tr style="${row.hasTrading?'':'opacity:.5'}">
+        <td style="padding:8px 4px;color:var(--t2);white-space:nowrap">${dateStr}${row.hasTrading?'':' 🔒'}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.prevTotal)}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.stockHasData?pnlCell(row.stockPnl):'<span style="color:var(--t3)">₪0</span>'}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):'<span style="color:var(--t3)">₪0</span>'}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
-
     html += '</tbody></table></div>';
     el.innerHTML = html;
 
     const ctx = document.getElementById('histChart')?.getContext('2d');
     if (ctx && window.Chart) {
+      if (S.histChart) { try { S.histChart.destroy(); } catch (_) {} }
       const activeColor = accentCol();
-      new Chart(ctx, {
+      S.histChart = new Chart(ctx, {
         type: 'line',
-        data: {
-          labels: chartLabels,
-          datasets: [{
-            data: chartData,
-            borderColor: activeColor,
-            backgroundColor: 'transparent',
-            borderWidth: 2, pointRadius: 0, tension: 0.15, fill: false
-          }]
-        },
+        data: { labels: chartLabels, datasets: [{
+          data: chartData, borderColor: activeColor, backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 0, tension: .15, fill: false
+        }]},
         options: {
           responsive: true,
           plugins: { legend:{display:false} },
           scales: {
-            x: {ticks:{color:axisColor(),maxTicksLimit:5,font:{size:9}}, grid:{display:false}},
-            y: {ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;const cv=convertFromILS(v,cur);return def.sym+(cv/1000).toFixed(0)+'K';}}, grid:{color:'rgba(127,127,127,0.04)'}}
+            x: {ticks:{color:axisColor(),maxTicksLimit:5,font:{size:9}},grid:{display:false}},
+            y: {ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,.04)'}}
           }
         }
       });
     }
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--t3);font-size:11px;padding:8px">כשל בקריאה אנליטית: ${e.message}</div>`;
+  } catch (e) {
+    console.error('[History] calculation failed:', e);
+    el.innerHTML = `<div style="color:var(--t3);font-size:11px;padding:8px">כשל בקריאה אנליטית: ${String(e?.message || e)}</div>`;
   }
 }
 
@@ -6275,48 +6316,30 @@ async function renderDashPeriod(period, customFrom, customTo) {
 // ═══════════════════════════════════════════
 // SYNC & REFRESH
 // ═══════════════════════════════════════════
-let portfolioRefreshPromise = null;
-
-async function doRefresh({ background = false } = {}) {
-  if (portfolioRefreshPromise) return portfolioRefreshPromise;
-
-  const btn = document.getElementById('refreshBtn');
-  const overlay = document.getElementById('refreshOverlay');
-  if (!background && btn) btn.classList.add('spin');
-  if (!background && overlay) overlay.classList.add('show');
-
-  portfolioRefreshPromise = (async () => {
+let refreshInFlight = null;
+async function doRefresh() {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const btn = document.getElementById('refreshBtn');
+    const overlay = document.getElementById('refreshOverlay');
+    if (btn) btn.classList.add('spin');
+    if (overlay) overlay.classList.add('show');
     try {
       await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
-      renderDashCrypto();
-      renderDashStocks();
-      updateKPIs();
-      if (S.curPage === 'stocks')   renderStocksPage();
-      if (S.curPage === 'crypto')   renderCryptoPage();
+      renderDashCrypto(); renderDashStocks(); updateKPIs();
+      if (S.curPage === 'stocks') renderStocksPage();
+      if (S.curPage === 'crypto') renderCryptoPage();
       if (S.curPage === 'insights') renderInsights();
-      updateClocks();
-      updateDailyDate();
+      updateClocks(); updateDailyDate();
     } catch (e) {
       console.error('Refresh failed:', e);
+    } finally {
+      if (btn) btn.classList.remove('spin');
+      if (overlay) overlay.classList.remove('show');
     }
   })();
-
-  try {
-    await portfolioRefreshPromise;
-  } finally {
-    portfolioRefreshPromise = null;
-    if (!background && btn) btn.classList.remove('spin');
-    if (!background && overlay) overlay.classList.remove('show');
-  }
-}
-
-function scheduleNextPortfolioRefresh() {
-  if (appRefreshTimer) clearTimeout(appRefreshTimer);
-  const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
-  appRefreshTimer = setTimeout(async () => {
-    await doRefresh({ background: true });
-    scheduleNextPortfolioRefresh();
-  }, delay);
+  try { return await refreshInFlight; }
+  finally { refreshInFlight = null; }
 }
 
 
@@ -6490,8 +6513,16 @@ window.proceedToApp = async function() {
   renderPortfolioImmediately();
 
   // Market prices refresh in the background; synchronized holdings are already visible.
-  doRefresh({ background: true });
-  scheduleNextPortfolioRefresh();
+  doRefresh();
+  if (appRefreshTimer) clearTimeout(appRefreshTimer);
+  const scheduleRefresh = () => {
+    const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
+    appRefreshTimer = setTimeout(async () => {
+      if (document.visibilityState === 'visible') await doRefresh();
+      scheduleRefresh();
+    }, delay);
+  };
+  scheduleRefresh();
 
 
 
