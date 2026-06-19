@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-period-summary-v8-final">
+<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-19-period-summary-v8-final");
+console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -6291,8 +6291,8 @@ let dashPeriodInFlight = new Map();
 let dashPeriodAutoAt = 0;
 let dashPeriodLastSignature = '';
 
-const DASH_PERIOD_CACHE_KEY = 'vector_period_cache_v8';
-const DASH_PERIOD_CACHE_VERSION = 8;
+const DASH_PERIOD_CACHE_KEY = 'vector_period_cache_v9';
+const DASH_PERIOD_CACHE_VERSION = 9;
 let dashPeriodCacheStore = null;
 let dashPeriodCacheSaveTimer = null;
 
@@ -6518,21 +6518,25 @@ async function dashComputeStock(asset,range,fxMap){
   if(!(endPrice>0))return null;
   const isIls=dashStockUsesIls(asset), endFx=isIls?1:(range.includesToday?S.fx:dashFxAt(fxMap,range.endBoundaryKey||range.endKey));
   let startValue=0,endValue=0,firstActive='';
+  let usedEntryFallback=false;
   for(const lot of lots){
-    const boughtInside=!!lot.dateKey && lot.dateKey>=range.fromKey;
+    const hasKnownDate=!!lot.dateKey;
+    const boughtInside=hasKnownDate && lot.dateKey>=range.fromKey;
+    const useEntryFallback=!hasKnownDate && lot.price>0;
     const effective=boughtInside?lot.dateKey:range.fromKey;
     let startPrice;
-    if(boughtInside&&lot.price>0) startPrice=lot.price;
+    if((boughtInside||useEntryFallback)&&lot.price>0) startPrice=lot.price;
     else if(!boughtInside&&range.fromKey===todayIsraelDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
     else startPrice=dashPickPrice(series,effective,{strictBefore:!boughtInside});
     if(!(startPrice>0))continue;
-    const startFx=isIls?1:dashFxAt(fxMap,effective);
+    const startFx=isIls?1:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
     startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
+    if(useEntryFallback) usedEntryFallback=true;
     if(!firstActive||effective<firstActive)firstActive=effective;
   }
   if(!(startValue>0))return null;
-  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'stock',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive};
+  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'stock',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive,basis:usedEntryFallback?'entry':'date'};
 }
 async function dashComputeCrypto(asset,range,fxMap){
   const lots=dashLotsForAsset(asset,'crypto').filter(l=>!l.dateKey||l.dateKey<=range.endKey);
@@ -6541,17 +6545,22 @@ async function dashComputeCrypto(asset,range,fxMap){
   if(!(endPrice>0))return null;
   const endFx=range.includesToday?S.fx:dashFxAt(fxMap,range.endBoundaryKey);
   let startValue=0,endValue=0,firstActive='';
+  let usedEntryFallback=false;
   for(const lot of lots){
-    const boughtInside=!!lot.dateKey&&lot.dateKey>=range.fromKey;
+    const hasKnownDate=!!lot.dateKey;
+    const boughtInside=hasKnownDate&&lot.dateKey>=range.fromKey;
+    const useEntryFallback=!hasKnownDate&&lot.price>0;
     const effective=boughtInside?lot.dateKey:range.fromKey;
-    const startPrice=boughtInside&&lot.price>0?lot.price:await dashGetCryptoBoundary(asset,effective);
+    const startPrice=(boughtInside||useEntryFallback)&&lot.price>0?lot.price:await dashGetCryptoBoundary(asset,effective);
     if(!(startPrice>0))continue;
-    startValue+=lot.qty*startPrice*dashFxAt(fxMap,effective);
+    const startFx=useEntryFallback?endFx:dashFxAt(fxMap,effective);
+    startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
+    if(useEntryFallback) usedEntryFallback=true;
     if(!firstActive||effective<firstActive)firstActive=effective;
   }
   if(!(startValue>0))return null;
-  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive};
+  return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive,basis:usedEntryFallback?'entry':'date'};
 }
 async function dashComputePeriod(range){
   const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
@@ -6571,7 +6580,7 @@ function dashSummaryCell(label,g){const up=g.pnl>=0;return `<div class="period-s
 function dashRenderPeriodData(data,{cached=false}={}){
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   const cards=data.items.map(x=>{
-    const up=x.pnl>=0,from=x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'';
+    const up=x.pnl>=0,from=x.basis==='entry'?'מחושב ממחיר הקנייה':(x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'');
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
@@ -6667,7 +6676,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v8-final');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
