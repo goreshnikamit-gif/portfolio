@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
+<meta name="app-version" content="2026-06-19-period-summary-v10-iphone-layout">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
+console.info("Vector build: 2026-06-19-period-summary-v10-iphone-layout");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -60,6 +60,7 @@ console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    BRAND BOOK 2026 — DESIGN TOKENS
@@ -586,6 +587,130 @@ body.light .news-chip.active { color: #F4EFE5; }
   .period-summary-grid { grid-template-columns:1fr; }
   .period-date-row { align-items:stretch; }
   .period-date-row input { flex:1; min-width:120px; }
+}
+
+
+/* ── IPHONE-STYLE TILE REORDERING ── */
+[data-layout-group] > [data-layout-key] {
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+}
+[data-layout-group].layout-editing > [data-layout-key] {
+  cursor: grab;
+  touch-action: none;
+  outline: 1px solid color-mix(in srgb, var(--ac) 48%, transparent);
+  outline-offset: -1px;
+  animation: layoutJiggle .19s ease-in-out infinite alternate;
+  transform-origin: 50% 55%;
+  will-change: transform;
+}
+[data-layout-group].layout-editing > [data-layout-key]:nth-child(2n) { animation-delay: -.08s; animation-direction: alternate-reverse; }
+[data-layout-group].layout-editing > [data-layout-key]:nth-child(3n) { animation-delay: -.13s; }
+[data-layout-group].layout-editing > [data-layout-key]::before {
+  content: '⋮⋮';
+  position: absolute;
+  top: 7px;
+  inset-inline-start: 8px;
+  z-index: 12;
+  min-width: 24px;
+  height: 21px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 64%, transparent);
+  border: 1px solid var(--b2);
+  color: var(--t2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -2px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  pointer-events: none;
+}
+@keyframes layoutJiggle {
+  from { transform: rotate(-.55deg) translateY(-.3px); }
+  to   { transform: rotate(.55deg) translateY(.3px); }
+}
+.layout-dragging {
+  animation: none !important;
+  cursor: grabbing !important;
+  z-index: 999 !important;
+  transform: scale(1.035) rotate(0deg) !important;
+  box-shadow: 0 24px 55px rgba(0,0,0,.5), 0 0 0 2px color-mix(in srgb, var(--ac) 62%, transparent) !important;
+  opacity: .98 !important;
+}
+.layout-ghost {
+  opacity: .22 !important;
+  transform: scale(.97) !important;
+  border: 1px dashed var(--ac) !important;
+  background: color-mix(in srgb, var(--ac) 10%, var(--s2)) !important;
+}
+.layout-chosen { filter: brightness(1.05); }
+body.layout-edit-mode #app,
+body.layout-edit-mode .modal { overscroll-behavior: contain; }
+#layoutEditBar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 450;
+  transform: translate(-50%, 18px) scale(.96);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--s2) 88%, transparent);
+  border: 1px solid var(--b2);
+  box-shadow: 0 20px 55px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  transition: opacity .2s ease, transform .22s cubic-bezier(.2,.9,.3,1.1);
+}
+#layoutEditBar.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+}
+.layout-edit-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 9px;
+  color: var(--t2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.layout-edit-label i { color: var(--ac); font-size: 15px; }
+.layout-edit-action {
+  border: 1px solid var(--b2);
+  background: var(--s3);
+  color: var(--t1);
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 13px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.layout-edit-action:hover { border-color: var(--ac); }
+.layout-edit-action.done { background: var(--ac); border-color: var(--ac); color: #fff; }
+@media (max-width: 640px) {
+  #layoutEditBar { bottom: calc(var(--nav) + var(--safe) + 22px); }
+  .layout-edit-label { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
+  [data-layout-group].layout-editing > [data-layout-key]::before { top: 5px; inset-inline-start: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-layout-group].layout-editing > [data-layout-key] { animation: none; }
 }
 
 /* ── HAMBURGER MENU (mobile) ── */
@@ -2070,11 +2195,11 @@ onAuthStateChanged(auth, async user => {
       </div>
 
 
-    <div class="stat-g">
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-currency-dollar ph-sm"></i> שער דולר</div><div class="s-val" id="fxKpi" style="color:var(--gd)">---</div><div class="s-sub" id="fxKpiSub">USD/ILS רציף</div></div>
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-trophy ph-sm"></i> ביצועים מובילים</div><div class="s-val" id="bestKpi" style="font-size:13px;color:var(--gr)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
+    <div class="stat-g" data-layout-group="dashboard-kpis" data-layout-label="כרטיסי הסיכום">
+      <div class="stat" data-layout-key="stocks"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
+      <div class="stat" data-layout-key="crypto"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
+      <div class="stat" data-layout-key="fx"><div class="s-lbl"><i class="ph-thin ph-currency-dollar ph-sm"></i> שער דולר</div><div class="s-val" id="fxKpi" style="color:var(--gd)">---</div><div class="s-sub" id="fxKpiSub">USD/ILS רציף</div></div>
+      <div class="stat" data-layout-key="best"><div class="s-lbl"><i class="ph-thin ph-trophy ph-sm"></i> ביצועים מובילים</div><div class="s-val" id="bestKpi" style="font-size:13px;color:var(--gr)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
     </div>
     </div>
 
@@ -2100,21 +2225,21 @@ onAuthStateChanged(auth, async user => {
         <button class="date-go" onclick="applyDashCustom()">חשב</button>
       </div>
       <div id="dashPeriodResult" style="display:block;margin-top:10px;">
-        <div class="period-result-grid" id="dashPeriodGrid">
+        <div class="period-result-grid" id="dashPeriodGrid" data-layout-group="dashboard-period-assets" data-layout-label="נכסים לפי תקופה">
           <div class="period-initial"><i class="fi fi-tr-hourglass fi-spin"></i> הנתונים יופיעו מיד לאחר טעינת התיק</div>
         </div>
       </div>
     </div>
 
     <div class="sec"><div class="sec-t"><i></i>מניות וניירות ערך</div><button class="add-b" onclick="openEditor('stock')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dSGrid"><div class="skel"></div></div>
+    <div class="grid" id="dSGrid" data-layout-group="dashboard-stocks" data-layout-label="כרטיסי המניות"><div class="skel"></div></div>
 
     <div class="sec"><div class="sec-t"><i></i>קריפטו ריל-טיים</div><button class="add-b" onclick="openEditor('crypto')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dCGrid"><div class="skel"></div><div class="skel"></div></div>
+    <div class="grid" id="dCGrid" data-layout-group="dashboard-crypto" data-layout-label="כרטיסי הקריפטו"><div class="skel"></div><div class="skel"></div></div>
 
-    <div class="crow">
-      <div class="cc"><div class="ct2">התפלגות תיק הנכסים</div><div class="ch"><canvas id="allocChart"></canvas></div></div>
-      <div class="cc"><div class="ct2">פילוח קטגוריות</div><div class="ch"><canvas id="splitChart"></canvas></div></div>
+    <div class="crow" data-layout-group="dashboard-charts" data-layout-label="גרפי התיק">
+      <div class="cc" data-layout-key="allocation"><div class="ct2">התפלגות תיק הנכסים</div><div class="ch"><canvas id="allocChart"></canvas></div></div>
+      <div class="cc" data-layout-key="categories"><div class="ct2">פילוח קטגוריות</div><div class="ch"><canvas id="splitChart"></canvas></div></div>
     </div>
   </div>
 
@@ -2157,7 +2282,7 @@ onAuthStateChanged(auth, async user => {
 
   <div class="page" id="page-insights">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מנוע תובנות אנליטי</div></div>
-    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary"></div></div>
+    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary" data-layout-group="insights-summary" data-layout-label="סיכום התובנות"></div></div>
     <div class="ins-card">
       <div class="ins-title" style="display:flex;justify-content:space-between;align-items:center">
         <span><i class="ph-thin ph-calendar-blank ph-sm"></i> היסטוריית ביצועים ו-P&L</span>
@@ -2202,6 +2327,12 @@ onAuthStateChanged(auth, async user => {
 
 <div class="ov" id="detOv" onclick="if(event.target===this)closeDet()">
   <div class="modal"><div class="drag"></div><button class="mclose" onclick="closeDet()"><i class="ph-thin ph-x ph-sm"></i></button><div id="detContent"></div></div>
+</div>
+
+<div id="layoutEditBar" role="toolbar" aria-label="עריכת סדר הקוביות">
+  <div class="layout-edit-label"><i class="ph-thin ph-arrows-out-cardinal"></i><span id="layoutEditLabel">סידור קוביות</span></div>
+  <button class="layout-edit-action" type="button" onclick="resetActiveLayout()">איפוס</button>
+  <button class="layout-edit-action done" type="button" onclick="exitLayoutEditMode()">סיום</button>
 </div>
 
 <!-- ── אוברליי טעינה גלובלי ── -->
@@ -2383,12 +2514,14 @@ function persistPortfolioLocally() {
   try {
     localStorage.setItem('pc', JSON.stringify(S.crypto));
     localStorage.setItem('ps', JSON.stringify(S.stocks));
+    localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts || {}));
   } catch(_) {}
 }
 function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
     stocks: S.stocks,
+    layouts: S.layouts || {},
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -2431,8 +2564,186 @@ const S = {
   sel: null, sPeriod: '1d', cPeriod: '1d', curPage: 'dash',
   crypto: loadLS('pc', DEF_C),
   stocks: loadLS('ps', DEF_S),
+  layouts: loadLS('vector_layouts_v1', {}),
 };
 fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
+
+// ═══════════════════════════════════════════
+// IPHONE-STYLE TILE LAYOUTS
+// Long press enters edit mode; dragging is limited to the current group.
+// Orders are kept locally and, for signed-in users, synced through Firestore.
+// ═══════════════════════════════════════════
+const layoutInstances = new WeakMap();
+const layoutOriginalOrders = new Map();
+let activeLayoutContainer = null;
+let layoutClickBlockUntil = 0;
+let layoutCloudTimer = null;
+let layoutRefreshTimer = null;
+
+function layoutItems(container) {
+  return [...container.children].filter(el => el instanceof HTMLElement && el.dataset.layoutKey);
+}
+function layoutOrder(container) {
+  return layoutItems(container).map(el => el.dataset.layoutKey).filter(Boolean);
+}
+function placeLayoutItems(container, orderedItems) {
+  const current = layoutItems(container);
+  if (current.length !== orderedItems.length) return;
+  const markers = current.map(item => {
+    const marker = document.createComment('layout-slot');
+    container.insertBefore(marker, item);
+    item.remove();
+    return marker;
+  });
+  orderedItems.forEach((item, index) => container.insertBefore(item, markers[index]));
+  markers.forEach(marker => marker.remove());
+}
+function applyLayoutOrder(container) {
+  const group = container?.dataset?.layoutGroup;
+  if (!group) return;
+  const items = layoutItems(container);
+  if (items.length < 2) return;
+  if (!layoutOriginalOrders.has(group)) layoutOriginalOrders.set(group, items.map(el => el.dataset.layoutKey));
+  const saved = Array.isArray(S.layouts?.[group]) ? S.layouts[group] : [];
+  if (!saved.length) return;
+  const rank = new Map(saved.map((key, index) => [key, index]));
+  const sorted = [...items].sort((a, b) => {
+    const ai = rank.has(a.dataset.layoutKey) ? rank.get(a.dataset.layoutKey) : Number.MAX_SAFE_INTEGER;
+    const bi = rank.has(b.dataset.layoutKey) ? rank.get(b.dataset.layoutKey) : Number.MAX_SAFE_INTEGER;
+    return ai - bi;
+  });
+  if (items.every((item, index) => item === sorted[index])) return;
+  placeLayoutItems(container, sorted);
+}
+function persistLayoutState() {
+  try { localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts || {})); } catch(_) {}
+  markEdit();
+  try { localStorage.setItem('portfolio_sync_pending', '1'); } catch(_) {}
+  clearTimeout(layoutCloudTimer);
+  layoutCloudTimer = setTimeout(() => {
+    if (!window.fbSave) return;
+    window.fbSave(currentCloudPortfolioPayload()).then(result => {
+      if (result?.saved) {
+        try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
+      }
+      syncStatusRefresh?.();
+    });
+  }, 450);
+}
+function saveLayoutOrder(container) {
+  const group = container?.dataset?.layoutGroup;
+  if (!group) return;
+  S.layouts ||= {};
+  S.layouts[group] = layoutOrder(container);
+  persistLayoutState();
+}
+function setLayoutBar(container) {
+  const bar = document.getElementById('layoutEditBar');
+  const label = document.getElementById('layoutEditLabel');
+  if (label) label.textContent = container?.dataset?.layoutLabel || 'סידור קוביות';
+  bar?.classList.toggle('show', !!container);
+}
+function enterLayoutEditMode(container) {
+  if (!container || activeLayoutContainer === container) return;
+  if (activeLayoutContainer) exitLayoutEditMode({ applyPending: false });
+  activeLayoutContainer = container;
+  document.body.classList.add('layout-edit-mode');
+  container.classList.add('layout-editing');
+  layoutInstances.get(container)?.option('delay', 0);
+  setLayoutBar(container);
+  layoutClickBlockUntil = Date.now() + 650;
+  try { navigator.vibrate?.(18); } catch(_) {}
+}
+window.exitLayoutEditMode = function({ applyPending = true } = {}) {
+  if (!activeLayoutContainer) return;
+  saveLayoutOrder(activeLayoutContainer);
+  activeLayoutContainer.classList.remove('layout-editing');
+  layoutInstances.get(activeLayoutContainer)?.option('delay', 420);
+  activeLayoutContainer = null;
+  document.body.classList.remove('layout-edit-mode');
+  setLayoutBar(null);
+  layoutClickBlockUntil = Date.now() + 350;
+  if (applyPending && window._pendingRemotePortfolio) {
+    const pending = window._pendingRemotePortfolio;
+    window._pendingRemotePortfolio = null;
+    if (typeof applyCloudPortfolio === 'function' && applyCloudPortfolio(pending)) renderPortfolioImmediately();
+  }
+};
+window.resetActiveLayout = function() {
+  const container = activeLayoutContainer;
+  if (!container) return;
+  const group = container.dataset.layoutGroup;
+  const original = layoutOriginalOrders.get(group) || [];
+  const current = layoutItems(container);
+  const byKey = new Map(current.map(el => [el.dataset.layoutKey, el]));
+  const ordered = original.map(key => byKey.get(key)).filter(Boolean);
+  current.filter(item => !original.includes(item.dataset.layoutKey)).forEach(item => ordered.push(item));
+  placeLayoutItems(container, ordered);
+  S.layouts ||= {};
+  delete S.layouts[group];
+  persistLayoutState();
+  try { navigator.vibrate?.([12, 35, 12]); } catch(_) {}
+};
+function initLayoutContainer(container) {
+  if (!(container instanceof HTMLElement) || !container.dataset.layoutGroup) return;
+  applyLayoutOrder(container);
+  if (layoutInstances.has(container) || layoutItems(container).length < 2 || !window.Sortable) return;
+  const sortable = Sortable.create(container, {
+    draggable: '[data-layout-key]',
+    group: { name: container.dataset.layoutGroup, pull: false, put: false },
+    animation: 220,
+    easing: 'cubic-bezier(.2,.9,.3,1)',
+    delay: 420,
+    delayOnTouchOnly: false,
+    touchStartThreshold: 5,
+    fallbackTolerance: 4,
+    forceFallback: true,
+    fallbackOnBody: true,
+    swapThreshold: .62,
+    invertSwap: true,
+    scroll: true,
+    scrollSensitivity: 70,
+    scrollSpeed: 12,
+    ghostClass: 'layout-ghost',
+    chosenClass: 'layout-chosen',
+    dragClass: 'layout-dragging',
+    filter: 'button,input,select,textarea,a,canvas,.rb,.sell-btn,.add-b,.date-go',
+    preventOnFilter: false,
+    onChoose() { enterLayoutEditMode(container); },
+    onStart() { layoutClickBlockUntil = Date.now() + 1200; },
+    onEnd() {
+      layoutClickBlockUntil = Date.now() + 500;
+      saveLayoutOrder(container);
+    },
+  });
+  layoutInstances.set(container, sortable);
+}
+function refreshLayoutGroups() {
+  document.querySelectorAll('[data-layout-group]').forEach(initLayoutContainer);
+}
+function scheduleLayoutRefresh() {
+  clearTimeout(layoutRefreshTimer);
+  layoutRefreshTimer = setTimeout(refreshLayoutGroups, 25);
+}
+const layoutObserver = new MutationObserver(scheduleLayoutRefresh);
+layoutObserver.observe(document.documentElement, { childList: true, subtree: true });
+document.addEventListener('DOMContentLoaded', refreshLayoutGroups, { once: true });
+window.addEventListener('load', refreshLayoutGroups, { once: true });
+
+document.addEventListener('click', event => {
+  const item = event.target.closest?.('[data-layout-key]');
+  if (!item) return;
+  if ((activeLayoutContainer && activeLayoutContainer.contains(item)) || Date.now() < layoutClickBlockUntil) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && activeLayoutContainer) {
+    event.preventDefault();
+    exitLayoutEditMode();
+  }
+});
 
 // ═══════════════════════════════════════════
 // DATA ACQUISITION
@@ -4091,7 +4402,7 @@ function cardHTML(o) {
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
-  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')">
+  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" data-layout-key="${type}:${sym}" onclick="openDet('${sym}','${type}')">
     <div class="cg" style="background:${color}"></div>
     <div class="ct" style="direction:ltr;">
       <div class="cid"><div class="ico">${icon}</div>
@@ -4282,7 +4593,7 @@ async function renderStocksPage(customFrom, customTo) {
     return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${i * 50}ms"`);
   }).join('');
   // wrap in grid container for desktop multi-column layout
-  el.innerHTML = '<div class="grid">' + el.innerHTML + '</div>';
+  el.innerHTML = '<div class="grid" data-layout-group="stocks-page-cards" data-layout-label="כרטיסי המניות">' + el.innerHTML + '</div>';
   // draw sparks after the grid has fully laid out
   requestAnimationFrame(() => {
     S.stocks.forEach((s, i) => {
@@ -4332,7 +4643,7 @@ async function renderCryptoPage() {
     });
     return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${i * 50}ms"`);
   }).join('');
-  el.innerHTML = '<div class="grid">' + el.innerHTML + '</div>';
+  el.innerHTML = '<div class="grid" data-layout-group="crypto-page-cards" data-layout-label="כרטיסי הקריפטו">' + el.innerHTML + '</div>';
   requestAnimationFrame(() => {
     sorted.forEach(({a, chg}) => drawSpark(`spk_${a.sym}`, a.sym, true, (chg || 0) >= 0));
   });
@@ -4783,12 +5094,12 @@ function renderInsights() {
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
 
   document.getElementById('insSummary').innerHTML = `
-    <div class="ir"><span class="ir-l">שווי כולל נומינלי</span><span class="ir-v ac">${fILS(g)}</span></div>
-    <div class="ir"><span class="ir-l">קטגוריית קריפטו</span><span class="ir-v">${fILS(c)}</span></div>
-    <div class="ir"><span class="ir-l">נכסי מניות ואקוויטי</span><span class="ir-v">${fILS(st)}</span></div>
-    <div class="ir"><span class="ir-l">רווח/הפסד יומי משולב</span><span class="ir-v ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'}">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</span></div>
-    <div class="ir"><span class="ir-l">ערך בדולר ארה"ב</span><span class="ir-v">USD ${(g/S.fx).toLocaleString('en',{maximumFractionDigits:0})}</span></div>
-    <div class="ir"><span class="ir-l">שער חליפין מיושר</span><span class="ir-v gd">${(()=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;let rate;if(cur==='USD')rate=1;else if(cur==='ILS')rate=S.fx;else{const r=fxConvRates?.[cur];rate=(r&&r>0)?(1/r):S.fx;}return def.sym+rate.toFixed(rate<10?3:2);})()}</span></div>
+    <div class="ir" data-layout-key="total"><span class="ir-l">שווי כולל נומינלי</span><span class="ir-v ac">${fILS(g)}</span></div>
+    <div class="ir" data-layout-key="crypto"><span class="ir-l">קטגוריית קריפטו</span><span class="ir-v">${fILS(c)}</span></div>
+    <div class="ir" data-layout-key="stocks"><span class="ir-l">נכסי מניות ואקוויטי</span><span class="ir-v">${fILS(st)}</span></div>
+    <div class="ir" data-layout-key="daily-pnl"><span class="ir-l">רווח/הפסד יומי משולב</span><span class="ir-v ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'}">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</span></div>
+    <div class="ir" data-layout-key="usd"><span class="ir-l">ערך בדולר ארה"ב</span><span class="ir-v">USD ${(g/S.fx).toLocaleString('en',{maximumFractionDigits:0})}</span></div>
+    <div class="ir" data-layout-key="fx"><span class="ir-l">שער חליפין מיושר</span><span class="ir-v gd">${(()=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;let rate;if(cur==='USD')rate=1;else if(cur==='ILS')rate=S.fx;else{const r=fxConvRates?.[cur];rate=(r&&r>0)?(1/r):S.fx;}return def.sym+rate.toFixed(rate<10?3:2);})()}</span></div>
   `;
 
   const all = [
@@ -5124,10 +5435,11 @@ async function openDet(sym, type) {
   document.body.style.overflow = 'hidden';
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
   const el = document.getElementById('detContent');
+  el.dataset.detailType = type;
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
-function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
+function closeDet() { window.exitLayoutEditMode?.(); document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
 
 async function renderCryptoModal(a, el) {
   const p = S.cp[a.id]; const pu = p?.usd || 0; const pi = pu * S.fx;
@@ -5140,13 +5452,13 @@ async function renderCryptoModal(a, el) {
   const totalPnl = cryptoTotalPnl(a);
   el.innerHTML = `
     <div class="mh"><div class="mico">${a.icon}</div><div><h2>${a.sym}</h2><p>${a.name} · ${fNum(cQty(a))} יחידות החזקה</p></div></div>
-    <div class="mkpis">
-      <div class="mkpi"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
-      <div class="mkpi"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${pu?'$'+fP(pu):'--'}</div></div>
-      <div class="mkpi"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
-      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
-      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
-      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+    <div class="mkpis" data-layout-group="detail-crypto-kpis" data-layout-label="נתוני הנכס">
+      <div class="mkpi" data-layout-key="value"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi" data-layout-key="price"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${pu?'$'+fP(pu):'--'}</div></div>
+      <div class="mkpi" data-layout-key="change"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
+      <div class="mkpi" data-layout-key="daily-pnl"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
+      ${avg!=null ? `<div class="mkpi" data-layout-key="avg-entry"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${totalPnl!=null ? `<div class="mkpi" data-layout-key="total-pnl"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">גרף רציף מוזן רשת <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -5159,14 +5471,14 @@ async function renderCryptoModal(a, el) {
       </div>
     </div>
     <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
-    <div class="man">
-      <div class="manc"><div class="mant">📊 פוזיציית החזקה</div>
+    <div class="man" data-layout-group="detail-crypto-analysis" data-layout-label="ניתוח הנכס">
+      <div class="manc" data-layout-key="holding"><div class="mant">📊 פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מאזן כמותי</span><span class="mrv">${fNum(a.qty)}</span></div>
         <div class="mr"><span class="mrl">שווי מיושר ₪</span><span class="mrv">${fILS(pi,2)}</span></div>
         <div class="mr"><span class="mrl">ערך בדולר</span><span class="mrv">USD ${(val/S.fx).toFixed(0)}</span></div>
         <div class="mr"><span class="mrl">משקל בתיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
       </div>
-      <div class="manc"><div class="mant">📈 ביצועי שוק</div>
+      <div class="manc" data-layout-key="market"><div class="mant">📈 ביצועי שוק</div>
         <div class="mr"><span class="mrl">וולטיליות 24ש</span><span class="mrv ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</span></div>
         <div class="mr"><span class="mrl">P&L יומי</span><span class="mrv ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</span></div>
         <div class="mr"><span class="mrl">ערך ביחידה</span><span class="mrv">USD ${fP(pu)}</span></div>
@@ -5174,13 +5486,13 @@ async function renderCryptoModal(a, el) {
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>
-    <div class="fundamentals-grid">
-      <div class="fund-cell"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">דירוג שוק</div><div class="fund-v">${p?.rank?'#'+p.rank:'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">שיא כל הזמנים</div><div class="fund-v up" style="color:var(--gr)">${p?.ath?fPriceCur(p.ath):'--'}${p?.athPct!=null?`<span style="font-size:9px;opacity:.7;margin-inline-start:4px">${p.athPct.toFixed(1)}%</span>`:''}</div></div>
-      <div class="fund-cell"><div class="fund-l">מחזור יומי</div><div class="fund-v">${p?.volume24h?fBigCur(p.volume24h):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">היצע במחזור</div><div class="fund-v">${p?.circulatingSupply?fBig(p.circulatingSupply)+' '+a.sym:'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">היצע כולל</div><div class="fund-v">${p?.totalSupply?fBig(p.totalSupply)+' '+a.sym:'--'}</div></div>
+    <div class="fundamentals-grid" data-layout-group="detail-crypto-fundamentals" data-layout-label="נתוני יסוד">
+      <div class="fund-cell" data-layout-key="market-cap"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
+      <div class="fund-cell" data-layout-key="rank"><div class="fund-l">דירוג שוק</div><div class="fund-v">${p?.rank?'#'+p.rank:'--'}</div></div>
+      <div class="fund-cell" data-layout-key="ath"><div class="fund-l">שיא כל הזמנים</div><div class="fund-v up" style="color:var(--gr)">${p?.ath?fPriceCur(p.ath):'--'}${p?.athPct!=null?`<span style="font-size:9px;opacity:.7;margin-inline-start:4px">${p.athPct.toFixed(1)}%</span>`:''}</div></div>
+      <div class="fund-cell" data-layout-key="volume"><div class="fund-l">מחזור יומי</div><div class="fund-v">${p?.volume24h?fBigCur(p.volume24h):'--'}</div></div>
+      <div class="fund-cell" data-layout-key="circulating"><div class="fund-l">היצע במחזור</div><div class="fund-v">${p?.circulatingSupply?fBig(p.circulatingSupply)+' '+a.sym:'--'}</div></div>
+      <div class="fund-cell" data-layout-key="total-supply"><div class="fund-l">היצע כולל</div><div class="fund-v">${p?.totalSupply?fBig(p.totalSupply)+' '+a.sym:'--'}</div></div>
     </div>
     ${lotsHistoryHTML(a, pu || 0, 'crypto')}
     <button class="sell-btn" onclick="sellAsset('${a.id}','crypto')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
@@ -5227,13 +5539,13 @@ function renderStockModal(s, el) {
         if (c === 'HKD') return 'HKEX · Hong Kong';
         return c + ' Exchange';
       })()}</p></div></div>
-    <div class="mkpis">
-      <div class="mkpi"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
-      <div class="mkpi"><div class="mkpi-l">מחיר מנייה</div><div class="mkpi-v">${pu?fPriceNative(pu, p?.currency, 2):'--'}</div></div>
-      <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
-      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
-      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
-      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+    <div class="mkpis" data-layout-group="detail-stock-kpis" data-layout-label="נתוני הנכס">
+      <div class="mkpi" data-layout-key="value"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi" data-layout-key="price"><div class="mkpi-l">מחיר מנייה</div><div class="mkpi-v">${pu?fPriceNative(pu, p?.currency, 2):'--'}</div></div>
+      <div class="mkpi" data-layout-key="change"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
+      <div class="mkpi" data-layout-key="daily-pnl"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
+      ${avg!=null ? `<div class="mkpi" data-layout-key="avg-entry"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${totalPnl!=null ? `<div class="mkpi" data-layout-key="total-pnl"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -5248,14 +5560,14 @@ function renderStockModal(s, el) {
       </div>
     </div>
     <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
-    <div class="man">
-      <div class="manc"><div class="mant">📊 פוזיציית החזקה</div>
+    <div class="man" data-layout-group="detail-stock-analysis" data-layout-label="ניתוח הנכס">
+      <div class="manc" data-layout-key="holding"><div class="mant">📊 פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מספר מניות</span><span class="mrv">${sh?sh.toFixed(3):'--'}</span></div>
         <div class="mr"><span class="mrl">שווי כולל</span><span class="mrv">${fPriceNative(pu * (sh||0), p?.currency, 0)}</span></div>
         ${(p?.currency||'USD')!=='USD' && (p?.currency||'USD')!=='ILS' ? `<div class="mr"><span class="mrl">שווי ב-USD</span><span class="mrv">USD ${(val/S.fx).toFixed(0)}</span></div>` : ''}
         <div class="mr"><span class="mrl">נתח בתיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
       </div>
-      <div class="manc"><div class="mant">📈 נתוני מסחר</div>
+      <div class="manc" data-layout-key="market"><div class="mant">📈 נתוני מסחר</div>
         <div class="mr"><span class="mrl">שינוי יומי</span><span class="mrv ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</span></div>
         <div class="mr"><span class="mrl">P&L יומי</span><span class="mrv ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</span></div>
         <div class="mr"><span class="mrl">סגירה קודמת</span><span class="mrv">${p?.prevClose?fPriceNative(p.prevClose, p?.currency, 2):'--'}</span></div>
@@ -5264,11 +5576,11 @@ function renderStockModal(s, el) {
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>
-    <div class="fundamentals-grid">
-      <div class="fund-cell"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">מכפיל רווח</div><div class="fund-v">${p?.peRatio?p.peRatio.toFixed(2):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">שיא 52ש</div><div class="fund-v up" style="color:var(--gr)">${p?.high52w?fPriceCur(p.high52w,2):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" style="color:var(--rd)">${p?.low52w?fPriceCur(p.low52w,2):'--'}</div></div>
+    <div class="fundamentals-grid" data-layout-group="detail-stock-fundamentals" data-layout-label="נתוני יסוד">
+      <div class="fund-cell" data-layout-key="market-cap"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
+      <div class="fund-cell" data-layout-key="pe"><div class="fund-l">מכפיל רווח</div><div class="fund-v">${p?.peRatio?p.peRatio.toFixed(2):'--'}</div></div>
+      <div class="fund-cell" data-layout-key="high-52w"><div class="fund-l">שיא 52ש</div><div class="fund-v up" style="color:var(--gr)">${p?.high52w?fPriceCur(p.high52w,2):'--'}</div></div>
+      <div class="fund-cell" data-layout-key="low-52w"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" style="color:var(--rd)">${p?.low52w?fPriceCur(p.low52w,2):'--'}</div></div>
     </div>
     ${lotsHistoryHTML(s, pu || 0, 'stock')}
     <button class="sell-btn" onclick="sellAsset('${s.sym}','stock')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
@@ -6576,15 +6888,15 @@ async function dashComputePeriod(range){
   return {range,items,stocks,crypto,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
 }
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
-function dashSummaryCell(label,g){const up=g.pnl>=0;return `<div class="period-summary-cell"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
+function dashSummaryCell(key,label,g){const up=g.pnl>=0;return `<div class="period-summary-cell" data-layout-key="${key}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
 function dashRenderPeriodData(data,{cached=false}={}){
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   const cards=data.items.map(x=>{
     const up=x.pnl>=0,from=x.basis==='entry'?'מחושב ממחיר הקנייה':(x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'');
-    return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
+    return `<div class="period-asset-card" data-layout-key="${x.type}:${x.sym}" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid" data-layout-group="dashboard-period-summary" data-layout-label="סיכום התקופה">${dashSummaryCell('total','כלל התיק',data.total)}${dashSummaryCell('stocks','מניות',data.stocks)}${dashSummaryCell('crypto','קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
   grid.innerHTML=(cards||'<div class="period-initial">אין נתונים מספקים לתקופה שנבחרה</div>')+summary;
   dashSetStatus(cached?'מוצג מהזיכרון':'עודכן עכשיו',cached?'updating':'fresh');
 }
@@ -6676,7 +6988,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v10-iphone-layout');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -6703,6 +7015,11 @@ function applyCloudPortfolio(data, { force = false } = {}) {
   }
   if (Array.isArray(data.stocks)) {
     S.stocks = normalizeStocks(data.stocks);
+    changed = true;
+  }
+  if (data.layouts && typeof data.layouts === 'object' && !Array.isArray(data.layouts)) {
+    S.layouts = data.layouts;
+    try { localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts)); } catch(_) {}
     changed = true;
   }
   if (data.preferences && typeof data.preferences === 'object') {
@@ -6787,7 +7104,7 @@ async function connectCloudForCurrentUser({ loadFirst = true } = {}) {
 
   if (window.fbListen) {
     portfolioSnapshotUnsubscribe = window.fbListen(data => {
-      if (document.getElementById('edOv')?.classList.contains('open')) {
+      if (document.getElementById('edOv')?.classList.contains('open') || document.body.classList.contains('layout-edit-mode')) {
         window._pendingRemotePortfolio = data;
         return;
       }
