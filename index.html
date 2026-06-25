@@ -3652,6 +3652,12 @@ function setCurrency(cur, fromLang = false) {
   (typeof fxConvLoadRates === 'function' ? fxConvLoadRates() : Promise.resolve()).then(() => {
     updateFxKpi();
     renderDashCrypto(); renderDashStocks(); updateKPIs();
+    // Re-render the dashboard period summary so its P&L values follow the new currency.
+    if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
+      const from = document.getElementById('dashDateFrom')?.value;
+      const to   = document.getElementById('dashDateTo')?.value;
+      renderDashPeriod(dashPeriod, dashPeriod === 'custom' ? from : undefined, dashPeriod === 'custom' ? to : undefined);
+    }
     if (S.curPage === 'stocks')   renderStocksPage();
     if (S.curPage === 'crypto')   renderCryptoPage();
     if (S.curPage === 'insights') { renderInsights(); buildHistoryTable(); }
@@ -3664,7 +3670,7 @@ function buildCurrPicker(filter = '') {
     !filter || code.toLowerCase().includes(filter) || d.name.toLowerCase().includes(filter)
   );
   pop.innerHTML = `
-    <input class="picker-search" id="currSearch" type="text" placeholder="חיפוש מטבע..." oninput="buildCurrPicker(this.value.toLowerCase())" autocomplete="off">
+    <input class="picker-search" id="currSearch" type="text" placeholder="${i18nGetText('חיפוש מטבע...')}" oninput="buildCurrPicker(this.value.toLowerCase())" autocomplete="off">
     ${items.length ? items.map(([code, d]) => `
       <div class="picker-opt ${code === cur ? 'sel' : ''}" onclick="setCurrency('${code}')">
         <span class="po-flag">${d.flag}</span>
@@ -3969,6 +3975,11 @@ const I18N = {
   'שקל':'Shekel',
   'כסף':'Silver',
   'או':'or',
+
+  // ── Picker placeholders + calendar label ──
+  'חיפוש מטבע...':'Search currency...',
+  'חיפוש שפה...':'Search language...',
+  'יום קלנדרי בישראל':'Israel calendar day',
 
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
@@ -4569,6 +4580,10 @@ const LANG_DICTS = {
     'שקל':'Шекель',
     'כסף':'Серебро',
     'או':'или',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'Поиск валюты...',
+    'חיפוש שפה...':'Поиск языка...',
+    'יום קלנדרי בישראל':'Календарный день в Израиле',
   },
   es: {
     'שוק אמריקאי':'Mercado de EE. UU.',
@@ -4995,6 +5010,10 @@ const LANG_DICTS = {
     'שקל':'Séquel',
     'כסף':'Plata',
     'או':'o',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'Buscar moneda...',
+    'חיפוש שפה...':'Buscar idioma...',
+    'יום קלנדרי בישראל':'Día natural en Israel',
   },
   fr: {
     'שוק אמריקאי':'Marché américain',
@@ -5421,6 +5440,10 @@ const LANG_DICTS = {
     'שקל':'Shekel',
     'כסף':'Argent',
     'או':'ou',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'Rechercher une devise...',
+    'חיפוש שפה...':'Rechercher une langue...',
+    'יום קלנדרי בישראל':'Jour calendaire en Israël',
   },
   ar: {
     'שוק אמריקאי':'السوق الأمريكي',
@@ -5847,6 +5870,10 @@ const LANG_DICTS = {
     'שקל':'شيكل',
     'כסף':'الفضة',
     'או':'أو',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'بحث عن عملة...',
+    'חיפוש שפה...':'بحث عن لغة...',
+    'יום קלנדרי בישראל':'يوم تقويمي في إسرائيل',
   },
   de: {
     'שוק אמריקאי':'US-Markt',
@@ -6273,6 +6300,10 @@ const LANG_DICTS = {
     'שקל':'Schekel',
     'כסף':'Silber',
     'או':'oder',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'Währung suchen...',
+    'חיפוש שפה...':'Sprache suchen...',
+    'יום קלנדרי בישראל':'Kalendertag in Israel',
   },
   zh: {
     'שוק אמריקאי':'美国市场',
@@ -6699,6 +6730,10 @@ const LANG_DICTS = {
     'שקל':'谢克尔',
     'כסף':'白银',
     'או':'或',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'搜索货币……',
+    'חיפוש שפה...':'搜索语言……',
+    'יום קלנדרי בישראל':'以色列日历日',
   },
   nl: {
     'שוק אמריקאי':'Amerikaanse markt',
@@ -7125,6 +7160,10 @@ const LANG_DICTS = {
     'שקל':'Shekel',
     'כסף':'Zilver',
     'או':'of',
+      // ── Picker placeholders + calendar label ──
+    'חיפוש מטבע...':'Valuta zoeken...',
+    'חיפוש שפה...':'Taal zoeken...',
+    'יום קלנדרי בישראל':'Kalenderdag in Israël',
   },
 };
 
@@ -7171,7 +7210,7 @@ function buildLangPicker(filter = '') {
     !filter || code.includes(filter) || d.name.toLowerCase().includes(filter) || d.native.toLowerCase().includes(filter)
   );
   pop.innerHTML = `
-    <input class="picker-search" id="langSearch" type="text" placeholder="חיפוש שפה..." oninput="buildLangPicker(this.value.toLowerCase())" autocomplete="off">
+    <input class="picker-search" id="langSearch" type="text" placeholder="${i18nGetText('חיפוש שפה...')}" oninput="buildLangPicker(this.value.toLowerCase())" autocomplete="off">
     ${items.length ? items.map(([code, d]) => `
       <div class="picker-opt ${code === curLang ? 'sel' : ''}" onclick="setLang('${code}')">
         <span class="po-flag">${d.flag}</span>
@@ -8782,13 +8821,13 @@ async function buildHistoryTable() {
         ? pnlCell(row.stockPnl)
         : (window.__stockHistLoadedAny === false
             ? '<span style="color:var(--t3)" title="לא נטענו נתוני מניות — בעיית רשת/שרת">—</span>'
-            : '<span style="color:var(--t3)" title="השוק סגור ביום זה">₪0</span>');
+            : '<span style="color:var(--t3)" title="השוק סגור ביום זה">' + fILS(0) + '</span>');
       html += `<tr style="${row.hasTrading?'':'opacity:.5'}">
         <td style="padding:8px 4px;color:var(--t2);white-space:nowrap">${dateStr}${row.hasTrading?'':' <i class="ph-thin ph-lock-simple"></i>'}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.prevTotal)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
-        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):'<span style="color:var(--t3)">₪0</span>'}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
