@@ -918,12 +918,14 @@ body.light .total::before { display:none; }
   background: linear-gradient(135deg,
     rgba(255, 255, 255, 0.14) 0%,
     rgba(255, 255, 255, 0.04) 100%);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.30);
   box-shadow:
-    0 32px 60px -10px rgba(0, 0, 0, 0.55),
-    0 16px 30px -8px rgba(0, 0, 0, 0.35),
-    0 6px 12px rgba(0, 0, 0, 0.20),
-    inset 0 1px 0 rgba(255,255,255,0.08);
+    0 0 0 1px rgba(255, 255, 255, 0.10),               /* crisp light rim */
+    0 18px 50px -12px rgba(150, 180, 255, 0.30),        /* bright cool glow lifting the card */
+    0 8px 24px -8px rgba(255, 255, 255, 0.14),          /* soft white halo */
+    0 4px 8px rgba(0, 0, 0, 0.22),                      /* keep a little depth */
+    inset 0 1px 0 rgba(255,255,255,0.16);               /* brighter top sheen */
+  transform: translateY(-2px);
 }
 body.light .card {
   background: linear-gradient(135deg,
@@ -949,7 +951,6 @@ body.light .card:hover {
     0 6px 12px rgba(0, 0, 0, 0.07),
     inset 0 1px 0 rgba(255,255,255,0.9);
 }
-.card:hover { border-color: var(--b2); background: var(--s2); }
 .cg { position: absolute; top: 0; left: 0; width: 3px; height: 100%; opacity: 0.8; }
 .cedit { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--s3); border: 1px solid var(--b2); color: var(--t2); font-size: 10px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; z-index: 5; }
 .card:hover .cedit { opacity: 1; }
@@ -1125,6 +1126,55 @@ body.light .upload-shot-btn:hover { background: rgba(10,15,31,0.08) !important; 
 
 /* ── Review modal for parsed assets ── */
 .review-modal { width: min(520px, 94vw); background: var(--s2); border: 1px solid var(--b1); border-radius: 22px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.55); font-family: var(--font-body); max-height: 88vh; overflow-y: auto; }
+
+/* ── VIEW SETTINGS (modular display control) ── */
+.view-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.view-toggle-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 700;
+  color: var(--t1); background: var(--s1); border: 1px solid var(--b2);
+  padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.view-toggle-btn:hover { border-color: var(--ac); background: color-mix(in srgb, var(--ac) 8%, var(--s1)); }
+.view-toggle-btn:active { transform: scale(.97); }
+.view-toggle-btn i { font-size: 16px; color: var(--ac); }
+
+#viewOv { align-items: center; justify-content: center; z-index: 300; }
+.view-modal {
+  width: min(440px, 94vw); background: var(--s2); border: 1px solid var(--b1);
+  border-radius: 22px; padding: 22px 20px 20px; box-shadow: 0 30px 80px rgba(0,0,0,.55);
+  font-family: var(--font-body); max-height: 88vh; overflow-y: auto; position: relative;
+  animation: sellPop .22s cubic-bezier(.2,.9,.3,1.2);
+}
+.view-modal-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.view-modal-titles { flex: 1; min-width: 0; }
+.view-modal-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 21px; font-weight: 400; color: var(--t1); letter-spacing: -.2px; }
+.view-modal-sub { font-size: 12px; color: var(--t3); margin-top: 4px; line-height: 1.5; }
+.view-modal .mclose { position: static; flex-shrink: 0; }
+.view-section { margin-bottom: 18px; }
+.view-section-title { font-size: 11px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; margin: 0 4px 8px; }
+.view-list { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius); overflow: hidden; }
+body.light .view-list { background: rgba(10,15,31,0.04); border-color: rgba(10,15,31,0.1); }
+.view-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--b1); }
+.view-row:last-child { border-bottom: none; }
+.view-row-disabled { opacity: .45; }
+.view-row-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.view-row-ico { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--s2); border: 1px solid var(--b1); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--ac); }
+body.light .view-row-ico { background: rgba(255,255,255,0.8); }
+.view-row-label { font-size: 14px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.view-soon { font-size: 9px; font-weight: 700; color: var(--gd); background: color-mix(in srgb, var(--gd) 14%, transparent); border: 1px solid color-mix(in srgb, var(--gd) 28%, transparent); padding: 1px 6px; border-radius: 100px; margin-inline-start: 6px; vertical-align: middle; }
+/* iOS-style toggle switch */
+.view-switch { position: relative; width: 46px; height: 28px; flex-shrink: 0; border-radius: 100px; border: none; background: var(--b2); cursor: pointer; padding: 0; transition: background .2s ease; }
+.view-switch.on { background: var(--gr); }
+.view-switch:disabled { cursor: not-allowed; }
+.view-switch-knob { position: absolute; top: 3px; inset-inline-start: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.55,.2,.2,1); }
+.view-switch.on .view-switch-knob { transform: translateX(18px); }
+html[dir="rtl"] .view-switch.on .view-switch-knob, body[dir="rtl"] .view-switch.on .view-switch-knob { transform: translateX(-18px); }
+.view-done-btn { width: 100%; margin-top: 4px; padding: 13px; border-radius: var(--radius-sm); border: none; background: var(--ac); color: #F1F4FB; font-family: var(--font-body); font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .15s, transform .1s; }
+body.light .view-done-btn { color: var(--bg); }
+.view-done-btn:hover { opacity: .9; }
+.view-done-btn:active { transform: scale(.98); }
 .review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .review-head i { font-size: 22px; color: var(--ac); }
 .review-title { font-family: var(--font-display, var(--font-body)); font-size: 18px; font-weight: 600; color: var(--t1); }
@@ -2114,6 +2164,11 @@ onAuthStateChanged(auth, async user => {
 <div id="app" style="display:none">
 
   <div class="page active" id="page-dash">
+    <div class="view-toolbar">
+      <button class="view-toggle-btn" onclick="openViewModal()">
+        <i class="ph-thin ph-sliders-horizontal"></i> שינוי תצוגה
+      </button>
+    </div>
     <div class="hero-block">
       <div class="total">
         <div class="t-lbl">שווי שוק כולל — נכסים</div>
@@ -2265,6 +2320,21 @@ onAuthStateChanged(auth, async user => {
 
 <!-- ── אוברליי טעינה גלובלי ── -->
 <div id="refreshOverlay"><div class="refresh-pill"><div class="refresh-pill-spin"></div>מעדכן נתונים...</div></div>
+
+<!-- ── חלונית שינוי תצוגה (מודולרי) ── -->
+<div class="ov" id="viewOv" onclick="if(event.target===this)closeViewModal()">
+  <div class="view-modal">
+    <div class="view-modal-head">
+      <div class="view-modal-titles">
+        <div class="view-modal-title">שינוי תצוגה</div>
+        <div class="view-modal-sub">בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר</div>
+      </div>
+      <button class="mclose" onclick="closeViewModal()" title="סגירה"><i class="ph-thin ph-x ph-sm"></i></button>
+    </div>
+    <div id="viewModalBody"></div>
+    <button class="view-done-btn" onclick="closeViewModal()"><i class="ph-thin ph-check"></i> סיום</button>
+  </div>
+</div>
 
 <!-- ── חלונית סקירה לזיהוי אוטומטי ── -->
 <div class="ov" id="reviewOv" onclick="if(event.target===this)closeReview()">
@@ -3496,7 +3566,53 @@ const spnl = (s) => {
   if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
   return null;
 };
-const tots = () => { let c = 0, st = 0; S.crypto.forEach(a => c += cv(a)); S.stocks.forEach(s => st += sv(s)); return {c, st, g: c + st}; };
+// ═══════════════════════════════════════════
+// MODULAR VIEW — user controls which asset categories appear and count
+// ═══════════════════════════════════════════
+// Each category has two independent flags:
+//   show  — is the category visible anywhere in the app (cards, sections, ticker)
+//   total — does it count toward the "Total Market Value" hero number
+// Hiding a category (show=false) implies it also leaves the total.
+const VIEW_CATEGORIES = [
+  { key: 'stocks',      label: 'מניות',     icon: 'ph-chart-line-up', live: true  },
+  { key: 'crypto',      label: 'קריפטו',    icon: 'ph-coins',         live: true  },
+  { key: 'commodities', label: 'סחורות',    icon: 'ph-gas-pump',      live: false },
+  { key: 'bonds',       label: 'אג"ח',      icon: 'ph-bank',          live: false },
+  { key: 'etfs',        label: 'תעודות סל', icon: 'ph-chart-pie-slice', live: false },
+];
+const VIEW_DEFAULT = {
+  show:  { stocks:true, crypto:true, commodities:false, bonds:false, etfs:false },
+  total: { stocks:true, crypto:true, commodities:true,  bonds:true,  etfs:true  },
+};
+function loadView() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('viewConfig') || 'null');
+    if (saved && saved.show && saved.total) {
+      // merge over defaults so newly-added categories get sane values
+      return {
+        show:  { ...VIEW_DEFAULT.show,  ...saved.show },
+        total: { ...VIEW_DEFAULT.total, ...saved.total },
+      };
+    }
+  } catch(_) {}
+  return JSON.parse(JSON.stringify(VIEW_DEFAULT));
+}
+S.view = loadView();
+function saveView() {
+  try { localStorage.setItem('viewConfig', JSON.stringify(S.view)); } catch(_) {}
+}
+// Is a category currently shown? (commodities/bonds/etfs have no data yet, but the
+// flag is honored so the UI is ready for them.)
+const catShown = key => !!S.view?.show?.[key];
+// Does a category count toward the grand total? Must be both shown AND total-enabled.
+const catInTotal = key => catShown(key) && !!S.view?.total?.[key];
+
+const tots = () => {
+  let c = 0, st = 0;
+  if (catInTotal('crypto')) S.crypto.forEach(a => c += cv(a));
+  if (catInTotal('stocks')) S.stocks.forEach(s => st += sv(s));
+  return {c, st, g: c + st};
+};
 
 // ── Currency display mode ──
 // On the very first visit (no saved currency) the display currency follows the
@@ -3980,6 +4096,14 @@ const I18N = {
   'חיפוש מטבע...':'Search currency...',
   'חיפוש שפה...':'Search language...',
   'יום קלנדרי בישראל':'Israel calendar day',
+
+  // ── View settings strings ──
+  'שינוי תצוגה':'Customize view',
+  'כלול בשווי השוק הכולל':'Include in total market value',
+  'קטגוריות מוצגות באתר':'Categories shown in the app',
+  'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Choose what counts toward total market value and which categories appear in the app',
+  'סיום':'Done',
+  'בקרוב':'Soon',
 
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
@@ -4584,6 +4708,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'Поиск валюты...',
     'חיפוש שפה...':'Поиск языка...',
     'יום קלנדרי בישראל':'Календарный день в Израиле',
+      // ── View settings strings ──
+    'שינוי תצוגה':'Настроить вид',
+    'כלול בשווי השוק הכולל':'Включить в общую стоимость',
+    'קטגוריות מוצגות באתר':'Категории, показанные в приложении',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Выберите, что учитывается в общей стоимости и какие категории показаны в приложении',
+    'סיום':'Готово',
+    'בקרוב':'Скоро',
   },
   es: {
     'שוק אמריקאי':'Mercado de EE. UU.',
@@ -5014,6 +5145,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'Buscar moneda...',
     'חיפוש שפה...':'Buscar idioma...',
     'יום קלנדרי בישראל':'Día natural en Israel',
+      // ── View settings strings ──
+    'שינוי תצוגה':'Cambiar vista',
+    'כלול בשווי השוק הכולל':'Incluir en el valor total',
+    'קטגוריות מוצגות באתר':'Categorías mostradas en la app',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Elige qué cuenta para el valor total y qué categorías aparecen en la app',
+    'סיום':'Hecho',
+    'בקרוב':'Pronto',
   },
   fr: {
     'שוק אמריקאי':'Marché américain',
@@ -5444,6 +5582,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'Rechercher une devise...',
     'חיפוש שפה...':'Rechercher une langue...',
     'יום קלנדרי בישראל':'Jour calendaire en Israël',
+      // ── View settings strings ──
+    'שינוי תצוגה':'Modifier l’affichage',
+    'כלול בשווי השוק הכולל':'Inclure dans la valeur totale',
+    'קטגוריות מוצגות באתר':'Catégories affichées dans l’app',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Choisissez ce qui compte dans la valeur totale et quelles catégories apparaissent dans l’app',
+    'סיום':'Terminé',
+    'בקרוב':'Bientôt',
   },
   ar: {
     'שוק אמריקאי':'السوق الأمريكي',
@@ -5874,6 +6019,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'بحث عن عملة...',
     'חיפוש שפה...':'بحث عن لغة...',
     'יום קלנדרי בישראל':'يوم تقويمي في إسرائيل',
+      // ── View settings strings ──
+    'שינוי תצוגה':'تخصيص العرض',
+    'כלול בשווי השוק הכולל':'تضمين في القيمة الإجمالية',
+    'קטגוריות מוצגות באתר':'الفئات المعروضة في التطبيق',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'اختر ما يُحتسب في القيمة الإجمالية وأي الفئات تظهر في التطبيق',
+    'סיום':'تم',
+    'בקרוב':'قريبًا',
   },
   de: {
     'שוק אמריקאי':'US-Markt',
@@ -6304,6 +6456,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'Währung suchen...',
     'חיפוש שפה...':'Sprache suchen...',
     'יום קלנדרי בישראל':'Kalendertag in Israel',
+      // ── View settings strings ──
+    'שינוי תצוגה':'Ansicht anpassen',
+    'כלול בשווי השוק הכולל':'In Gesamtwert einbeziehen',
+    'קטגוריות מוצגות באתר':'In der App angezeigte Kategorien',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Wähle, was zum Gesamtwert zählt und welche Kategorien in der App erscheinen',
+    'סיום':'Fertig',
+    'בקרוב':'Bald',
   },
   zh: {
     'שוק אמריקאי':'美国市场',
@@ -6734,6 +6893,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'搜索货币……',
     'חיפוש שפה...':'搜索语言……',
     'יום קלנדרי בישראל':'以色列日历日',
+      // ── View settings strings ──
+    'שינוי תצוגה':'自定义视图',
+    'כלול בשווי השוק הכולל':'计入总市值',
+    'קטגוריות מוצגות באתר':'应用中显示的类别',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'选择计入总市值的项目以及应用中显示的类别',
+    'סיום':'完成',
+    'בקרוב':'即将推出',
   },
   nl: {
     'שוק אמריקאי':'Amerikaanse markt',
@@ -7164,6 +7330,13 @@ const LANG_DICTS = {
     'חיפוש מטבע...':'Valuta zoeken...',
     'חיפוש שפה...':'Taal zoeken...',
     'יום קלנדרי בישראל':'Kalenderdag in Israël',
+      // ── View settings strings ──
+    'שינוי תצוגה':'Weergave aanpassen',
+    'כלול בשווי השוק הכולל':'Opnemen in totale waarde',
+    'קטגוריות מוצגות באתר':'Categorieën in de app',
+    'בחר מה נכלל בשווי השוק הכולל ואילו קטגוריות יוצגו באתר':'Kies wat meetelt voor de totale waarde en welke categorieën in de app verschijnen',
+    'סיום':'Klaar',
+    'בקרוב':'Binnenkort',
   },
 };
 
@@ -7741,8 +7914,24 @@ function cardHTML(o) {
 </div>`;
 }
 
+// Show or hide a dashboard category section (its header row + asset grid) based on
+// the view config. The grid's immediately-preceding `.sec` element is the header.
+function toggleCategorySection(key, gridEl) {
+  if (!gridEl) return;
+  const shown = catShown(key);
+  gridEl.style.display = shown ? '' : 'none';
+  // The header is the closest previous sibling with class "sec"
+  let el = gridEl.previousElementSibling;
+  while (el && !el.classList.contains('sec')) el = el.previousElementSibling;
+  if (el) el.style.display = shown ? '' : 'none';
+}
+
 function renderDashCrypto() {
   const g = document.getElementById('dCGrid');
+  if (!g) return;
+  // Hide the whole crypto section (header + grid) when the category is turned off.
+  toggleCategorySection('crypto', g);
+  if (!catShown('crypto')) { g.innerHTML = ''; return; }
   const sorted = [...S.crypto].sort((a, b) => cv(b) - cv(a));
   const signature = sorted.map(a => `${a.id}:${a.sym}`).join('|');
   const animate = g.dataset.assetSignature !== signature;
@@ -7757,6 +7946,9 @@ function renderDashCrypto() {
 
 function renderDashStocks() {
   const g = document.getElementById('dSGrid');
+  if (!g) return;
+  toggleCategorySection('stocks', g);
+  if (!catShown('stocks')) { g.innerHTML = ''; return; }
   const signature = S.stocks.map(s => s.sym).join('|');
   const animate = g.dataset.assetSignature !== signature;
   g.dataset.assetSignature = signature;
@@ -7797,6 +7989,11 @@ function updateKPIs() {
   document.getElementById('sPct').textContent = sp.toFixed(1) + '% משקל בתיק';
   document.getElementById('cBar').style.width = cp + '%';
   document.getElementById('sBar').style.width = sp + '%';
+  // Hide the stocks / crypto KPI tiles when their category is turned off in the view.
+  const sStat = document.getElementById('sKpi')?.closest('.stat');
+  const cStat = document.getElementById('cKpi')?.closest('.stat');
+  if (sStat) sStat.style.display = catShown('stocks') ? '' : 'none';
+  if (cStat) cStat.style.display = catShown('crypto') ? '' : 'none';
   const usdEl = document.getElementById('usdVal');
   if (S.currency === 'usd') {
     usdEl.style.display = 'none';
@@ -7804,7 +8001,9 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
+  // Daily P&L only sums categories that are included in the total.
+  const pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
+                 + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
   const pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
@@ -7835,8 +8034,8 @@ function updateKPIs() {
 
 function renderAlloc(c, st) {
   const lbs = [], vs = [], cls = [];
-  S.crypto.forEach(a => { const v = cv(a); if (v > 0) { lbs.push(a.sym); vs.push(v); cls.push(a.color + 'cc'); } });
-  S.stocks.forEach(s => { lbs.push(s.sym); vs.push(sv(s)); cls.push(s.color + 'cc'); });
+  if (catInTotal('crypto')) S.crypto.forEach(a => { const v = cv(a); if (v > 0) { lbs.push(a.sym); vs.push(v); cls.push(a.color + 'cc'); } });
+  if (catInTotal('stocks')) S.stocks.forEach(s => { lbs.push(s.sym); vs.push(sv(s)); cls.push(s.color + 'cc'); });
 
   const labelColor = brandColor('t2');
   const opt = {plugins:{legend:{position:'right',labels:{color:labelColor,font:{family:'JetBrains Mono',size:9},padding:4,boxWidth:6}}},cutout:'70%',animation:{duration:400}};
@@ -9587,6 +9786,86 @@ Rules:
   return assets;
 }
 
+// ═══════════════════════════════════════════
+// VIEW SETTINGS MODAL — modular "Edit Actions"-style category control
+// ═══════════════════════════════════════════
+function viewRow(cat, kind) {
+  // kind: 'total' (counts toward grand total) or 'show' (visible anywhere)
+  const on = kind === 'total'
+    ? (S.view.show[cat.key] && S.view.total[cat.key])
+    : S.view.show[cat.key];
+  // A category can only be in the total if it is shown; disable the total toggle
+  // (visually dimmed) when the category itself is hidden.
+  const disabled = kind === 'total' && !S.view.show[cat.key];
+  return `
+    <div class="view-row${disabled ? ' view-row-disabled' : ''}">
+      <div class="view-row-left">
+        <span class="view-row-ico"><i class="ph-thin ${cat.icon}"></i></span>
+        <span class="view-row-label">${cat.label}${cat.live ? '' : ' <span class="view-soon">בקרוב</span>'}</span>
+      </div>
+      <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
+        onclick="toggleView('${cat.key}','${kind}')" ${disabled ? 'disabled' : ''}>
+        <span class="view-switch-knob"></span>
+      </button>
+    </div>`;
+}
+function renderViewModalBody() {
+  const body = document.getElementById('viewModalBody');
+  if (!body) return;
+  const totalRows = VIEW_CATEGORIES.map(c => viewRow(c, 'total')).join('');
+  const showRows  = VIEW_CATEGORIES.map(c => viewRow(c, 'show')).join('');
+  body.innerHTML = `
+    <div class="view-section">
+      <div class="view-section-title">כלול בשווי השוק הכולל</div>
+      <div class="view-list">${totalRows}</div>
+    </div>
+    <div class="view-section">
+      <div class="view-section-title">קטגוריות מוצגות באתר</div>
+      <div class="view-list">${showRows}</div>
+    </div>`;
+}
+function toggleView(key, kind) {
+  if (kind === 'show') {
+    const next = !S.view.show[key];
+    S.view.show[key] = next;
+    // Hiding a category also removes it from the total (a hidden category can't count).
+    if (!next) S.view.total[key] = false;
+  } else { // total
+    if (!S.view.show[key]) return;              // can't include a hidden category
+    S.view.total[key] = !S.view.total[key];
+  }
+  saveView();
+  renderViewModalBody();           // refresh switch states (and disabled styling)
+  applyViewEverywhere();           // re-render the app to reflect the change
+}
+window.toggleView = toggleView;
+// Re-render every surface that depends on the view config.
+function applyViewEverywhere() {
+  renderDashCrypto();
+  renderDashStocks();
+  updateKPIs();
+  if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
+    const from = document.getElementById('dashDateFrom')?.value;
+    const to   = document.getElementById('dashDateTo')?.value;
+    renderDashPeriod(dashPeriod, dashPeriod === 'custom' ? from : undefined, dashPeriod === 'custom' ? to : undefined);
+  }
+  if (S.curPage === 'stocks' && typeof renderStocksPage === 'function') renderStocksPage();
+  if (S.curPage === 'crypto' && typeof renderCryptoPage === 'function') renderCryptoPage();
+  if (S.curPage === 'insights' && typeof renderInsights === 'function') renderInsights();
+  if (typeof tkStart === 'function') tkStart();    // rebuild ticker respecting categories
+}
+function openViewModal() {
+  renderViewModalBody();
+  document.getElementById('viewOv').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+window.openViewModal = openViewModal;
+function closeViewModal() {
+  document.getElementById('viewOv').classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.closeViewModal = closeViewModal;
+
 function openReview() {
   document.getElementById('reviewOv').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -10577,7 +10856,7 @@ async function dashComputeCrypto(asset,range,fxMap){
 async function dashComputePeriod(range){
   const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
   const fxMap=await dashGetFxMap(range,lotDates);
-  const descriptors=[...S.crypto.map(asset=>({asset,type:'crypto'})),...S.stocks.map(asset=>({asset,type:'stock'}))];
+  const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
   const group=type=>{
     const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
