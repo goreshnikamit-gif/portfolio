@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-period-summary-v10-iphone-layout">
+<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,11 +20,11 @@
 <link rel="dns-prefetch" href="https://finnhub.io">
 <link rel="dns-prefetch" href="https://api.allorigins.win">
 <link rel="preconnect" href="https://api.binance.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500;700&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Rubik:wght@400;500;600&family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500;700&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-19-period-summary-v10-iphone-layout");
+console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -60,7 +60,6 @@ console.info("Vector build: 2026-06-19-period-summary-v10-iphone-layout");
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    BRAND BOOK 2026 — DESIGN TOKENS
@@ -86,7 +85,7 @@ console.info("Vector build: 2026-06-19-period-summary-v10-iphone-layout");
   --t3:   #58688c;   /* faint text / captions */
   --font-logo:  'Instrument Serif', serif;
   --font-title: 'Instrument Serif', serif;
-  --font-body:  'Geist', 'Rubik', 'Heebo', 'Manrope', sans-serif;
+  --font-body:  'Geist', 'Assistant', 'Rubik', sans-serif;
   --font-mono:  'Geist Mono', 'JetBrains Mono', monospace;     /* numbers — tnum-style mono */
   --radius: 20px;     /* Vector cards: softly rounded */
   --radius-sm: 14px;
@@ -114,7 +113,7 @@ body.light {
   /* Same fonts as dark mode for visual parity */
   --font-logo:  'Instrument Serif', serif;
   --font-title: 'Instrument Serif', serif;
-  --font-body:  'Geist', 'Rubik', 'Heebo', 'Manrope', sans-serif;
+  --font-body:  'Geist', 'Assistant', 'Rubik', sans-serif;
   --font-mono:  'Geist Mono', 'JetBrains Mono', monospace;
   --radius: 20px;     /* matches dark mode exactly */
   --radius-sm: 14px;
@@ -132,7 +131,7 @@ body { font-family: var(--font-body); font-weight: 300; background: var(--bg); c
 .ni-lbl, .t-lbl, .s-lbl, .s-sub, .t-sub, .ct2, .mchl, .ar-name,
 .rank-name, .dist-l, .mkpi-l, .stxt, .erow-name, .arow .ar-price,
 .ins-title, .ir-l, .mrl, .mant, .lock-err {
-  font-family: 'Geist', 'Rubik', sans-serif;
+  font-family: 'Geist', 'Assistant', 'Rubik', sans-serif;
   font-weight: 300;
 }
 
@@ -259,26 +258,47 @@ body.light .card-loading::after {
   );
 }
 
-/* When data is unreachable after several retries, fade the card slightly + show indicator */
-.card-unavailable { opacity: 0.65; }
+/* When data is slow to arrive, show a gentle "still loading" hint (not an error) */
+.card-unavailable { opacity: 0.8; }
 .card-unavailable::before {
-  content: '⚠ נתונים לא זמינים';
+  content: 'הנתונים בדרך, רק רגע...';
   position: absolute;
   top: 8px;
   left: 8px;
   font-size: 9px;
   font-family: var(--font-body);
-  color: var(--rd);
-  background: color-mix(in srgb, var(--rd) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--rd) 28%, transparent);
+  color: var(--gd);
+  background: color-mix(in srgb, var(--gd) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gd) 28%, transparent);
   padding: 2px 7px;
   border-radius: 100px;
   z-index: 2;
 }
 
-/* ── Pill-style glass navbar (mobile) — Figma reference look ── */
-.nav {
-  position: fixed;
+/* ── Dashboard asset news (Yahoo-style) ── */
+.asset-news { margin-top: 4px; }
+.asset-news-loading, .asset-news-empty { padding: 24px; text-align: center; color: var(--t3); font-size: 12px; }
+.asset-news-loading .spinner { display:inline-block; vertical-align:-3px; margin-inline-end:6px; }
+.an-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.an-list { display: flex; flex-direction: column; }
+.an-row { display: flex; gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--b1); text-decoration: none; transition: background .15s; align-items: flex-start; }
+.an-row:last-child { border-bottom: none; }
+.an-row:hover { background: color-mix(in srgb, var(--ac) 4%, transparent); }
+.an-thumb { width: 132px; height: 84px; flex: 0 0 132px; border-radius: var(--radius-sm); background-size: cover; background-position: center; background-color: var(--s2); }
+.an-thumb-empty { display: flex; align-items: center; justify-content: center; color: var(--t3); font-size: 24px; }
+.an-body { min-width: 0; flex: 1; padding-top: 2px; }
+.an-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--t1); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.an-meta { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11px; color: var(--t3); flex-wrap: wrap; }
+.an-tag { font-family: var(--font-mono); font-weight: 700; font-size: 10px; color: var(--ac); background: color-mix(in srgb, var(--ac) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ac) 25%, transparent); padding: 1px 7px; border-radius: 100px; }
+.an-dot { opacity: .5; }
+.an-ad { position: sticky; top: 12px; }
+.an-ad-slot { width: 100%; min-height: 600px; border: 1px dashed var(--b2); border-radius: var(--radius); background: color-mix(in srgb, var(--s2) 50%, transparent); display: flex; align-items: center; justify-content: center; color: var(--t3); font-size: 11px; letter-spacing: .5px; }
+@media (max-width: 820px) {
+  .an-layout { grid-template-columns: 1fr; }
+  .an-ad { display: none; }
+  .an-thumb { width: 104px; height: 68px; flex-basis: 104px; }
+  .an-title { font-size: 14px; }
+}
   bottom: calc(var(--safe) + 16px);
   left: 16px; right: 16px;
   z-index: 100;
@@ -488,13 +508,13 @@ body.light .tk-opt.sel { color: #F4EFE5; }
 .ac-item:hover, .ac-item.hov { background: var(--s3); }
 .ac-thumb { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
 .ac-sym { font-family: 'Newsreader', serif; font-style: italic; font-size: 15px; color: var(--t1); min-width: 70px; }
-.ac-name { font-family: 'Manrope', 'Rubik', sans-serif; font-weight: 500; font-size: 12px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.ac-name { font-family: 'Manrope', 'Assistant', 'Rubik', sans-serif; font-weight: 500; font-size: 12px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .ac-exch { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; color: var(--gd); background: var(--s2); border: 1px solid var(--b1); padding: 2px 7px; border-radius: 100px; letter-spacing: .5px; white-space: nowrap; flex-shrink: 0; }
-.ac-load { padding: 9px 12px; font-size: 11px; color: var(--t3); font-family: 'Geist', 'Rubik', sans-serif; }
+.ac-load { padding: 9px 12px; font-size: 11px; color: var(--t3); font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; }
 
 /* Asset names — Manrope Medium (Latin) / Rubik (Hebrew) */
 .ar-name, .rank-name, .erow-name, .mh p {
-  font-family: 'Manrope', 'Rubik', sans-serif !important;
+  font-family: 'Manrope', 'Assistant', 'Rubik', sans-serif !important;
   font-weight: 500 !important;
 }
 
@@ -511,8 +531,8 @@ body.light .news-subtab.active { color: #F4EFE5; }
 .news-item-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 .news-item-src { font-family: var(--font-mono); font-size: 10.5px; color: var(--t3); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
 .news-item-time { font-family: var(--font-mono); font-size: 10.5px; color: var(--t3); }
-.news-item-title { font-family: 'Newsreader', 'Rubik', serif; font-size: 16px; line-height: 1.35; color: var(--t1); font-weight: 400; letter-spacing: -.1px; }
-.news-item-desc { font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; font-size: 12.5px; color: var(--t2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.news-item-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 16px; line-height: 1.35; color: var(--t1); font-weight: 400; letter-spacing: -.1px; }
+.news-item-desc { font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-weight: 300; font-size: 12.5px; color: var(--t2); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .news-item-sym { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--s2); border: 1px solid var(--b1); border-radius: 20px; font-family: 'Newsreader', serif; font-style: italic; font-size: 12px; color: var(--ac); }
 .news-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
 .news-list { padding-bottom: 20px; }
@@ -540,9 +560,9 @@ body.light .news-chip.active { color: #F4EFE5; }
 .news-reader-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--b1); flex-wrap: wrap; }
 .news-reader-back { background: none; border: 1px solid var(--b2); color: var(--t2); cursor: pointer; padding: 6px 12px; font-family: var(--font-body); font-size: 12px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 6px; }
 .news-reader-back:hover { color: var(--t1); border-color: var(--ac); }
-.news-reader-title { font-family: 'Newsreader', 'Rubik', serif; font-size: 22px; line-height: 1.3; color: var(--t1); font-weight: 400; letter-spacing: -.2px; }
+.news-reader-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 22px; line-height: 1.3; color: var(--t1); font-weight: 400; letter-spacing: -.2px; }
 .news-reader-meta { display: flex; align-items: center; gap: 14px; color: var(--t3); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-.news-reader-body { font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; font-size: 15px; line-height: 1.75; color: var(--t1); }
+.news-reader-body { font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-weight: 300; font-size: 15px; line-height: 1.75; color: var(--t1); }
 .news-reader-body p { margin: 0 0 14px 0; }
 .news-reader-img { width: 100%; max-height: 280px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 6px; }
 
@@ -555,11 +575,17 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-cache-status.updating { color:var(--gd); }
 .period-cache-status.error { color:var(--rd); }
 .period-presets { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
-.period-presets .pb2 { flex:0 0 auto; min-width:72px; }
+.period-presets .pb2 { flex:0 1 auto; min-width:64px; white-space:nowrap; }
 .period-date-row { margin-bottom:10px; }
-.period-result-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
-.period-initial, .period-loading, .period-error { grid-column:1/-1; padding:14px; text-align:center; color:var(--t3); font-size:11px; }
+.period-result-grid { display:flex; flex-direction:column; gap:10px; }
+.period-initial, .period-loading, .period-error { padding:14px; text-align:center; color:var(--t3); font-size:11px; }
 .period-loading i, .period-initial i { vertical-align:-2px; margin-inline-end:6px; }
+/* collapsible asset breakdown */
+.period-cards-toggle { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; background:var(--s2); border:1px solid var(--b1); border-radius:var(--radius-sm); cursor:pointer; font-size:11.5px; font-weight:700; color:var(--t2); transition:border-color .15s, background .15s; }
+.period-cards-toggle:hover { border-color:var(--ac); color:var(--t1); }
+.period-cards-toggle span { display:flex; align-items:center; gap:7px; }
+.period-cards-caret { transition:transform .2s ease; font-size:13px; }
+.period-cards-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
 .period-asset-card { background:var(--s3); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:12px; cursor:pointer; min-width:0; transition:border-color .15s, transform .15s; }
 .period-asset-card:hover { border-color:var(--ac); transform:translateY(-1px); }
 .period-asset-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; min-width:0; }
@@ -570,147 +596,30 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-asset-pct { font-size:15px; font-weight:700; margin-bottom:2px; font-family:var(--font-mono); }
 .period-asset-pnl { font-size:11px; font-weight:600; font-family:var(--font-mono); }
 .period-asset-from { font-size:8.5px; color:var(--t3); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.period-summary { grid-column:1/-1; margin-top:4px; background:var(--s1); border:1px solid var(--b2); border-radius:var(--radius-sm); padding:13px; }
+.period-summary { background:var(--s1); border:1px solid var(--b2); border-radius:var(--radius-sm); padding:13px; }
 .period-summary-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
 .period-summary-title { font-size:11px; color:var(--t2); font-weight:700; }
 .period-summary-range { font-size:9.5px; color:var(--t3); font-family:var(--font-mono); }
 .period-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
 .period-summary-cell { background:var(--s2); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:10px; min-width:0; }
+.period-summary-cell.is-primary { border:1px solid var(--b1); background:var(--s1); box-shadow:0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12); }
+.period-summary-cell.is-primary .period-summary-label { color:var(--t2); font-weight:700; }
+body.light .period-summary-cell.is-primary { background:#fff; border:1px solid color-mix(in srgb, var(--b1) 60%, transparent); box-shadow:0 6px 20px rgba(11,30,63,0.10), 0 2px 6px rgba(11,30,63,0.06); }
 .period-summary-label { font-size:9px; color:var(--t3); text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px; }
-.period-summary-value { font-family:var(--font-mono); font-size:15px; font-weight:800; white-space:nowrap; }
+.period-summary-value { font-family:var(--font-mono); font-size:15px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .period-summary-pct { font-family:var(--font-mono); font-size:10px; margin-top:3px; }
 .period-summary-note { margin-top:9px; padding-top:8px; border-top:1px solid var(--b1); color:var(--t3); font-size:9px; line-height:1.5; }
 @media (max-width:640px) {
-  .period-presets { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }
-  .period-presets .pb2 { min-width:max-content; }
-  .period-result-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .period-summary-grid { grid-template-columns:1fr; }
+  .period-presets { flex-wrap:wrap; gap:6px; }
+  .period-presets .pb2 { flex:1 1 auto; min-width:0; text-align:center; padding:8px 10px; font-size:12px; }
+  .period-cards-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .period-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .period-summary-cell { padding:9px 7px; }
+  .period-summary-value { font-size:13px; letter-spacing:-0.4px; }
+  .period-summary-pct { font-size:9px; }
+  .period-summary-label { font-size:8.5px; }
   .period-date-row { align-items:stretch; }
   .period-date-row input { flex:1; min-width:120px; }
-}
-
-
-/* ── IPHONE-STYLE TILE REORDERING ── */
-[data-layout-group] > [data-layout-key] {
-  position: relative;
-  -webkit-user-select: none;
-  user-select: none;
-}
-[data-layout-group].layout-editing > [data-layout-key] {
-  cursor: grab;
-  touch-action: none;
-  outline: 1px solid color-mix(in srgb, var(--ac) 48%, transparent);
-  outline-offset: -1px;
-  animation: layoutJiggle .19s ease-in-out infinite alternate;
-  transform-origin: 50% 55%;
-  will-change: transform;
-}
-[data-layout-group].layout-editing > [data-layout-key]:nth-child(2n) { animation-delay: -.08s; animation-direction: alternate-reverse; }
-[data-layout-group].layout-editing > [data-layout-key]:nth-child(3n) { animation-delay: -.13s; }
-[data-layout-group].layout-editing > [data-layout-key]::before {
-  content: '⋮⋮';
-  position: absolute;
-  top: 7px;
-  inset-inline-start: 8px;
-  z-index: 12;
-  min-width: 24px;
-  height: 21px;
-  padding: 0 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg) 64%, transparent);
-  border: 1px solid var(--b2);
-  color: var(--t2);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -2px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.22);
-  pointer-events: none;
-}
-@keyframes layoutJiggle {
-  from { transform: rotate(-.55deg) translateY(-.3px); }
-  to   { transform: rotate(.55deg) translateY(.3px); }
-}
-.layout-dragging {
-  animation: none !important;
-  cursor: grabbing !important;
-  z-index: 999 !important;
-  transform: scale(1.035) rotate(0deg) !important;
-  box-shadow: 0 24px 55px rgba(0,0,0,.5), 0 0 0 2px color-mix(in srgb, var(--ac) 62%, transparent) !important;
-  opacity: .98 !important;
-}
-.layout-ghost {
-  opacity: .22 !important;
-  transform: scale(.97) !important;
-  border: 1px dashed var(--ac) !important;
-  background: color-mix(in srgb, var(--ac) 10%, var(--s2)) !important;
-}
-.layout-chosen { filter: brightness(1.05); }
-body.layout-edit-mode #app,
-body.layout-edit-mode .modal { overscroll-behavior: contain; }
-#layoutEditBar {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  z-index: 450;
-  transform: translate(-50%, 18px) scale(.96);
-  opacity: 0;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: max-content;
-  max-width: calc(100vw - 24px);
-  padding: 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--s2) 88%, transparent);
-  border: 1px solid var(--b2);
-  box-shadow: 0 20px 55px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.08);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  transition: opacity .2s ease, transform .22s cubic-bezier(.2,.9,.3,1.1);
-}
-#layoutEditBar.show {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
-}
-.layout-edit-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 0 9px;
-  color: var(--t2);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.layout-edit-label i { color: var(--ac); font-size: 15px; }
-.layout-edit-action {
-  border: 1px solid var(--b2);
-  background: var(--s3);
-  color: var(--t1);
-  border-radius: 999px;
-  min-height: 36px;
-  padding: 0 13px;
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.layout-edit-action:hover { border-color: var(--ac); }
-.layout-edit-action.done { background: var(--ac); border-color: var(--ac); color: #fff; }
-@media (max-width: 640px) {
-  #layoutEditBar { bottom: calc(var(--nav) + var(--safe) + 22px); }
-  .layout-edit-label { max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
-  [data-layout-group].layout-editing > [data-layout-key]::before { top: 5px; inset-inline-start: 6px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-layout-group].layout-editing > [data-layout-key] { animation: none; }
 }
 
 /* ── HAMBURGER MENU (mobile) ── */
@@ -750,7 +659,7 @@ body.layout-edit-mode .modal { overscroll-behavior: contain; }
 @keyframes fxConvIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .fx-conv-head { display: flex; align-items: center; justify-content: space-between; cursor: grab; user-select: none; padding-bottom: 6px; border-bottom: 1px solid var(--b1); }
 .fx-conv-head.dragging { cursor: grabbing; }
-.fx-conv-title { display: flex; align-items: center; gap: 8px; font-family: 'Newsreader', 'Rubik', serif; font-size: 15px; color: var(--t1); }
+.fx-conv-title { display: flex; align-items: center; gap: 8px; font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 15px; color: var(--t1); }
 .fx-conv-title i { color: var(--ac); font-size: 14px; }
 .fx-conv-close { background: none; border: none; color: var(--t3); cursor: pointer; padding: 4px; font-size: 16px; }
 .fx-conv-close:hover { color: var(--t1); }
@@ -785,7 +694,7 @@ body.layout-edit-mode .modal { overscroll-behavior: contain; }
 
 .lots-history { margin-top: 14px; }
 .lots-history-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.lots-history-title h3 { font-family: 'Newsreader', 'Rubik', serif; font-style: italic; font-size: 18px; font-weight: 400; color: var(--t1); }
+.lots-history-title h3 { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-style: italic; font-size: 18px; font-weight: 400; color: var(--t1); }
 .lots-history-title .avg-pill { font-family: var(--font-mono); font-size: 11px; color: var(--gd); font-weight: 600; padding: 4px 10px; background: color-mix(in srgb, var(--gd) 12%, transparent); border: 1px solid color-mix(in srgb, var(--gd) 25%, transparent); border-radius: 100px; }
 .lot-card { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; padding: 12px 14px; background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); margin-bottom: 8px; }
 .lot-card-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -853,9 +762,14 @@ body.light .fund-cell {
 .lots-close:hover { background: var(--b1); color: var(--t1); }
 .lots-close i { font-size: 14px; }
 body.light .lots-close { background: rgba(255,255,255,0.7) !important; border-color: rgba(10,15,31,0.15) !important; }
-.lot-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+.lot-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
 .lot-row input { background: var(--s1); border: 1px solid var(--b1); border-radius: 4px; padding: 6px 8px; font-family: var(--font-mono); font-size: 11px; color: var(--t1); width: 100%; }
 .lot-row input:focus { border-color: var(--ac); outline: none; }
+.lot-row input.lot-autofilled { border-color: color-mix(in srgb, var(--ac) 50%, var(--b1)); background: color-mix(in srgb, var(--ac) 6%, var(--s1)); }
+.ff input.lot-autofilled { border-color: color-mix(in srgb, var(--ac) 50%, var(--b1)) !important; background: color-mix(in srgb, var(--ac) 7%, transparent) !important; }
+.lot-row .lot-ok { width: 26px; height: 26px; background: transparent; border: 1px solid color-mix(in srgb, var(--gr) 45%, var(--b1)); border-radius: 4px; color: var(--gr); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .12s, transform .12s; }
+.lot-row .lot-ok:hover { background: color-mix(in srgb, var(--gr) 14%, transparent); }
+.lot-row .lot-ok-done { background: var(--gr); color: #fff; transform: scale(1.08); }
 .lot-row .lot-del { width: 26px; height: 26px; background: transparent; border: 1px solid var(--b1); border-radius: 4px; color: var(--t3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .lot-row .lot-del:hover { color: var(--rd); border-color: var(--rd); }
 .lot-add { width: 100%; background: transparent; border: 1px dashed var(--b2); border-radius: 4px; padding: 6px; color: var(--ac); font-family: var(--font-body); font-size: 11px; cursor: pointer; margin-top: 2px; }
@@ -939,14 +853,14 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
 /* Vector signature: 4px voltage line on the leading edge (brand: card enter) */
 .total::before { content:''; position:absolute; top:0; right:0; left:0; height:3px; background: var(--ac); opacity: .85; }
 body.light .total::before { display:none; }
-.t-lbl { font-size: 15px; color: var(--t2); font-weight: 400; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; font-family: 'Newsreader', 'Rubik', serif; }
+.t-lbl { font-size: 15px; color: var(--t2); font-weight: 400; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; font-family: 'Newsreader', 'Assistant', 'Rubik', serif; }
 .t-val { font-family: var(--font-mono); font-size: 52px; font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 20px; color: var(--t1); }
 .t-val .sym { font-size: 24px; color: var(--t3); font-weight: 400; margin-left: 6px; }
 .t-meta { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; flex-direction: column; }
 .badge { padding: 5px 12px; border-radius: var(--radius-sm); font-size: 15px; font-weight: 700; font-family: var(--font-mono); }
 .badge.up { background: color-mix(in srgb, var(--gr) 14%, transparent); color: var(--gr); border: 1px solid color-mix(in srgb, var(--gr) 22%, transparent); }
 .badge.dn { background: color-mix(in srgb, var(--rd) 14%, transparent); color: var(--rd); border: 1px solid color-mix(in srgb, var(--rd) 22%, transparent); }
-.t-sub { font-size: 16px; color: var(--t2); font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; }
+.t-sub { font-size: 16px; color: var(--t2); font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-weight: 300; }
 .t-pnl { font-size: 26px; font-weight: 700; font-family: var(--font-mono); }
 
 /* ── STAT GRID ── */
@@ -963,13 +877,13 @@ body.light .total::before { display:none; }
 }
 .s-lbl { font-size: 12px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .s-val { font-family: var(--font-mono); font-size: 23px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.s-sub { font-family: 'Geist', 'Rubik', sans-serif; font-size: 13px; font-weight: 300; color: var(--t2); margin-top: 4px; }
+.s-sub { font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-size: 13px; font-weight: 300; color: var(--t2); margin-top: 4px; }
 .bar { height: 3px; background: var(--s3); margin-top: 10px; border-radius: 2px; overflow: hidden; }
 .bar-f { height: 100%; transition: width 0.8s cubic-bezier(.55,.2,.2,1); }
 
 /* ── SECTION HEADERS ── */
 .sec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; margin-top: 8px; border-bottom: 1px solid var(--b1); padding-bottom: 7px; }
-.sec-t { display: flex; align-items: center; gap: 9px; font-family: 'Newsreader', 'Rubik', serif; font-size: 20px; font-weight: 400; letter-spacing: -0.2px; }
+.sec-t { display: flex; align-items: center; gap: 9px; font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 20px; font-weight: 400; letter-spacing: -0.2px; }
 .sec-t i { width: 3px; height: 15px; background: var(--ac); display: inline-block; border-radius: 1px; }
 .add-b { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--t1); background: var(--s2); border: 1px solid var(--b2); padding: 5px 11px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
 .add-b:hover { background: var(--s3); border-color: var(--ac); }
@@ -1042,7 +956,7 @@ body.light .card:hover {
 .ico { width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 20px; background: var(--s3); border: 1px solid var(--b1); }
 .ico i { font-size: 20px; }
 .tic { font-family: 'Newsreader', serif; font-size: 21px; font-weight: 400; font-style: italic; color: var(--t1); line-height: 1; }
-.nam { font-family: 'Manrope', 'Rubik', sans-serif; font-size: 13px; color: var(--t2); font-weight: 500; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nam { font-family: 'Manrope', 'Assistant', 'Rubik', sans-serif; font-size: 13px; color: var(--t2); font-weight: 500; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); letter-spacing: 0.5px; }
 .tc { background: color-mix(in srgb, var(--ac) 12%, transparent); color: var(--ac); border: 1px solid color-mix(in srgb, var(--ac) 20%, transparent); }
 .ts { background: color-mix(in srgb, var(--ac) 12%, transparent); color: var(--ac); border: 1px solid color-mix(in srgb, var(--ac) 20%, transparent); }
@@ -1050,7 +964,7 @@ body.light .card:hover {
 .spk { height: 56px; margin: 14px 0; opacity: 0.9; width: 100%; }
 .cb { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
 .vv { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--t1); letter-spacing: -0.5px; }
-.vq { font-size: 13px; color: var(--t3); margin-top: 6px; font-family: 'Geist', 'Rubik', sans-serif; font-weight: 300; }
+.vq { font-size: 13px; color: var(--t3); margin-top: 6px; font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-weight: 300; }
 .pb { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .pp { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
 .pn { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
@@ -1065,7 +979,7 @@ body.light .card:hover {
 
 /* ── TIMEFRAME TABS ── */
 .prow { display: flex; gap: 0; margin-bottom: 14px; background: var(--s2); border-radius: 12px; padding: 4px; width: fit-content; }
-.pb2 { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 9px; border: none; background: transparent; color: var(--t3); cursor: pointer; transition: all 0.15s; letter-spacing: 0.3px; }
+.pb2 { font-family: var(--font-body); font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 9px; border: none; background: transparent; color: var(--t3); cursor: pointer; transition: all 0.15s; }
 .pb2:hover { color: var(--t1); background: var(--s3); }
 .pb2.active { background: var(--s1); color: var(--t1); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 body.light .pb2.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6px rgba(11,30,63,0.12); }
@@ -1094,7 +1008,7 @@ body.light .pb2.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6
 
 /* ── INSIGHTS TABLES ── */
 .ins-card { border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
-.ins-title { font-family: 'Newsreader', 'Rubik', serif; font-size: 20px; font-weight: 400; color: var(--t1); letter-spacing: -0.2px; margin-bottom: 12px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; }
+.ins-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 20px; font-weight: 400; color: var(--t1); letter-spacing: -0.2px; margin-bottom: 12px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; }
 .ir { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--b1); }
 .ir:last-child { border-bottom: none; }
 .ir-l { font-size: 14px; color: var(--t2); }
@@ -1129,9 +1043,18 @@ body.light .ov { background: rgba(11,30,63,0.42); }
 @media(min-width: 640px) { .modal { border: 1px solid var(--b2); border-radius: var(--radius); width: min(720px, 94vw); max-height: 85vh; height: auto; transform: scale(0.97) translateY(10px); padding: 24px 20px; } }
 .ov.open .modal { transform: none; }
 .drag { display: none; }
-.mclose { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--s3); border: 1px solid var(--b1); color: var(--t2); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
+.modal-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; flex-direction: row-reverse; }
+.modal-back { display: inline-flex; align-items: center; gap: 6px; background: var(--s3); border: 1px solid var(--b1); color: var(--t2); border-radius: var(--radius-sm); padding: 7px 13px 7px 11px; font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.modal-back:hover { border-color: var(--ac); color: var(--ac); background: color-mix(in srgb, var(--ac) 8%, var(--s3)); }
+.modal-back i { font-size: 16px; }
+/* In LTR the back arrow should point left (reading direction) */
+html[dir="ltr"] .modal-back i, body[dir="ltr"] .modal-back i { transform: scaleX(-1); }
+.mclose { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); inset-inline-start: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--s3); border: 1px solid var(--b1); color: var(--t2); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
 @media(min-width: 640px) { .mclose { top: 16px; width: 28px; height: 28px; border-radius: var(--radius-sm); } }
 .mclose:hover { color: var(--rd); background: var(--b1); }
+/* Topbar variant: in-flow, sits inside the header row (not overlapping content) */
+.modal-topbar .mclose { position: static; top: auto; left: auto; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
+@media(min-width: 640px) { .modal-topbar .mclose { width: 32px; height: 32px; border-radius: var(--radius-sm); } }
 .sell-btn { width: 100%; margin-top: 14px; padding: 13px; border-radius: var(--radius-sm); border: 1px solid transparent; background: #f1f4fb; color: #0A0F1F; font-family: var(--font-body); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity .15s, transform .1s; }
 body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-btn:hover { opacity: .88; }
@@ -1240,9 +1163,16 @@ body.light .review-row { background: rgba(10,15,31,0.05) !important; }
 .key-input:focus { border-color: var(--ac); }
 .key-foot { font-size: 10.5px; color: var(--t3); padding: 10px; background: color-mix(in srgb, var(--gr) 6%, transparent); border-radius: 8px; line-height: 1.5; text-align: center; margin-bottom: 12px; }
 
-.mh { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.mh { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-inline-start: 48px; }
+.mh-titles { min-width: 0; }
+.mh-actions { margin-inline-start: auto; display: flex; gap: 8px; flex-shrink: 0; }
+.mh-btn { width: 38px; height: 38px; border-radius: 11px; border: 1px solid var(--b1); background: var(--s2); color: var(--t2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all .15s; }
+.mh-btn:hover { border-color: var(--ac); color: var(--ac); background: color-mix(in srgb, var(--ac) 8%, var(--s2)); transform: translateY(-1px); }
+.mh-spin { animation: rot .7s linear infinite; }
+.erow-flash { animation: erowFlash 1.4s ease; }
+@keyframes erowFlash { 0%,100% { background: transparent; } 30% { background: color-mix(in srgb, var(--ac) 16%, transparent); } }
 .mico { width: 46px; height: 46px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 21px; background: var(--s3); border: 1px solid var(--b1); }
-.mh h2 { font-family: 'Newsreader', 'Rubik', serif; font-style: italic; font-size: 28px; font-weight: 400; letter-spacing: -0.4px; }
+.mh h2 { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-style: italic; font-size: 28px; font-weight: 400; letter-spacing: -0.4px; }
 .mh p { font-size: 14px; color: var(--t2); margin-top: 2px; }
 
 .mkpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px; }
@@ -1289,7 +1219,7 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 .sig.hold .stxt { color: var(--gd); }
 
 /* ── EDITOR ── */
-.ed-t { font-family: 'Newsreader', 'Rubik', serif; font-size: 24px; font-weight: 400; margin-bottom: 4px; letter-spacing: -0.3px; }
+.ed-t { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 24px; font-weight: 400; margin-bottom: 4px; letter-spacing: -0.3px; }
 .ed-s { font-size: 14px; color: var(--t2); margin-bottom: 16px; }
 .tabr { display: flex; gap: 4px; margin-bottom: 12px; }
 .tabb { font-family: var(--font-body); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--b1); background: transparent; color: var(--t2); cursor: pointer; }
@@ -1480,15 +1410,15 @@ body.light .lock-logo { border-radius: 50%; background: var(--ac); color: #fff; 
 .gbtn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 100px; padding: 13px 24px; cursor: pointer; transition: transform .12s, box-shadow .15s; }
 .gbtn:hover { box-shadow: 0 4px 14px rgba(0,0,0,.18); }
 .gbtn:active { transform: scale(.985); }
-.gbtn-lbl { font-family: 'Geist', 'Rubik', sans-serif; font-size: 14.5px; font-weight: 500; color: #1f1f1f; }
+.gbtn-lbl { font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-size: 14.5px; font-weight: 500; color: #1f1f1f; }
 .gbtn svg { width: 20px; height: 20px; flex-shrink: 0; }
 
 /* ── Email/password auth form ── */
 .auth-form { width: 100%; display: flex; flex-direction: column; gap: 9px; }
-.auth-inp { width: 100%; padding: 13px 15px; border-radius: 13px; border: 1px solid var(--b2); background: var(--s2); color: var(--t1); font-family: 'Geist', 'Rubik', sans-serif; font-size: 14px; outline: none; transition: border-color .15s, background .15s; box-sizing: border-box; }
+.auth-inp { width: 100%; padding: 13px 15px; border-radius: 13px; border: 1px solid var(--b2); background: var(--s2); color: var(--t1); font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-size: 14px; outline: none; transition: border-color .15s, background .15s; box-sizing: border-box; }
 .auth-inp:focus { border-color: var(--ac); background: var(--s3); }
 .auth-inp::placeholder { color: var(--t3); opacity: .8; }
-.auth-submit { width: 100%; padding: 14px; border-radius: 100px; border: none; background: var(--ac); color: #fff; font-family: 'Geist', 'Rubik', sans-serif; font-size: 14.5px; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .12s, box-shadow .15s; margin-top: 3px; box-shadow: 0 6px 20px color-mix(in srgb, var(--ac) 38%, transparent); }
+.auth-submit { width: 100%; padding: 14px; border-radius: 100px; border: none; background: var(--ac); color: #fff; font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-size: 14.5px; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .12s, box-shadow .15s; margin-top: 3px; box-shadow: 0 6px 20px color-mix(in srgb, var(--ac) 38%, transparent); }
 .auth-submit:hover { opacity: .95; box-shadow: 0 8px 26px color-mix(in srgb, var(--ac) 48%, transparent); }
 .auth-submit:active { transform: scale(.985); }
 .auth-submit:disabled { opacity: .5; cursor: wait; }
@@ -2036,7 +1966,7 @@ window.doBiometric = async () => {
     sessionStorage.setItem('bio_ts', Date.now().toString());
     window.proceedToApp(); return;
   }
-  ico.textContent = '⏳'; lbl.textContent = 'ממתין לאימות...';
+  ico.innerHTML = '<i class="ph-thin ph-hourglass"></i>'; lbl.textContent = 'ממתין לאימות...';
   try {
     const credId = localStorage.getItem('bio_cred');
     if (!credId) {
@@ -2057,10 +1987,10 @@ window.doBiometric = async () => {
       }});
     }
     sessionStorage.setItem('bio_ts', Date.now().toString());
-    ico.textContent = '✅'; lbl.textContent = 'אומת!';
+    ico.innerHTML = '<i class="ph-thin ph-check-circle"></i>'; lbl.textContent = 'אומת!';
     setTimeout(() => window.proceedToApp(), 400);
   } catch(e) {
-    ico.textContent = '👆'; lbl.textContent = 'טביעת אצבע / זיהוי פנים';
+    ico.innerHTML = '<i class="ph-thin ph-fingerprint"></i>'; lbl.textContent = 'טביעת אצבע / זיהוי פנים';
     if (e.name === 'NotAllowedError') err.textContent = 'האימות נכשל — נסה שוב';
     else if (e.name === 'InvalidStateError') { localStorage.removeItem('bio_cred'); err.textContent = 'מכשיר חדש — לחץ שוב'; }
     else err.textContent = 'שגיאה: ' + e.message;
@@ -2168,8 +2098,12 @@ onAuthStateChanged(auth, async user => {
       <span id="tkMktLbl">ארה"ב</span><i class="ph ph-caret-down"></i>
       <div class="tk-menu" id="tkMenu">
         <div class="tk-opt sel" data-mkt="us" onclick="tkSetMarket('us',event)"><span>שוק אמריקאי</span><i class="ph ph-check tk-chk"></i></div>
-        <div class="tk-opt" data-mkt="il" onclick="tkSetMarket('il',event)"><span>שוק ישראלי</span><i class="ph ph-check tk-chk"></i></div>
+        <div class="tk-opt" data-mkt="eu" onclick="tkSetMarket('eu',event)"><span>אירופה</span><i class="ph ph-check tk-chk"></i></div>
+        <div class="tk-opt" data-mkt="as" onclick="tkSetMarket('as',event)"><span>אסיה</span><i class="ph ph-check tk-chk"></i></div>
         <div class="tk-opt" data-mkt="cr" onclick="tkSetMarket('cr',event)"><span>קריפטו</span><i class="ph ph-check tk-chk"></i></div>
+        <div class="tk-opt" data-mkt="rt" onclick="tkSetMarket('rt',event)"><span>ריביות</span><i class="ph ph-check tk-chk"></i></div>
+        <div class="tk-opt" data-mkt="cm" onclick="tkSetMarket('cm',event)"><span>סחורות</span><i class="ph ph-check tk-chk"></i></div>
+        <div class="tk-opt" data-mkt="fx" onclick="tkSetMarket('fx',event)"><span>מטבעות</span><i class="ph ph-check tk-chk"></i></div>
       </div>
     </div>
     <div class="tk-strip"><div class="tk-track" id="tkTrack"></div></div>
@@ -2195,11 +2129,11 @@ onAuthStateChanged(auth, async user => {
       </div>
 
 
-    <div class="stat-g" data-layout-group="dashboard-kpis" data-layout-label="כרטיסי הסיכום">
-      <div class="stat" data-layout-key="stocks"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
-      <div class="stat" data-layout-key="crypto"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
-      <div class="stat" data-layout-key="fx"><div class="s-lbl"><i class="ph-thin ph-currency-dollar ph-sm"></i> שער דולר</div><div class="s-val" id="fxKpi" style="color:var(--gd)">---</div><div class="s-sub" id="fxKpiSub">USD/ILS רציף</div></div>
-      <div class="stat" data-layout-key="best"><div class="s-lbl"><i class="ph-thin ph-trophy ph-sm"></i> ביצועים מובילים</div><div class="s-val" id="bestKpi" style="font-size:13px;color:var(--gr)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
+    <div class="stat-g">
+      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
+      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
+      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-currency-dollar ph-sm"></i> שער דולר</div><div class="s-val" id="fxKpi" style="color:var(--gd)">---</div><div class="s-sub" id="fxKpiSub">USD/ILS רציף</div></div>
+      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-trophy ph-sm"></i> ביצועים מובילים</div><div class="s-val" id="bestKpi" style="font-size:13px;color:var(--gr)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
     </div>
     </div>
 
@@ -2209,9 +2143,9 @@ onAuthStateChanged(auth, async user => {
         <div class="period-cache-status" id="dashPeriodStatus" aria-live="polite"></div>
       </div>
       <div class="period-presets" id="dashPeriodRow">
-        <button class="pb2" onclick="setDashPeriod('today',this)">היום</button>
+        <button class="pb2 active" onclick="setDashPeriod('today',this)">היום</button>
         <button class="pb2" onclick="setDashPeriod('week',this)">7 ימים</button>
-        <button class="pb2 active" onclick="setDashPeriod('month',this)">החודש</button>
+        <button class="pb2" onclick="setDashPeriod('month',this)">החודש</button>
         <button class="pb2" onclick="setDashPeriod('prevmonth',this)">חודש קודם</button>
         <button class="pb2" onclick="setDashPeriod('3m',this)">3 חודשים</button>
         <button class="pb2" onclick="setDashPeriod('ytd',this)">מתחילת השנה</button>
@@ -2225,22 +2159,20 @@ onAuthStateChanged(auth, async user => {
         <button class="date-go" onclick="applyDashCustom()">חשב</button>
       </div>
       <div id="dashPeriodResult" style="display:block;margin-top:10px;">
-        <div class="period-result-grid" id="dashPeriodGrid" data-layout-group="dashboard-period-assets" data-layout-label="נכסים לפי תקופה">
+        <div class="period-result-grid" id="dashPeriodGrid">
           <div class="period-initial"><i class="fi fi-tr-hourglass fi-spin"></i> הנתונים יופיעו מיד לאחר טעינת התיק</div>
         </div>
       </div>
     </div>
 
     <div class="sec"><div class="sec-t"><i></i>מניות וניירות ערך</div><button class="add-b" onclick="openEditor('stock')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dSGrid" data-layout-group="dashboard-stocks" data-layout-label="כרטיסי המניות"><div class="skel"></div></div>
+    <div class="grid" id="dSGrid"><div class="skel"></div></div>
 
     <div class="sec"><div class="sec-t"><i></i>קריפטו ריל-טיים</div><button class="add-b" onclick="openEditor('crypto')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dCGrid" data-layout-group="dashboard-crypto" data-layout-label="כרטיסי הקריפטו"><div class="skel"></div><div class="skel"></div></div>
+    <div class="grid" id="dCGrid"><div class="skel"></div><div class="skel"></div></div>
 
-    <div class="crow" data-layout-group="dashboard-charts" data-layout-label="גרפי התיק">
-      <div class="cc" data-layout-key="allocation"><div class="ct2">התפלגות תיק הנכסים</div><div class="ch"><canvas id="allocChart"></canvas></div></div>
-      <div class="cc" data-layout-key="categories"><div class="ct2">פילוח קטגוריות</div><div class="ch"><canvas id="splitChart"></canvas></div></div>
-    </div>
+    <div class="sec" style="margin-top:14px"><div class="sec-t"><i class="ph-thin ph-newspaper" style="margin-inline-end:8px"></i>כתבות על הנכסים שלי</div></div>
+    <div id="assetNews" class="asset-news"></div>
   </div>
 
   <div class="page" id="page-stocks">
@@ -2282,7 +2214,7 @@ onAuthStateChanged(auth, async user => {
 
   <div class="page" id="page-insights">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מנוע תובנות אנליטי</div></div>
-    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary" data-layout-group="insights-summary" data-layout-label="סיכום התובנות"></div></div>
+    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary"></div></div>
     <div class="ins-card">
       <div class="ins-title" style="display:flex;justify-content:space-between;align-items:center">
         <span><i class="ph-thin ph-calendar-blank ph-sm"></i> היסטוריית ביצועים ו-P&L</span>
@@ -2327,12 +2259,6 @@ onAuthStateChanged(auth, async user => {
 
 <div class="ov" id="detOv" onclick="if(event.target===this)closeDet()">
   <div class="modal"><div class="drag"></div><button class="mclose" onclick="closeDet()"><i class="ph-thin ph-x ph-sm"></i></button><div id="detContent"></div></div>
-</div>
-
-<div id="layoutEditBar" role="toolbar" aria-label="עריכת סדר הקוביות">
-  <div class="layout-edit-label"><i class="ph-thin ph-arrows-out-cardinal"></i><span id="layoutEditLabel">סידור קוביות</span></div>
-  <button class="layout-edit-action" type="button" onclick="resetActiveLayout()">איפוס</button>
-  <button class="layout-edit-action done" type="button" onclick="exitLayoutEditMode()">סיום</button>
 </div>
 
 <!-- ── אוברליי טעינה גלובלי ── -->
@@ -2391,14 +2317,21 @@ onAuthStateChanged(auth, async user => {
 </div>
 
 <div class="ov" id="edOv" onclick="if(event.target===this)closeEd()">
-  <div class="modal"><div class="drag"></div><button class="mclose" onclick="closeEd()"><i class="ph-thin ph-x ph-sm"></i></button><div id="edContent"></div></div>
+  <div class="modal">
+    <div class="modal-topbar">
+      <button class="modal-back" onclick="edBack()" title="חזרה"><i class="ph-thin ph-arrow-right"></i><span>חזרה</span></button>
+      <button class="mclose" onclick="closeEd()" title="סגירה"><i class="ph-thin ph-x ph-sm"></i></button>
+    </div>
+    <div class="drag"></div>
+    <div id="edContent"></div>
+  </div>
 </div>
 
 <div class="ibanner" id="installBanner">
   <span><i class="ph-thin ph-device-mobile" style="font-size:22px"></i></span>
   <div><div style="font-size:12px;font-weight:700">התקן כאפליקציית נייד</div><div style="font-size:10px;color:var(--t2)">גישה ישירה ומהירה ממסך הבית</div></div>
   <button style="background:var(--ac);border:none;border-radius:var(--radius-sm);padding:6px 12px;font-family:var(--font-body);font-size:11px;font-weight:700;color:#F1F4FB;cursor:pointer" id="installBtn">התקן</button>
-  <button class="ibtn" style="width:24px;height:24px;border:none;" onclick="document.getElementById('installBanner').classList.remove('show')">✕</button>
+  <button class="ibtn" style="width:24px;height:24px;border:none;" onclick="document.getElementById('installBanner').classList.remove('show')"><i class="ph-thin ph-x"></i></button>
 </div>
 
 <script>
@@ -2514,14 +2447,12 @@ function persistPortfolioLocally() {
   try {
     localStorage.setItem('pc', JSON.stringify(S.crypto));
     localStorage.setItem('ps', JSON.stringify(S.stocks));
-    localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts || {}));
   } catch(_) {}
 }
 function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
     stocks: S.stocks,
-    layouts: S.layouts || {},
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -2564,186 +2495,8 @@ const S = {
   sel: null, sPeriod: '1d', cPeriod: '1d', curPage: 'dash',
   crypto: loadLS('pc', DEF_C),
   stocks: loadLS('ps', DEF_S),
-  layouts: loadLS('vector_layouts_v1', {}),
 };
 fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
-
-// ═══════════════════════════════════════════
-// IPHONE-STYLE TILE LAYOUTS
-// Long press enters edit mode; dragging is limited to the current group.
-// Orders are kept locally and, for signed-in users, synced through Firestore.
-// ═══════════════════════════════════════════
-const layoutInstances = new WeakMap();
-const layoutOriginalOrders = new Map();
-let activeLayoutContainer = null;
-let layoutClickBlockUntil = 0;
-let layoutCloudTimer = null;
-let layoutRefreshTimer = null;
-
-function layoutItems(container) {
-  return [...container.children].filter(el => el instanceof HTMLElement && el.dataset.layoutKey);
-}
-function layoutOrder(container) {
-  return layoutItems(container).map(el => el.dataset.layoutKey).filter(Boolean);
-}
-function placeLayoutItems(container, orderedItems) {
-  const current = layoutItems(container);
-  if (current.length !== orderedItems.length) return;
-  const markers = current.map(item => {
-    const marker = document.createComment('layout-slot');
-    container.insertBefore(marker, item);
-    item.remove();
-    return marker;
-  });
-  orderedItems.forEach((item, index) => container.insertBefore(item, markers[index]));
-  markers.forEach(marker => marker.remove());
-}
-function applyLayoutOrder(container) {
-  const group = container?.dataset?.layoutGroup;
-  if (!group) return;
-  const items = layoutItems(container);
-  if (items.length < 2) return;
-  if (!layoutOriginalOrders.has(group)) layoutOriginalOrders.set(group, items.map(el => el.dataset.layoutKey));
-  const saved = Array.isArray(S.layouts?.[group]) ? S.layouts[group] : [];
-  if (!saved.length) return;
-  const rank = new Map(saved.map((key, index) => [key, index]));
-  const sorted = [...items].sort((a, b) => {
-    const ai = rank.has(a.dataset.layoutKey) ? rank.get(a.dataset.layoutKey) : Number.MAX_SAFE_INTEGER;
-    const bi = rank.has(b.dataset.layoutKey) ? rank.get(b.dataset.layoutKey) : Number.MAX_SAFE_INTEGER;
-    return ai - bi;
-  });
-  if (items.every((item, index) => item === sorted[index])) return;
-  placeLayoutItems(container, sorted);
-}
-function persistLayoutState() {
-  try { localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts || {})); } catch(_) {}
-  markEdit();
-  try { localStorage.setItem('portfolio_sync_pending', '1'); } catch(_) {}
-  clearTimeout(layoutCloudTimer);
-  layoutCloudTimer = setTimeout(() => {
-    if (!window.fbSave) return;
-    window.fbSave(currentCloudPortfolioPayload()).then(result => {
-      if (result?.saved) {
-        try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
-      }
-      syncStatusRefresh?.();
-    });
-  }, 450);
-}
-function saveLayoutOrder(container) {
-  const group = container?.dataset?.layoutGroup;
-  if (!group) return;
-  S.layouts ||= {};
-  S.layouts[group] = layoutOrder(container);
-  persistLayoutState();
-}
-function setLayoutBar(container) {
-  const bar = document.getElementById('layoutEditBar');
-  const label = document.getElementById('layoutEditLabel');
-  if (label) label.textContent = container?.dataset?.layoutLabel || 'סידור קוביות';
-  bar?.classList.toggle('show', !!container);
-}
-function enterLayoutEditMode(container) {
-  if (!container || activeLayoutContainer === container) return;
-  if (activeLayoutContainer) exitLayoutEditMode({ applyPending: false });
-  activeLayoutContainer = container;
-  document.body.classList.add('layout-edit-mode');
-  container.classList.add('layout-editing');
-  layoutInstances.get(container)?.option('delay', 0);
-  setLayoutBar(container);
-  layoutClickBlockUntil = Date.now() + 650;
-  try { navigator.vibrate?.(18); } catch(_) {}
-}
-window.exitLayoutEditMode = function({ applyPending = true } = {}) {
-  if (!activeLayoutContainer) return;
-  saveLayoutOrder(activeLayoutContainer);
-  activeLayoutContainer.classList.remove('layout-editing');
-  layoutInstances.get(activeLayoutContainer)?.option('delay', 420);
-  activeLayoutContainer = null;
-  document.body.classList.remove('layout-edit-mode');
-  setLayoutBar(null);
-  layoutClickBlockUntil = Date.now() + 350;
-  if (applyPending && window._pendingRemotePortfolio) {
-    const pending = window._pendingRemotePortfolio;
-    window._pendingRemotePortfolio = null;
-    if (typeof applyCloudPortfolio === 'function' && applyCloudPortfolio(pending)) renderPortfolioImmediately();
-  }
-};
-window.resetActiveLayout = function() {
-  const container = activeLayoutContainer;
-  if (!container) return;
-  const group = container.dataset.layoutGroup;
-  const original = layoutOriginalOrders.get(group) || [];
-  const current = layoutItems(container);
-  const byKey = new Map(current.map(el => [el.dataset.layoutKey, el]));
-  const ordered = original.map(key => byKey.get(key)).filter(Boolean);
-  current.filter(item => !original.includes(item.dataset.layoutKey)).forEach(item => ordered.push(item));
-  placeLayoutItems(container, ordered);
-  S.layouts ||= {};
-  delete S.layouts[group];
-  persistLayoutState();
-  try { navigator.vibrate?.([12, 35, 12]); } catch(_) {}
-};
-function initLayoutContainer(container) {
-  if (!(container instanceof HTMLElement) || !container.dataset.layoutGroup) return;
-  applyLayoutOrder(container);
-  if (layoutInstances.has(container) || layoutItems(container).length < 2 || !window.Sortable) return;
-  const sortable = Sortable.create(container, {
-    draggable: '[data-layout-key]',
-    group: { name: container.dataset.layoutGroup, pull: false, put: false },
-    animation: 220,
-    easing: 'cubic-bezier(.2,.9,.3,1)',
-    delay: 420,
-    delayOnTouchOnly: false,
-    touchStartThreshold: 5,
-    fallbackTolerance: 4,
-    forceFallback: true,
-    fallbackOnBody: true,
-    swapThreshold: .62,
-    invertSwap: true,
-    scroll: true,
-    scrollSensitivity: 70,
-    scrollSpeed: 12,
-    ghostClass: 'layout-ghost',
-    chosenClass: 'layout-chosen',
-    dragClass: 'layout-dragging',
-    filter: 'button,input,select,textarea,a,canvas,.rb,.sell-btn,.add-b,.date-go',
-    preventOnFilter: false,
-    onChoose() { enterLayoutEditMode(container); },
-    onStart() { layoutClickBlockUntil = Date.now() + 1200; },
-    onEnd() {
-      layoutClickBlockUntil = Date.now() + 500;
-      saveLayoutOrder(container);
-    },
-  });
-  layoutInstances.set(container, sortable);
-}
-function refreshLayoutGroups() {
-  document.querySelectorAll('[data-layout-group]').forEach(initLayoutContainer);
-}
-function scheduleLayoutRefresh() {
-  clearTimeout(layoutRefreshTimer);
-  layoutRefreshTimer = setTimeout(refreshLayoutGroups, 25);
-}
-const layoutObserver = new MutationObserver(scheduleLayoutRefresh);
-layoutObserver.observe(document.documentElement, { childList: true, subtree: true });
-document.addEventListener('DOMContentLoaded', refreshLayoutGroups, { once: true });
-window.addEventListener('load', refreshLayoutGroups, { once: true });
-
-document.addEventListener('click', event => {
-  const item = event.target.closest?.('[data-layout-key]');
-  if (!item) return;
-  if ((activeLayoutContainer && activeLayoutContainer.contains(item)) || Date.now() < layoutClickBlockUntil) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  }
-}, true);
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && activeLayoutContainer) {
-    event.preventDefault();
-    exitLayoutEditMode();
-  }
-});
 
 // ═══════════════════════════════════════════
 // DATA ACQUISITION
@@ -2851,15 +2604,46 @@ async function getCrypto() {
 }
 
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
+// ── Your personal Yahoo proxy (Cloudflare Worker) ──
+// Paste your Worker URL here to make TASE / international stocks reliable.
+// Example: 'https://yahoo-proxy.yourname.workers.dev'
+// Leave '' to fall back to the free public proxies (less reliable).
+const MY_PROXY = '';
+// ── Twelve Data API (free tier: 800 calls/day, CORS-enabled, supports TASE!) ──
+// Get a free key at https://twelvedata.com/ → Sign Up → copy your API key here.
+// This fetches Israeli (.TA) + global stocks DIRECTLY from the browser, no proxy needed.
+const TWELVE_DATA_KEY = '';
 
 // Fetch a quote from Google Finance (best for TASE .TA stocks)
 // Returns { price, prevClose, change, currency } or null
-// Map Yahoo symbol suffix → Google Finance exchange code + native currency
+// Map Yahoo symbol suffix → Google Finance exchange code + native currency.
+// `sub` = sub-unit divisor: some exchanges quote in 1/100 of the main currency
+// (London/Dublin in pence, Tel Aviv in agorot, Johannesburg in cents). When the
+// raw quote currency comes back as the sub-unit code (GBp, ILA, ZAc) we divide
+// by `sub` to get the main unit (GBP, ILS, ZAR).
 const SUFFIX_TO_GOOGLE = {
-  'TA':  { ex: 'TLV',    cur: 'ILS' },  // Tel Aviv
-  'L':   { ex: 'LON',    cur: 'GBP' },  // London
+  // --- North America ---
+  'TO':  { ex: 'TSE',    cur: 'CAD' },  // Toronto
+  'V':   { ex: 'CVE',    cur: 'CAD' },  // TSX Venture
+  'NE':  { ex: 'NEO',    cur: 'CAD' },  // Cboe Canada (NEO)
+  'CN':  { ex: 'CNSX',   cur: 'CAD' },  // Canadian Securities Exchange
+  'MX':  { ex: 'BMV',    cur: 'MXN' },  // Mexico
+  // --- Israel & Middle East ---
+  'TA':  { ex: 'TLV',    cur: 'ILS', sub: 100, subCur: 'ILA' },  // Tel Aviv (agorot)
+  'SR':  { ex: 'TADAWUL',cur: 'SAR' },  // Saudi (Tadawul)
+  'QA':  { ex: 'DSM',    cur: 'QAR' },  // Qatar
+  // --- UK & Ireland (pence!) ---
+  'L':   { ex: 'LON',    cur: 'GBP', sub: 100, subCur: 'GBP' },  // London (pence; Yahoo returns GBp)
+  'IL':  { ex: 'LON',    cur: 'USD' },  // London Intl Order Book (USD-denom)
+  'IR':  { ex: 'ISE',    cur: 'EUR' },  // Dublin (Euronext Ireland)
+  // --- Eurozone ---
   'DE':  { ex: 'ETR',    cur: 'EUR' },  // XETRA (Germany)
   'F':   { ex: 'FRA',    cur: 'EUR' },  // Frankfurt
+  'BE':  { ex: 'BER',    cur: 'EUR' },  // Berlin
+  'MU':  { ex: 'MUN',    cur: 'EUR' },  // Munich
+  'HM':  { ex: 'HAM',    cur: 'EUR' },  // Hamburg
+  'DU':  { ex: 'DUS',    cur: 'EUR' },  // Dusseldorf
+  'SG':  { ex: 'STU',    cur: 'EUR' },  // Stuttgart
   'PA':  { ex: 'EPA',    cur: 'EUR' },  // Paris Euronext
   'MI':  { ex: 'BIT',    cur: 'EUR' },  // Milan (Borsa Italiana)
   'AS':  { ex: 'AMS',    cur: 'EUR' },  // Amsterdam
@@ -2867,27 +2651,98 @@ const SUFFIX_TO_GOOGLE = {
   'BR':  { ex: 'EBR',    cur: 'EUR' },  // Brussels
   'LS':  { ex: 'ELI',    cur: 'EUR' },  // Lisbon
   'VI':  { ex: 'VIE',    cur: 'EUR' },  // Vienna
+  'HE':  { ex: 'HEL',    cur: 'EUR' },  // Helsinki
+  'AT':  { ex: 'ATH',    cur: 'EUR' },  // Athens
+  // --- Europe non-euro ---
   'SW':  { ex: 'SWX',    cur: 'CHF' },  // Swiss
   'ST':  { ex: 'STO',    cur: 'SEK' },  // Stockholm
   'OL':  { ex: 'OSL',    cur: 'NOK' },  // Oslo
   'CO':  { ex: 'CPH',    cur: 'DKK' },  // Copenhagen
-  'HE':  { ex: 'HEL',    cur: 'EUR' },  // Helsinki
+  'IC':  { ex: 'ICE',    cur: 'ISK' },  // Iceland
+  'WA':  { ex: 'WSE',    cur: 'PLN' },  // Warsaw
+  'PR':  { ex: 'PRA',    cur: 'CZK' },  // Prague
+  'BD':  { ex: 'BUD',    cur: 'HUF' },  // Budapest
+  'IS':  { ex: 'IST',    cur: 'TRY' },  // Istanbul
+  'RG':  { ex: 'RSE',    cur: 'EUR' },  // Riga
+  'TL':  { ex: 'TAL',    cur: 'EUR' },  // Tallinn
+  'VS':  { ex: 'VSE',    cur: 'EUR' },  // Vilnius
+  // --- Asia-Pacific ---
   'T':   { ex: 'TYO',    cur: 'JPY' },  // Tokyo
   'HK':  { ex: 'HKG',    cur: 'HKD' },  // Hong Kong
   'SS':  { ex: 'SHA',    cur: 'CNY' },  // Shanghai
   'SZ':  { ex: 'SHE',    cur: 'CNY' },  // Shenzhen
-  'AX':  { ex: 'ASX',    cur: 'AUD' },  // Australia
-  'TO':  { ex: 'TSE',    cur: 'CAD' },  // Toronto
-  'V':   { ex: 'CVE',    cur: 'CAD' },  // TSX Venture
-  'SA':  { ex: 'BVMF',   cur: 'BRL' },  // Brazil
-  'MX':  { ex: 'BMV',    cur: 'MXN' },  // Mexico
-  'JO':  { ex: 'JSE',    cur: 'ZAR' },  // Johannesburg
+  'TW':  { ex: 'TPE',    cur: 'TWD' },  // Taiwan
+  'TWO': { ex: 'TPE',    cur: 'TWD' },  // Taiwan OTC
+  'KS':  { ex: 'KRX',    cur: 'KRW' },  // Korea KOSPI
+  'KQ':  { ex: 'KOSDAQ', cur: 'KRW' },  // Korea KOSDAQ
+  'SI':  { ex: 'SGX',    cur: 'SGD' },  // Singapore
+  'BK':  { ex: 'BKK',    cur: 'THB' },  // Thailand
+  'JK':  { ex: 'IDX',    cur: 'IDR' },  // Indonesia
+  'KL':  { ex: 'KLSE',   cur: 'MYR' },  // Malaysia
+  'PS':  { ex: 'PSE',    cur: 'PHP' },  // Philippines
   'NS':  { ex: 'NSE',    cur: 'INR' },  // India NSE
   'BO':  { ex: 'BOM',    cur: 'INR' },  // India BSE
-  'KS':  { ex: 'KRX',    cur: 'KRW' },  // Korea
-  'SI':  { ex: 'SGX',    cur: 'SGD' },  // Singapore
+  'AX':  { ex: 'ASX',    cur: 'AUD' },  // Australia
   'NZ':  { ex: 'NZE',    cur: 'NZD' },  // New Zealand
+  // --- Latin America ---
+  'SA':  { ex: 'BVMF',   cur: 'BRL' },  // Brazil
+  'BA':  { ex: 'BCBA',   cur: 'ARS' },  // Argentina
+  'SN':  { ex: 'SGO',    cur: 'CLP' },  // Chile
+  'CR':  { ex: 'BVC',    cur: 'COP' },  // Colombia
+  'LM':  { ex: 'BVL',    cur: 'PEN' },  // Peru
+  // --- Africa ---
+  'JO':  { ex: 'JSE',    cur: 'ZAR', sub: 100, subCur: 'ZAc' },  // Johannesburg (cents)
+  'CA':  { ex: 'EGX',    cur: 'EGP' },  // Egypt
 };
+
+// Currency sub-unit codes that mean "price is in 1/100 of the main unit".
+// Maps the raw quote-currency code returned by a data source → { main, div }.
+const SUBUNIT_CURRENCY = {
+  'ILA': { main: 'ILS', div: 100 },  // agorot → shekel
+  'ILS_AGOROT': { main: 'ILS', div: 100 },
+  'GBP': { main: 'GBP', div: 1 },    // handled specially below for .L
+  'GBX': { main: 'GBP', div: 100 },  // pence → pound
+  'GBP_PENCE': { main: 'GBP', div: 100 },
+  'ZAC': { main: 'ZAR', div: 100 },  // cents → rand
+  'ZAR_CENTS': { main: 'ZAR', div: 100 },
+};
+
+// Given a raw price + the raw currency code reported by the data source AND the
+// known suffix mapping, return { price, currency } normalized to the MAIN unit.
+// This fixes London (pence), Tel Aviv (agorot) and Johannesburg (cents) uniformly.
+function normalizeQuoteCurrency(price, rawCur, mapping) {
+  if (price == null) return { price, currency: rawCur };
+  const up = (rawCur || '').toUpperCase();
+  // 1) Source explicitly reported a sub-unit code (GBX/GBp, ILA, ZAc)
+  if (up === 'GBX' || up === 'GBP_PENCE') return { price: price / 100, currency: 'GBP' };
+  if (up === 'ILA') return { price: price / 100, currency: 'ILS' };
+  if (up === 'ZAC') return { price: price / 100, currency: 'ZAR' };
+  // 2) Source reported GBp lowercase-pence as plain 'GBP' but the suffix is .L:
+  //    London main-board equities are quoted in pence even when currency says GBP.
+  if (mapping && mapping.ex === 'LON' && mapping.sub === 100 && (up === 'GBP' || up === '')) {
+    return { price: price / 100, currency: 'GBP' };
+  }
+  // 3) Suffix carries an explicit sub-unit (agorot/cents) and source agrees
+  if (mapping && mapping.sub === 100 && mapping.subCur && up === mapping.subCur.toUpperCase()) {
+    return { price: price / 100, currency: mapping.cur };
+  }
+  // 4) No sub-unit handling needed
+  return { price, currency: up || (mapping ? mapping.cur : 'USD') };
+}
+
+// Divisor to apply to raw chart candle prices so they match the normalized quote.
+// Returns 100 for sub-unit exchanges (TLV agorot, LON pence, JSE cents), else 1.
+function chartSubunitDivisor(sym, rawCurrency) {
+  const up = (rawCurrency || '').toUpperCase();
+  if (up === 'ILA' || up === 'GBX' || up === 'ZAC') return 100;
+  const dotIdx = sym.lastIndexOf('.');
+  const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1).toUpperCase() : '';
+  const mapping = SUFFIX_TO_GOOGLE[sfx];
+  // London main-board: pence even when currency meta says 'GBP'
+  if (mapping && mapping.ex === 'LON' && mapping.sub === 100) return 100;
+  if (mapping && mapping.sub === 100) return 100;
+  return 1;
+}
 
 async function fetchGoogleFinanceQuote(sym) {
   // Convert Yahoo format (DSCT.TA, ENI.MI) → Google Finance format (DSCT:TLV, ENI:BIT)
@@ -2913,7 +2768,7 @@ async function fetchGoogleFinanceQuote(sym) {
       const text = await r.text();
       let body = text;
       try { const j = JSON.parse(text); if (j?.contents) body = j.contents; } catch(_) {}
-      // Google Finance data extraction — try multiple patterns
+      // Google Finance data extraction — try multiple patterns (old + new HTML)
       const dataMatch  = body.match(/data-last-price="([\d.]+)"/);
       const prevMatch  = body.match(/data-prev-close="([\d.]+)"/);
       const changeMatch = body.match(/data-percent-change="([-\d.]+)"/);
@@ -2922,9 +2777,18 @@ async function fetchGoogleFinanceQuote(sym) {
         || body.match(/"lastTradeTime"\s*:\s*(\d{10,13})/);
       const stateMatch = body.match(/data-market-state="([^"]+)"/)
         || body.match(/"marketState"\s*:\s*"([^"]+)"/);
-      // Fallback: JSON-LD structured data
+      // Modern Google Finance renders the price inside a div.YMlKec class.
+      // e.g. <div class="YMlKec fxKbKc">₪1,234.50</div> or "$123.45"
+      const ymlMatch = body.match(/class="YMlKec fxKbKc">[^\d-]*([\d,]+\.?\d*)/);
+      // Fallback: JSON-LD / og:price structured data
       const ldMatch = body.match(/"price"\s*:\s*"?([\d.]+)"?/);
-      let price = dataMatch ? parseFloat(dataMatch[1]) : ldMatch ? parseFloat(ldMatch[1]) : null;
+      const ogMatch = body.match(/og:price:amount"\s+content="([\d.]+)"/);
+      const cleanNum = s => s ? parseFloat(s.replace(/,/g, '')) : null;
+      let price = dataMatch ? parseFloat(dataMatch[1])
+        : ymlMatch ? cleanNum(ymlMatch[1])
+        : ldMatch ? parseFloat(ldMatch[1])
+        : ogMatch ? parseFloat(ogMatch[1])
+        : null;
       let prev  = prevMatch ? parseFloat(prevMatch[1]) : null;
       // Another fallback: look for the price in page JSON blobs
       if (!price) {
@@ -2932,14 +2796,84 @@ async function fetchGoogleFinanceQuote(sym) {
         if (m) { price = parseFloat(m[1]); prev = prev || parseFloat(m[2]); }
       }
       if (price && price > 0) {
+        // Google Finance quotes sub-unit exchanges (TLV agorot, LON pence, JSE cents)
+        // in the sub-unit. Divide by the suffix's `sub` to get the main currency unit.
+        const subDiv = mapping.sub || 1;
+        if (subDiv !== 1) {
+          price = price / subDiv;
+          if (prev) prev = prev / subDiv;
+        }
         const chg = changeMatch ? parseFloat(changeMatch[1]) : prev ? ((price - prev) / prev) * 100 : null;
         return {
           price, prevClose: prev || price, currency: nativeCur, change: chg,
           high: price, low: price,
           quoteTime: timeMatch ? normalizeEpochMs(timeMatch[1]) : null,
           marketState: stateMatch ? stateMatch[1] : null,
+          _source: 'google',
         };
       }
+    } catch (_) {}
+  }
+  return null;
+}
+
+// Stooq: CORS-friendly, free, reliable last-quote source. Great fallback for
+// Israeli ADRs and US stocks when Finnhub/Yahoo are rate-limited or blocked.
+// Twelve Data: CORS-enabled, supports TASE (.TA) and global exchanges directly
+// from the browser — no proxy. Returns price in the exchange's native currency.
+async function fetchTwelveDataQuote(sym) {
+  if (!TWELVE_DATA_KEY) return null;
+  try {
+    const r = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${TWELVE_DATA_KEY}`, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d.status === 'error' || !d.close) return null;
+    const price = parseFloat(d.close);
+    const prev  = parseFloat(d.previous_close) || price;
+    if (!(price > 0)) return null;
+    // Unified sub-unit normalization (agorot/pence/cents) for any exchange.
+    const dotIdx = sym.lastIndexOf('.');
+    const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1).toUpperCase() : '';
+    const mapping = SUFFIX_TO_GOOGLE[sfx] || null;
+    const rawCur = (d.currency || '').toUpperCase();
+    const normP = normalizeQuoteCurrency(price, rawCur, mapping);
+    const div = price ? (price / normP.price) : 1;
+    return {
+      price: normP.price,
+      prevClose: prev / div,
+      high: (parseFloat(d.high) || price) / div,
+      low:  (parseFloat(d.low)  || price) / div,
+      open: (parseFloat(d.open) || price) / div,
+      currency: normP.currency,
+      high52w: d.fifty_two_week?.high ? parseFloat(d.fifty_two_week.high) / div : null,
+      low52w:  d.fifty_two_week?.low  ? parseFloat(d.fifty_two_week.low)  / div : null,
+      quoteTime: d.timestamp ? d.timestamp * 1000 : Date.now(),
+      _source: 'twelvedata',
+    };
+  } catch (_) { return null; }
+}
+
+async function fetchStooqQuote(sym) {
+  // If the symbol already carries a Stooq market suffix (.us/.il/.uk...) use it as-is;
+  // otherwise try .us (US-listed, incl. Israeli ADRs) then bare.
+  const s = sym.toLowerCase();
+  const candidates = /\.[a-z]{2}$/i.test(s) ? [s] : [`${s}.us`, s];
+  for (const code of candidates) {
+    try {
+      const stooqUrl = `https://stooq.com/q/l/?s=${code}&f=sd2t2ohlcv&h&e=csv`;
+      const proxied = `https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`;
+      const r = await fetch(proxied, { signal: AbortSignal.timeout(6000) });
+      if (!r.ok) continue;
+      const csv = (await r.text()).trim();
+      const lines = csv.split('\n');
+      if (lines.length < 2) continue;
+      const cols = lines[1].split(',');
+      // CSV: Symbol,Date,Time,Open,High,Low,Close,Volume
+      const open = parseFloat(cols[3]), close = parseFloat(cols[6]);
+      if (!(close > 0)) continue;
+      // Stooq doesn't give prev-close directly in this feed; approximate day change from open.
+      const prev = open > 0 ? open : close;
+      return { price: close, prevClose: prev, high: parseFloat(cols[4])||close, low: parseFloat(cols[5])||close, currency: 'USD' };
     } catch (_) {}
   }
   return null;
@@ -2950,6 +2884,7 @@ async function fetchYahooQuote(sym) {
   // works for ANY symbol on ANY global exchange (POLI.TA, ASML.AS, 7203.T, etc.)
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
   const proxies = [
+    ...(MY_PROXY ? [u => `${MY_PROXY}/?url=${encodeURIComponent(u)}`] : []),
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
@@ -2959,7 +2894,7 @@ async function fetchYahooQuote(sym) {
   ];
   for (const px of proxies) {
     try {
-      const r = await fetch(px(url), { signal: AbortSignal.timeout(9000) });
+      const r = await fetch(px(url), { signal: AbortSignal.timeout(6000) });
       if (!r.ok) continue;
       const text = await r.text();
       let body = text;
@@ -2987,32 +2922,67 @@ async function fetchYahooQuote(sym) {
       const low   = meta.regularMarketDayLow;
       const open  = meta.regularMarketOpen;
       if (price && prev) {
-        // Normalize ILA (agorot) → ILS. Yahoo returns TASE prices in agorot (1/100 ILS).
-        const rawCurrency = (meta.currency || 'USD').toUpperCase();
-        const isAgorot = rawCurrency === 'ILA';
-        const divisor = isAgorot ? 100 : 1;
-        const normCurrency = isAgorot ? 'ILS' : rawCurrency;
+        // Unified sub-unit normalization: handles ILA (agorot), GBp/GBX (pence),
+        // ZAc (cents) — not just Israel. Look up the suffix mapping for context.
+        const dotIdx = sym.lastIndexOf('.');
+        const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1).toUpperCase() : '';
+        const mapping = SUFFIX_TO_GOOGLE[sfx] || null;
+        const rawCurrency = (meta.currency || (mapping ? mapping.cur : 'USD')).toUpperCase();
+        const normP    = normalizeQuoteCurrency(price, rawCurrency, mapping);
+        const normPrev = normalizeQuoteCurrency(prev,  rawCurrency, mapping);
+        const normCurrency = normP.currency;
+        // Derive the same divisor used on price so high/low/open match.
+        const divisor = price ? (price / normP.price) : 1;
         return {
-          price:     price / divisor,
-          prevClose: prev  / divisor,
+          price:     normP.price,
+          prevClose: normPrev.price,
           high:  (high  ?? price) / divisor,
           low:   (low   ?? price) / divisor,
           open:  open != null ? open / divisor : null,
           currency: normCurrency,
           // extended fundamentals from meta
-          high52w: meta.fiftyTwoWeekHigh ?? null,
-          low52w:  meta.fiftyTwoWeekLow ?? null,
+          high52w: meta.fiftyTwoWeekHigh != null ? meta.fiftyTwoWeekHigh / divisor : null,
+          low52w:  meta.fiftyTwoWeekLow  != null ? meta.fiftyTwoWeekLow  / divisor : null,
           marketCap: meta.marketCap ?? null,
-          // Yahoo's free meta doesn't always include P/E — try a couple of keys
           peRatio: meta.trailingPE ?? meta.trailingPe ?? null,
           quoteTime: normalizeEpochMs(meta.regularMarketTime ?? t[t.length - 1]),
           marketState: meta.marketState ?? null,
           exchangeTimeZone: meta.exchangeTimezoneName ?? null,
+          _source: 'yahoo',
         };
       }
     } catch (_) {}
   }
   return null;
+}
+
+// Market cap + P/E from Finnhub (free). Cached for the session to limit calls.
+const _fundCache = {};
+async function fetchStockFundamentals(sym) {
+  if (_fundCache[sym] !== undefined) return _fundCache[sym];
+  let marketCap = null, peRatio = null;
+  try {
+    // profile2 → market cap (returned in millions of USD)
+    const pr = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
+    if (pr.ok) {
+      const pd = await pr.json();
+      if (pd?.marketCapitalization > 0) marketCap = pd.marketCapitalization * 1e6;
+    }
+  } catch (_) {}
+  try {
+    // metric → trailing P/E
+    const mr = await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
+    if (mr.ok) {
+      const md = await mr.json();
+      const m = md?.metric || {};
+      peRatio = m.peTTM ?? m.peBasicExclExtraTTM ?? m.peNormalizedAnnual ?? null;
+      if (!(peRatio > 0)) peRatio = null;
+      if (!marketCap && m.marketCapitalization > 0) marketCap = m.marketCapitalization * 1e6;
+    }
+  } catch (_) {}
+  const result = (marketCap || peRatio) ? { marketCap, peRatio } : null;
+  _fundCache[sym] = result;
+  return result;
 }
 
 async function getStocks() {
@@ -3049,9 +3019,26 @@ async function getStocks() {
     const hasSuffix = s.sym.includes('.');
 
     if (hasSuffix) {
-      const google = await fetchGoogleFinanceQuote(s.sym);
-      const yahoo = google?.quoteTime ? null : await fetchYahooQuote(s.sym);
-      q = fresherQuote(google, yahoo);
+      // Run all sources IN PARALLEL and take the first valid result — much faster
+      // than trying them one-by-one with sequential timeouts.
+      const isTA = /\.TA$/i.test(s.sym);
+      const taBase = s.sym.replace(/\.TA$/i, '').toLowerCase();
+      const sources = [
+        fetchTwelveDataQuote(s.sym).catch(() => null),
+        fetchYahooQuote(s.sym).catch(() => null),
+        fetchGoogleFinanceQuote(s.sym).catch(() => null),
+        isTA ? fetchStooqQuote(taBase + '.il').then(su => {
+          if (su) { su.price /= 100; su.prevClose /= 100; if (su.high) su.high /= 100; if (su.low) su.low /= 100; su.currency = 'ILS'; }
+          return su;
+        }).catch(() => null) : Promise.resolve(null),
+      ];
+      const results = await Promise.all(sources);
+      // Prefer the freshest valid quote (Twelve Data → Yahoo → Google → Stooq order as tiebreak)
+      const valid = results.filter(r => r && r.price > 0);
+      if (valid.length) {
+        valid.sort((a, b) => (normalizeEpochMs(b.quoteTime) || 0) - (normalizeEpochMs(a.quoteTime) || 0));
+        q = valid[0];
+      }
     } else {
       const [fhResult, yhResult] = await Promise.allSettled([
         fetchFinnhubQuote(s.sym),
@@ -3063,7 +3050,7 @@ async function getStocks() {
       q = fresherQuote(fh, yh);
     }
 
-    if (q) {
+    if (q && q.price > 0) {
       const incomingTime = normalizeEpochMs(q.quoteTime) || 0;
       const existing = S.sp[s.sym];
       const existingTime = normalizeEpochMs(existing?.quoteTime) || 0;
@@ -3084,12 +3071,30 @@ async function getStocks() {
         _source: q._source || null,
         _failCount: 0,
       };
+      // Yahoo's chart meta rarely has market cap / P-E. Backfill them from Finnhub
+      // (US symbols only — Finnhub's free tier doesn't cover TASE/intl).
+      if (!s.sym.includes('.') && (!S.sp[s.sym].marketCap || !S.sp[s.sym].peRatio)) {
+        const fhSym = s.sym;
+        fetchStockFundamentals(fhSym).then(f => {
+          if (!f) return;
+          const cur = S.sp[s.sym];
+          if (!cur) return;
+          if (f.marketCap > 0 && !cur.marketCap) cur.marketCap = f.marketCap;
+          if (f.peRatio > 0 && !cur.peRatio) cur.peRatio = f.peRatio;
+          // refresh the open detail modal if it's showing this symbol
+          if (S.sel === s.sym) {
+            const el = document.getElementById('detContent');
+            if (el) renderStockModal(s, el);
+          }
+        }).catch(() => {});
+      }
     } else {
       const ent = S.sp[s.sym] || {};
       ent._failCount = (ent._failCount || 0) + 1;
       ent._unavailable = ent._failCount >= 3;
       S.sp[s.sym] = ent;
-      console.warn(`[Stocks] Failed to fetch ${s.sym} (attempt ${ent._failCount})`);
+      // Log only the first failure per symbol to avoid console spam on retries.
+      if (ent._failCount === 1) console.warn(`[Stocks] Could not fetch ${s.sym} — data sources unavailable (will keep retrying quietly)`);
     }
   }));
 }
@@ -3113,9 +3118,9 @@ async function fetchYahooIntraday(sym) {
       const c = result.indicators?.quote?.[0]?.close;
       if (!t?.length || !c?.length) continue;
       const data = t.map((ts, i) => ({ t: ts * 1000, p: c[i] })).filter(x => x.p != null);
-      // Normalize ILA (agorot) → ILS for Israeli stocks
+      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
       const meta = result?.meta;
-      const divisor = (meta?.currency||'').toUpperCase() === 'ILA' ? 100 : 1;
+      const divisor = chartSubunitDivisor(sym, meta?.currency);
       if (divisor !== 1) data.forEach(d => { d.p = d.p / divisor; });
       if (data.length >= 2) return data;
     } catch (_) {}
@@ -3125,11 +3130,15 @@ async function fetchYahooIntraday(sym) {
 
 async function fetchYahooCandles(sym, range) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
+  const url2 = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
   const proxies = [
+    ...(MY_PROXY ? [`${MY_PROXY}/?url=${encodeURIComponent(url)}`] : []),
+    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url2)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
   ];
   for (const proxy of proxies) {
     try {
@@ -3151,8 +3160,8 @@ async function fetchYahooCandles(sym, range) {
         p: c[i],
         o: o?.[i] ?? c[i]
       })).filter(x => x.p != null);
-      // Normalize ILA (agorot) → ILS for TASE stocks
-      const cdiv = (result?.meta?.currency||'').toUpperCase() === 'ILA' ? 100 : 1;
+      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
+      const cdiv = chartSubunitDivisor(sym, result?.meta?.currency);
       if (cdiv !== 1) data.forEach(d => { d.p /= cdiv; d.o /= cdiv; });
       if (data.length >= 2) return data;
     } catch(_) {}
@@ -3574,6 +3583,26 @@ function fBigCur(usdVal) {
   const v = convertFromILS(inIls, cur);
   return def.sym + fBig(v);
 }
+// Market cap shown in the asset's EXCHANGE currency (not the app display currency).
+// Finnhub returns market cap in USD; convert to the listing currency:
+//   USD-listed  → keep USD ($)
+//   TASE (ILS)  → USD × fx  (₪)
+//   other       → best-effort via ILS bridge, else fall back to USD.
+function fMarketCapByExchange(usdVal, exchangeCurrency) {
+  if (usdVal == null || isNaN(usdVal)) return '--';
+  const cur = (exchangeCurrency || 'USD').toUpperCase();
+  const def = CURRENCIES[cur] || CURRENCIES.USD;
+  let v;
+  if (cur === 'USD')      v = usdVal;
+  else if (cur === 'ILS' || cur === 'ILA') v = usdVal * S.fx;            // USD→ILS
+  else {
+    // bridge through ILS if we can; otherwise show in USD as a safe fallback
+    const inIls = usdVal * S.fx;
+    const conv = convertFromILS(inIls, cur);
+    if (conv > 0) v = conv; else { return CURRENCIES.USD.sym + fBig(usdVal); }
+  }
+  return def.sym + fBig(v);
+}
 // Format big numbers as market cap (with B/M/K suffix), preserving sign
 function fBig(n) {
   if (n == null || isNaN(n)) return '--';
@@ -3651,6 +3680,12 @@ function toggleCurrency() { setCurrency(S.currency === 'ils' ? 'USD' : 'ILS'); }
 // LANGUAGE — HE / EN live translation layer
 // ═══════════════════════════════════════════
 const I18N = {
+  'שוק אמריקאי':'US Markets','אירופה':'Europe','אסיה':'Asia','ריביות':'Rates','סחורות':'Commodities','מטבעות':'Currencies',
+  'כתבות על הנכסים שלי':'News on My Assets','שטח לפרסומת':'Ad space','טוען כתבות על הנכסים שלך...':'Loading news on your assets...',
+  'הוסף לתיק':'Add to portfolio','הסר':'Remove','העלה צילום מסך — זיהוי אוטומטי':'Upload screenshot — auto-detect','זיהוי אוטומטי בעיבוד...':'Auto-detecting…','התחבר ל-Google לסנכרון בין מכשירים':'Connect Google to sync across devices','היסטוריה':'History','דולר אמריקאי':'US Dollar','דולר קנדי':'Canadian Dollar','דולר אוסטרלי':'Australian Dollar','גרמנית':'German','הולנדית':'Dutch',
+  // newly added UI (asset editor, period detail)
+  'סה״כ עלות':'Total Cost','תאריך קנייה':'Buy Date','ברירת מחדל: היום':'Default: today','מחושב אוטומטית':'Auto-calculated',
+  'פירוט נכסים':'Asset Breakdown','סה״כ':'Total','אישור':'Confirm','מחיר כניסה':'Entry Price',
   // nav + pages
   'דשבורד':'Dashboard','תובנות':'Insights','מניות וניירות ערך':'Stocks & Securities','קריפטו ריל-טיים':'Real-Time Crypto',
   'מניות ומדדים':'Stocks & Indices','מטבעות דיגיטליים':'Digital Currencies','מנוע תובנות אנליטי':'Analytical Insights Engine',
@@ -3901,6 +3936,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'Нет позиции для продажи',
     'עבור לדולר':'Переключить на USD','עבור לשקל':'Переключить на ILS',
     'מתוך':'из','בפוזיציה':'в позиции','מעדכן נתונים...':'Обновление данных...','הכל':'Всё',
+    'סה״כ עלות':'Общая стоимость',
+    'תאריך קנייה':'Дата покупки',
+    'ברירת מחדל: היום':'По умолч.: сегодня',
+    'מחושב אוטומטית':'Авторасчёт',
+    'פירוט נכסים':'Детализация активов',
+    'סה״כ':'Итого',
+    'אישור':'Подтвердить',
+    'הוסף לתיק':'Добавить в портфель',
+    'הסר':'Удалить',
+    'העלה צילום מסך — זיהוי אוטומטי':'Загрузить скриншот — авто-распознавание',
+    'זיהוי אוטומטי בעיבוד...':'Авто-распознавание…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'Войти через Google для синхронизации',
+    'היסטוריה':'История',
+    'דולר אמריקאי':'Доллар США',
+    'דולר קנדי':'Канадский доллар',
+    'דולר אוסטרלי':'Австралийский доллар',
+    'גרמנית':'Немецкий',
+    'הולנדית':'Голландский',
   },
   es: {
     'דשבורד':'Panel','מניות':'Acciones','קריפטו':'Cripto','חדשות':'Noticias','תובנות':'Insights',
@@ -3915,6 +3968,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'No hay posición para vender',
     'עבור לדולר':'Cambiar a USD','עבור לשקל':'Cambiar a ILS',
     'מתוך':'de','בפוזיציה':'en posición','מעדכן נתונים...':'Actualizando datos...','הכל':'Todo',
+    'סה״כ עלות':'Costo total',
+    'תאריך קנייה':'Fecha de compra',
+    'ברירת מחדל: היום':'Predet.: hoy',
+    'מחושב אוטומטית':'Cálculo automático',
+    'פירוט נכסים':'Detalle de activos',
+    'סה״כ':'Total',
+    'אישור':'Confirmar',
+    'הוסף לתיק':'Añadir a cartera',
+    'הסר':'Quitar',
+    'העלה צילום מסך — זיהוי אוטומטי':'Subir captura — detección automática',
+    'זיהוי אוטומטי בעיבוד...':'Detectando…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'Conectar Google para sincronizar',
+    'היסטוריה':'Historial',
+    'דולר אמריקאי':'Dólar estadounidense',
+    'דולר קנדי':'Dólar canadiense',
+    'דולר אוסטרלי':'Dólar australiano',
+    'גרמנית':'Alemán',
+    'הולנדית':'Neerlandés',
   },
   fr: {
     'דשבורד':'Tableau','מניות':'Actions','קריפטו':'Crypto','חדשות':'Actualités','תובנות':'Analyses',
@@ -3929,6 +4000,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'Aucune position à vendre',
     'עבור לדולר':'Passer en USD','עבור לשקל':'Passer en ILS',
     'מתוך':'sur','בפוזיציה':'en position','מעדכן נתונים...':'Mise à jour...','הכל':'Tout',
+    'סה״כ עלות':'Coût total',
+    'תאריך קנייה':'Date d\'achat',
+    'ברירת מחדל: היום':'Défaut : aujourd\'hui',
+    'מחושב אוטומטית':'Calcul auto',
+    'פירוט נכסים':'Détail des actifs',
+    'סה״כ':'Total',
+    'אישור':'Confirmer',
+    'הוסף לתיק':'Ajouter au portefeuille',
+    'הסר':'Retirer',
+    'העלה צילום מסך — זיהוי אוטומטי':'Importer capture — détection auto',
+    'זיהוי אוטומטי בעיבוד...':'Détection en cours…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'Connexion Google pour synchroniser',
+    'היסטוריה':'Historique',
+    'דולר אמריקאי':'Dollar américain',
+    'דולר קנדי':'Dollar canadien',
+    'דולר אוסטרלי':'Dollar australien',
+    'גרמנית':'Allemand',
+    'הולנדית':'Néerlandais',
   },
   ar: {
     'דשבורד':'لوحة التحكم','מניות':'أسهم','קריפטו':'عملات مشفرة','חדשות':'أخبار','תובנות':'تحليلات',
@@ -3943,6 +4032,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'لا يوجد مركز للبيع',
     'עבור לדולר':'التحويل إلى USD','עבור לשקל':'التحويل إلى ILS',
     'מתוך':'من','בפוזיציה':'في المركز','מעדכן נתונים...':'جارٍ التحديث...','הכל':'الكل',
+    'סה״כ עלות':'التكلفة الإجمالية',
+    'תאריך קנייה':'تاريخ الشراء',
+    'ברירת מחדל: היום':'افتراضي: اليوم',
+    'מחושב אוטומטית':'حساب تلقائي',
+    'פירוט נכסים':'تفصيل الأصول',
+    'סה״כ':'المجموع',
+    'אישור':'تأكيد',
+    'הוסף לתיק':'أضف للمحفظة',
+    'הסר':'إزالة',
+    'העלה צילום מסך — זיהוי אוטומטי':'تحميل لقطة — كشف تلقائي',
+    'זיהוי אוטומטי בעיבוד...':'جارٍ الكشف…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'اتصل بـ Google للمزامنة',
+    'היסטוריה':'السجل',
+    'דולר אמריקאי':'دولار أمريكي',
+    'דולר קנדי':'دولار كندي',
+    'דולר אוסטרלי':'دولار أسترالي',
+    'גרמנית':'الألمانية',
+    'הולנדית':'الهولندية',
   },
   de: {
     'דשבורד':'Übersicht','מניות':'Aktien','קריפטו':'Krypto','חדשות':'Nachrichten','תובנות':'Einblicke',
@@ -3957,6 +4064,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'Keine Position zum Verkauf',
     'עבור לדולר':'Zu USD wechseln','עבור לשקל':'Zu ILS wechseln',
     'מתוך':'von','בפוזיציה':'in Position','מעדכן נתונים...':'Daten werden aktualisiert...','הכל':'Alles',
+    'סה״כ עלות':'Gesamtkosten',
+    'תאריך קנייה':'Kaufdatum',
+    'ברירת מחדל: היום':'Standard: heute',
+    'מחושב אוטומטית':'Auto-berechnet',
+    'פירוט נכסים':'Asset-Aufschlüsselung',
+    'סה״כ':'Gesamt',
+    'אישור':'Bestätigen',
+    'הוסף לתיק':'Zum Portfolio',
+    'הסר':'Entfernen',
+    'העלה צילום מסך — זיהוי אוטומטי':'Screenshot hochladen — Auto-Erkennung',
+    'זיהוי אוטומטי בעיבוד...':'Erkennung läuft…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'Mit Google verbinden zum Sync',
+    'היסטוריה':'Verlauf',
+    'דולר אמריקאי':'US-Dollar',
+    'דולר קנדי':'Kanadischer Dollar',
+    'דולר אוסטרלי':'Australischer Dollar',
+    'גרמנית':'Deutsch',
+    'הולנדית':'Niederländisch',
   },
   zh: {
     'דשבורד':'控制台','מניות':'股票','קריפטו':'加密货币','חדשות':'新闻','תובנות':'分析',
@@ -3971,6 +4096,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'无可卖仓位',
     'עבור לדולר':'切换为美元','עבור לשקל':'切换为谢克尔',
     'מתוך':'共','בפוזיציה':'仓位','מעדכן נתונים...':'正在更新数据...','הכל':'全部',
+    'סה״כ עלות':'总成本',
+    'תאריך קנייה':'买入日期',
+    'ברירת מחדל: היום':'默认：今天',
+    'מחושב אוטומטית':'自动计算',
+    'פירוט נכסים':'资产明细',
+    'סה״כ':'合计',
+    'אישור':'确认',
+    'הוסף לתיק':'加入组合',
+    'הסר':'移除',
+    'העלה צילום מסך — זיהוי אוטומטי':'上传截图 — 自动识别',
+    'זיהוי אוטומטי בעיבוד...':'识别中…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'连接 Google 同步',
+    'היסטוריה':'历史',
+    'דולר אמריקאי':'美元',
+    'דולר קנדי':'加元',
+    'דולר אוסטרלי':'澳元',
+    'גרמנית':'德语',
+    'הולנדית':'荷兰语',
   },
   nl: {
     'דשבורד':'Dashboard','מניות':'Aandelen','קריפטו':'Crypto','חדשות':'Nieuws','תובנות':'Inzichten',
@@ -3985,6 +4128,24 @@ const LANG_DICTS = {
     'אין פוזיציה למכירה':'Geen positie om te verkopen',
     'עבור לדולר':'Naar USD wisselen','עבור לשקל':'Naar ILS wisselen',
     'מתוך':'van','בפוזיציה':'in positie','מעדכן נתונים...':'Gegevens worden bijgewerkt...','הכל':'Alles',
+    'סה״כ עלות':'Totale kosten',
+    'תאריך קנייה':'Aankoopdatum',
+    'ברירת מחדל: היום':'Standaard: vandaag',
+    'מחושב אוטומטית':'Automatisch berekend',
+    'פירוט נכסים':'Activa-overzicht',
+    'סה״כ':'Totaal',
+    'אישור':'Bevestigen',
+    'הוסף לתיק':'Aan portefeuille',
+    'הסר':'Verwijderen',
+    'העלה צילום מסך — זיהוי אוטומטי':'Screenshot uploaden — auto-detectie',
+    'זיהוי אוטומטי בעיבוד...':'Detecteren…',
+    'התחבר ל-Google לסנכרון בין מכשירים':'Verbind Google om te synchroniseren',
+    'היסטוריה':'Geschiedenis',
+    'דולר אמריקאי':'Amerikaanse dollar',
+    'דולר קנדי':'Canadese dollar',
+    'דולר אוסטרלי':'Australische dollar',
+    'גרמנית':'Duits',
+    'הולנדית':'Nederlands',
   },
 };
 
@@ -4178,10 +4339,17 @@ window.toggleFxConv = async function() {
 // ═══════════════════════════════════════════
 const TK_MARKETS = {
   us: { lbl: 'ארה"ב', syms: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','AVGO','JPM','LLY','V','UNH','XOM','NFLX'] },
-  il: { lbl: 'ישראל', syms: ['TEVA','NICE','CHKP','MNDY','CYBR','WIX','GLBE','ESLT','FVRR','INMD','CAMT','NVMI','TSEM','ZIM'] },
-  cr: { lbl: 'קריפטו', syms: ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT'] }
+  eu: { lbl: 'אירופה', syms: ['ASML.AS','SAP.DE','SIE.DE','MC.PA','OR.PA','NESN.SW','NOVN.SW','AIR.PA','BMW.DE','SHEL.L','HSBA.L','AZN.L','ENI.DE','VOW3.DE'] },
+  as: { lbl: 'אסיה', syms: ['7203.T','6758.T','9984.T','0700.HK','9988.HK','BABA','TM','SONY','TSM','005930.KS','3690.HK','1810.HK'] },
+  il: { lbl: 'ישראל', syms: ['TEVA','NICE','CHKP','MNDY','CYBR','WIX','GLBE','ESLT','FVRR','CAMT','NVMI','TSEM','ZIM','SMWB'] },
+  cr: { lbl: 'קריפטו', syms: ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','AVAXUSDT','LINKUSDT','TRXUSDT','DOTUSDT','LTCUSDT','BCHUSDT','NEARUSDT'] },
+  cm: { lbl: 'סחורות', syms: ['GC=F','SI=F','CL=F','BZ=F','NG=F','HG=F','PL=F','PA=F','ZC=F','ZW=F','ZS=F','KC=F'] },
+  fx: { lbl: 'מטבעות', syms: ['EURUSD=X','GBPUSD=X','USDJPY=X','USDILS=X','USDCHF=X','AUDUSD=X','USDCAD=X','NZDUSD=X','EURGBP=X','USDCNY=X'] },
+  rt: { lbl: 'ריביות', syms: ['^TNX','^TYX','^FVX','^IRX'] }
 };
-let tkMarket = localStorage.getItem('tkMkt') || 'us';
+// Ticker categories whose symbols need Yahoo/TwelveData (not Finnhub): indices, FX, commodities, intl
+const TK_YAHOO_ONLY = new Set(['eu','as','cm','fx','rt']);
+let tkMarket = 'us';  // always open on US market by default
 let tkCache = {};        // { market: [{sym,px,chg}] }
 let tkTimer = null;
 
@@ -4202,6 +4370,18 @@ function tkSetMarket(m, e) {
   tkFetch();
 }
 
+// Clean a raw ticker symbol for display: GC=F → GOLD, EURUSD=X → EUR/USD, ^TNX → US10Y
+const TK_SYM_LABELS = {
+  'GC=F':'זהב','SI=F':'כסף','CL=F':'נפט WTI','BZ=F':'נפט ברנט','NG=F':'גז טבעי','HG=F':'נחושת',
+  'PL=F':'פלטינה','PA=F':'פלדיום','ZC=F':'תירס','ZW=F':'חיטה','ZS=F':'סויה','KC=F':'קפה',
+  '^TNX':'US 10Y','^TYX':'US 30Y','^FVX':'US 5Y','^IRX':'US 13W',
+};
+function tkCleanSym(s) {
+  if (TK_SYM_LABELS[s]) return TK_SYM_LABELS[s];
+  if (s.endsWith('=X')) { const p = s.replace('=X',''); return p.length===6 ? p.slice(0,3)+'/'+p.slice(3) : p; }
+  if (s.endsWith('=F')) return s.replace('=F','');
+  return s.replace(/\.(AS|DE|PA|SW|L|T|HK|KS|TA)$/i, '');
+}
 function tkFmt(n, isCrypto) {
   if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
   if (n >= 1)    return n.toFixed(2);
@@ -4223,6 +4403,49 @@ function tkRender(rows) {
   });
 }
 
+// ── Ticker alternative data sources (no Twelve Data needed) ──
+// Stooq symbol map for commodities + US treasury yields (CORS-friendly CSV).
+const TK_STOOQ_MAP = {
+  'GC=F':'gc.f','SI=F':'si.f','CL=F':'cl.f','BZ=F':'cb.f','NG=F':'ng.f','HG=F':'hg.f',
+  'PL=F':'pl.f','PA=F':'pa.f','ZC=F':'zc.f','ZW=F':'zw.f','ZS=F':'zs.f','KC=F':'kc.f',
+  '^TNX':'10usy.b','^TYX':'30usy.b','^FVX':'5usy.b','^IRX':'13usw.b',
+};
+// Pull a Stooq CSV quote directly (Stooq allows cross-origin GETs).
+async function tkStooqDirect(stooqCode) {
+  try {
+    const url = `https://stooq.com/q/l/?s=${stooqCode}&f=sd2t2ohlcv&h&e=csv`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const csv = (await r.text()).trim();
+    const lines = csv.split('\n');
+    if (lines.length < 2) return null;
+    const cols = lines[1].split(',');
+    const open = parseFloat(cols[3]), close = parseFloat(cols[6]);
+    if (!(close > 0)) return null;
+    return { px: close, chg: open > 0 ? ((close - open) / open) * 100 : 0 };
+  } catch { return null; }
+}
+// Currency pairs from open.er-api.com (CORS, free, no key). Computes any pair via USD table.
+let _tkFxTable = null, _tkFxTableTs = 0;
+async function tkFxRate(pair) {
+  // pair like 'EURUSD=X' or 'USDILS=X'
+  const p = pair.replace('=X', '');
+  const base = p.slice(0, 3), quote = p.slice(3);
+  if (!_tkFxTable || Date.now() - _tkFxTableTs > 60000) {
+    try {
+      const r = await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(6000) });
+      const d = await r.json();
+      if (d?.rates) { _tkFxTable = d.rates; _tkFxTableTs = Date.now(); }
+    } catch { return null; }
+  }
+  if (!_tkFxTable) return null;
+  // rate(base→quote) = USD→quote / USD→base
+  const rBase = base === 'USD' ? 1 : _tkFxTable[base];
+  const rQuote = quote === 'USD' ? 1 : _tkFxTable[quote];
+  if (!rBase || !rQuote) return null;
+  return rQuote / rBase;
+}
+
 async function tkFetch() {
   const m = tkMarket;
   try {
@@ -4238,6 +4461,31 @@ async function tkFetch() {
         px: +t.lastPrice,
         chg: +t.priceChangePercent
       }));
+    } else if (TK_YAHOO_ONLY.has(m)) {
+      const syms = TK_MARKETS[m].syms;
+      const res = await Promise.all(syms.map(async s => {
+        try {
+          // Currencies → er-api.com (CORS, no key)
+          if (m === 'fx') {
+            const rate = await tkFxRate(s);
+            if (rate > 0) return { sym: tkCleanSym(s), px: rate, chg: 0 };
+          }
+          // Commodities + rates → Stooq direct (CORS CSV)
+          if (m === 'cm' || m === 'rt') {
+            const code = TK_STOOQ_MAP[s];
+            if (code) {
+              const q = await tkStooqDirect(code);
+              if (q) return { sym: tkCleanSym(s), px: q.px, chg: q.chg };
+            }
+          }
+          // Everything else (eu/as intl stocks) → Twelve Data then Yahoo proxy
+          let q = await fetchTwelveDataQuote(s);
+          if (!q || !(q.price > 0)) q = await fetchYahooQuote(s);
+          if (q && q.price > 0) return { sym: tkCleanSym(s), px: q.price, chg: q.prevClose ? ((q.price - q.prevClose) / q.prevClose) * 100 : 0 };
+          return null;
+        } catch { return null; }
+      }));
+      rows = res.filter(Boolean);
     } else {
       const syms = TK_MARKETS[m].syms;
       // Try Finnhub first (fast). On failure (CORS on file://, rate limit, etc.) fall back to Yahoo via proxy.
@@ -4251,7 +4499,7 @@ async function tkFetch() {
         return { sym: s, px: q.c, chg: q.dp ?? ((q.c - q.pc) / q.pc * 100) };
       }).filter(Boolean);
       // Yahoo fallback for any symbol that Finnhub didn't return
-      const missing = syms.filter((s, i) => !res[i] || !res[i].c);
+      let missing = syms.filter((s, i) => !res[i] || !res[i].c);
       if (missing.length) {
         const yres = await Promise.all(missing.map(async s => {
           try {
@@ -4261,9 +4509,48 @@ async function tkFetch() {
         }));
         yres.filter(Boolean).forEach(r => rows.push(r));
       }
+      // Stooq fallback for whatever is STILL missing (CORS-friendly, very reliable)
+      const got = new Set(rows.map(r => r.sym));
+      const stillMissing = syms.filter(s => !got.has(s));
+      if (stillMissing.length) {
+        const sres = await Promise.all(stillMissing.map(async s => {
+          try {
+            const q = await fetchStooqQuote(s);
+            return q ? { sym: s, px: q.price, chg: q.prevClose ? ((q.price - q.prevClose) / q.prevClose) * 100 : 0 } : null;
+          } catch { return null; }
+        }));
+        sres.filter(Boolean).forEach(r => rows.push(r));
+        // keep ticker order stable
+        rows.sort((a, b) => syms.indexOf(a.sym) - syms.indexOf(b.sym));
+      }
     }
-    if (rows?.length && m === tkMarket) { tkCache[m] = rows; tkRender(rows); }
-  } catch (_) {}
+    if (rows?.length && m === tkMarket) {
+      tkCache[m] = rows; tkRender(rows);
+      tkMarkMarketWorks(m, true);
+    } else if (!rows?.length) {
+      tkMarkMarketWorks(m, false);
+    }
+  } catch (_) {
+    tkMarkMarketWorks(m, false);
+  }
+}
+
+// Hide a market option from the picker if it consistently returns no data.
+const _tkMarketFails = {};
+function tkMarkMarketWorks(m, works) {
+  if (works) { _tkMarketFails[m] = 0; }
+  else {
+    _tkMarketFails[m] = (_tkMarketFails[m] || 0) + 1;
+    // Keep every category visible in the menu (it's a chooser) — don't hide options.
+    // If the *active* category returns nothing repeatedly, fall back to US so the strip
+    // isn't empty, but the user can still re-select the category any time.
+    if (_tkMarketFails[m] >= 3 && tkMarket === m && m !== 'us') {
+      tkMarket = 'us'; localStorage.setItem('tkMkt', 'us');
+      document.getElementById('tkMktLbl').textContent = TK_MARKETS.us.lbl;
+      document.querySelectorAll('.tk-opt').forEach(o => o.classList.toggle('sel', o.dataset.mkt === 'us'));
+      tkFetch();
+    }
+  }
 }
 
 function tkStart() {
@@ -4273,7 +4560,7 @@ function tkStart() {
   clearInterval(tkTimer);
   tkTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && S.curPage === 'dash') tkFetch();
-  }, 60000);
+  }, 30000);
 }
 
 // ═══════════════════════════════════════════
@@ -4289,7 +4576,7 @@ function goPage(id, btn) {
   S.curPage = id;
   document.getElementById('tickerBar').classList.add('show');   // always-on across pages
   document.getElementById('app').scrollTop = 0;
-  if (id === 'dash')     scheduleDashPeriodRefresh(true);
+  if (id === 'dash')     { scheduleDashPeriodRefresh(true); renderAssetNews(); }
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); }
@@ -4402,7 +4689,7 @@ function cardHTML(o) {
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
-  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" data-layout-key="${type}:${sym}" onclick="openDet('${sym}','${type}')">
+  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')">
     <div class="cg" style="background:${color}"></div>
     <div class="ct" style="direction:ltr;">
       <div class="cid"><div class="ico">${icon}</div>
@@ -4527,9 +4814,11 @@ function renderAlloc(c, st) {
   const labelColor = brandColor('t2');
   const opt = {plugins:{legend:{position:'right',labels:{color:labelColor,font:{family:'JetBrains Mono',size:9},padding:4,boxWidth:6}}},cutout:'70%',animation:{duration:400}};
   if (S.aC) S.aC.destroy();
-  S.aC = new Chart(document.getElementById('allocChart'), {type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'transparent'}]},options:opt});
+  const allocEl = document.getElementById('allocChart');
+  if (allocEl) S.aC = new Chart(allocEl, {type:'doughnut',data:{labels:lbs,datasets:[{data:vs,backgroundColor:cls,borderWidth:1,borderColor:'transparent'}]},options:opt});
   if (S.sC) S.sC.destroy();
-  S.sC = new Chart(document.getElementById('splitChart'), {type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:[accentCol()+'cc', upColor()+'cc'],borderWidth:1,borderColor:'transparent'}]},options:opt});
+  const splitEl = document.getElementById('splitChart');
+  if (splitEl) S.sC = new Chart(splitEl, {type:'doughnut',data:{labels:['קריפטו','מניות'],datasets:[{data:[c,st],backgroundColor:[accentCol()+'cc', upColor()+'cc'],borderWidth:1,borderColor:'transparent'}]},options:opt});
 }
 
 // ═══════════════════════════════════════════
@@ -4593,7 +4882,7 @@ async function renderStocksPage(customFrom, customTo) {
     return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${i * 50}ms"`);
   }).join('');
   // wrap in grid container for desktop multi-column layout
-  el.innerHTML = '<div class="grid" data-layout-group="stocks-page-cards" data-layout-label="כרטיסי המניות">' + el.innerHTML + '</div>';
+  el.innerHTML = '<div class="grid">' + el.innerHTML + '</div>';
   // draw sparks after the grid has fully laid out
   requestAnimationFrame(() => {
     S.stocks.forEach((s, i) => {
@@ -4643,7 +4932,7 @@ async function renderCryptoPage() {
     });
     return html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${i * 50}ms"`);
   }).join('');
-  el.innerHTML = '<div class="grid" data-layout-group="crypto-page-cards" data-layout-label="כרטיסי הקריפטו">' + el.innerHTML + '</div>';
+  el.innerHTML = '<div class="grid">' + el.innerHTML + '</div>';
   requestAnimationFrame(() => {
     sorted.forEach(({a, chg}) => drawSpark(`spk_${a.sym}`, a.sym, true, (chg || 0) >= 0));
   });
@@ -4982,6 +5271,44 @@ async function newsLoadMine() {
   return [];
 }
 
+// Dashboard "כתבות על הנכסים שלי" — Yahoo-style long rows (image + headline + tag)
+// with an empty square reserved on the side for a future ad slot.
+async function renderAssetNews() {
+  const host = document.getElementById('assetNews');
+  if (!host) return;
+  host.innerHTML = `<div class="asset-news-loading"><div class="spinner"></div> טוען כתבות על הנכסים שלך...</div>`;
+  let items = [];
+  try { items = await newsLoadMine(); } catch (_) {}
+  if (!items || !items.length) {
+    host.innerHTML = `<div class="asset-news-empty">אין כרגע כתבות זמינות על הנכסים שלך. ${navigator.onLine ? 'נסה שוב מאוחר יותר.' : ''}</div>`;
+    return;
+  }
+  const list = items.slice(0, 8);
+  const rows = list.map(n => {
+    const ago = newsTimeAgo(n.pubDate);
+    const tag = n.tagSym ? `<span class="an-tag">${newsEscape(n.tagSym)}</span>` : '';
+    const img = n.img
+      ? `<div class="an-thumb" style="background-image:url('${newsSafeUrl(n.img)}')"></div>`
+      : `<div class="an-thumb an-thumb-empty"><i class="ph-thin ph-newspaper"></i></div>`;
+    return `<a class="an-row" href="${newsSafeUrl(n.link)}" target="_blank" rel="noopener noreferrer">
+      ${img}
+      <div class="an-body">
+        <div class="an-title">${newsEscape(n.title)}</div>
+        <div class="an-meta">${tag}<span class="an-src">${newsEscape(n.src || '')}</span><span class="an-dot">·</span><span class="an-ago">${ago}</span></div>
+      </div>
+    </a>`;
+  }).join('');
+  // Layout: news column on one side, reserved ad square on the other
+  host.innerHTML = `
+    <div class="an-layout">
+      <div class="an-list">${rows}</div>
+      <aside class="an-ad" aria-hidden="true">
+        <div class="an-ad-slot"><span>שטח לפרסומת</span></div>
+      </aside>
+    </div>`;
+}
+window.renderAssetNews = renderAssetNews;
+
 function buildNewsPager(page, totalPages) {
   if (totalPages <= 1) return '';
   const isRtl = document.documentElement.dir !== 'ltr';
@@ -5094,12 +5421,12 @@ function renderInsights() {
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
 
   document.getElementById('insSummary').innerHTML = `
-    <div class="ir" data-layout-key="total"><span class="ir-l">שווי כולל נומינלי</span><span class="ir-v ac">${fILS(g)}</span></div>
-    <div class="ir" data-layout-key="crypto"><span class="ir-l">קטגוריית קריפטו</span><span class="ir-v">${fILS(c)}</span></div>
-    <div class="ir" data-layout-key="stocks"><span class="ir-l">נכסי מניות ואקוויטי</span><span class="ir-v">${fILS(st)}</span></div>
-    <div class="ir" data-layout-key="daily-pnl"><span class="ir-l">רווח/הפסד יומי משולב</span><span class="ir-v ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'}">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</span></div>
-    <div class="ir" data-layout-key="usd"><span class="ir-l">ערך בדולר ארה"ב</span><span class="ir-v">USD ${(g/S.fx).toLocaleString('en',{maximumFractionDigits:0})}</span></div>
-    <div class="ir" data-layout-key="fx"><span class="ir-l">שער חליפין מיושר</span><span class="ir-v gd">${(()=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;let rate;if(cur==='USD')rate=1;else if(cur==='ILS')rate=S.fx;else{const r=fxConvRates?.[cur];rate=(r&&r>0)?(1/r):S.fx;}return def.sym+rate.toFixed(rate<10?3:2);})()}</span></div>
+    <div class="ir"><span class="ir-l">שווי כולל נומינלי</span><span class="ir-v ac">${fILS(g)}</span></div>
+    <div class="ir"><span class="ir-l">קטגוריית קריפטו</span><span class="ir-v">${fILS(c)}</span></div>
+    <div class="ir"><span class="ir-l">נכסי מניות ואקוויטי</span><span class="ir-v">${fILS(st)}</span></div>
+    <div class="ir"><span class="ir-l">רווח/הפסד יומי משולב</span><span class="ir-v ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'}">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</span></div>
+    <div class="ir"><span class="ir-l">ערך בדולר ארה"ב</span><span class="ir-v">USD ${(g/S.fx).toLocaleString('en',{maximumFractionDigits:0})}</span></div>
+    <div class="ir"><span class="ir-l">שער חליפין מיושר</span><span class="ir-v gd">${(()=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;let rate;if(cur==='USD')rate=1;else if(cur==='ILS')rate=S.fx;else{const r=fxConvRates?.[cur];rate=(r&&r>0)?(1/r):S.fx;}return def.sym+rate.toFixed(rate<10?3:2);})()}</span></div>
   `;
 
   const all = [
@@ -5128,8 +5455,8 @@ function renderInsights() {
 
   const tips = [];
   const top = allA[0]; if (top && g && top.val/g > 0.4) tips.push(`⚠️ האלוקציה בנכס <b>${top.sym}</b> חורגת ל-${(top.val/g*100).toFixed(0)}% — ריכוזיות גבוהה בתיק.`);
-  const winner = all.find(x => x.chg > 10); if (winner) tips.push(`🚀 מומנטום חיובי חריג: <b>${winner.sym}</b> רשם זינוק של ${winner.chg.toFixed(1)}% היום.`);
-  const loser  = all.find(x => x.chg < -10); if (loser)  tips.push(`📉 לחץ מכירות מוגבר: <b>${loser.sym}</b> צנח ב-${Math.abs(loser.chg).toFixed(1)}% בשוק.`);
+  const winner = all.find(x => x.chg > 10); if (winner) tips.push(`<i class="ph-thin ph-rocket-launch"></i> מומנטום חיובי חריג: <b>${winner.sym}</b> רשם זינוק של ${winner.chg.toFixed(1)}% היום.`);
+  const loser  = all.find(x => x.chg < -10); if (loser)  tips.push(`<i class="ph-thin ph-trend-down"></i> לחץ מכירות מוגבר: <b>${loser.sym}</b> צנח ב-${Math.abs(loser.chg).toFixed(1)}% בשוק.`);
   if (!tips.length) tips.push('<i class="ph-thin ph-check-circle"></i> אלוקציית התיק מאוזנת, לא זוהו חריגות קיצוניות במדדי הסיכון.');
   document.getElementById('insTips').innerHTML = tips.map(t => `<div class="ir"><span class="ir-l" style="color:var(--t1);font-size:12px">${t}</span></div>`).join('');
 }
@@ -5140,7 +5467,10 @@ function renderInsights() {
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
   if (!el) return;
-  el.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:12px;text-align:center"><i class="fi fi-tr-hourglass fi-spin" style="vertical-align:-2px;margin-left:6px"></i>מחשב P&L יומי לפי שעון ישראל...</div>';
+  el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:10px;color:var(--t2);font-size:13px;padding:24px">
+    <div style="width:18px;height:18px;border:2.5px solid var(--b1);border-top-color:var(--ac);border-radius:50%;animation:rot .7s linear infinite;flex-shrink:0"></div>
+    <span>טוען נתוני שוק היסטוריים...</span>
+  </div>`;
   const days = Math.max(1, parseInt(document.getElementById('histDays')?.value || '30', 10));
 
   const addDaysKey = (key, amount) => {
@@ -5228,20 +5558,61 @@ async function buildHistoryTable() {
 
     // Stocks: one close per exchange session, plus today's live quote when fresh.
     const stockHist = {};
+    let stockHistLoadedAny = false;
+    // Show per-stock loading status
+    const setLoadMsg = (msg) => {
+      const el2 = document.getElementById('pnlHistory');
+      if (el2) el2.innerHTML = `<div style="color:var(--t3);font-size:12px;padding:12px;text-align:center">
+        <div class="refresh-spin" style="display:inline-block;width:14px;height:14px;border:2px solid var(--b1);border-top-color:var(--ac);border-radius:50%;animation:rot .7s linear infinite;vertical-align:-3px;margin-left:6px"></div>
+        ${msg}</div>`;
+    };
     await Promise.all(S.stocks.map(async s => {
+      setLoadMsg(`טוען נתוני ${s.sym}...`);
       try {
-        const range = days <= 7 ? '1mo' : days <= 30 ? '3mo' : '6mo';
-        const data = await fetchYahooCandles(s.sym, range);
+        const preferred = days <= 7 ? ['1mo','3mo'] : days <= 30 ? ['3mo','1mo','6mo'] : ['6mo','3mo','1mo'];
+        let data = null;
+        for (const range of preferred) {
+          data = await fetchYahooCandles(s.sym, range);
+          if (data && data.length >= 2) break;
+        }
+        // Stooq fallback — no proxy, direct CORS, reliable for US stocks
+        if ((!data || data.length < 2)) {
+          try {
+            const today = new Date();
+            const d1 = new Date(today.getTime() - (days + 10) * 86400000);
+            const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+            const suffix = /\.TA$/i.test(s.sym) ? '.il' : '.us';
+            const base = s.sym.replace(/\.[^.]+$/,'').toLowerCase();
+            const stooqUrl = `https://stooq.com/q/d/l/?s=${base}${suffix}&d1=${fmt(d1)}&d2=${fmt(today)}&i=d`;
+            const r = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`,{signal:AbortSignal.timeout(12000)});
+            if (r.ok) {
+              const csv = (await r.text()).trim();
+              const lines = csv.split('\n').slice(1);
+              const isIL = /\.TA$/i.test(s.sym);
+              const parsed = lines.map(line => {
+                const cols = line.split(',');
+                const t = new Date(cols[0]).getTime();
+                let p = parseFloat(cols[4]);
+                if (isIL && p > 0) p /= 100; // agorot → ILS
+                return { t, p };
+              }).filter(x => !isNaN(x.t) && x.p > 0);
+              if (parsed.length >= 2) data = parsed;
+            }
+          } catch (_) {}
+        }
         const map = {};
         (data || []).forEach(item => {
           const key = dateKeyInTimeZone(item.t, APP_TIME_ZONE);
           if (key && item.p > 0) map[key] = Number(item.p);
         });
         const live = S.sp[s.sym];
-        if (live?.price > 0 && timestampIsTodayInIsrael(live.quoteTime)) map[todayKey] = Number(live.price);
+        if (live?.price > 0) map[todayKey] = Number(live.price);
+        if (Object.keys(map).length) stockHistLoadedAny = true;
         stockHist[s.sym] = map;
       } catch (_) { stockHist[s.sym] = {}; }
     }));
+    window.__stockHistLoadedAny = stockHistLoadedAny;
+    setLoadMsg('טוען נתוני קריפטו...');
 
     // Crypto: hourly candles are sampled exactly at 00:00 Israel. This avoids
     // Binance's UTC daily candle shifting the result into the wrong calendar day.
@@ -5293,6 +5664,7 @@ async function buildHistoryTable() {
       if (live > 0) map[nextDayKey] = map[nextDayKey] || (todayKey === allDays[allDays.length - 1] ? Number(live) : null);
       cryptoBoundary[a.sym] = map;
     }));
+    setLoadMsg('מחשב P&L...');
 
     const rows = [];
     for (const dateKey of allDays) {
@@ -5310,17 +5682,37 @@ async function buildHistoryTable() {
         let sessionClose = null;
         for (const key of keys) {
           if (key < dateKey) previousClose = map[key];
-          if (key === dateKey) sessionClose = map[key];
-          if (key > dateKey) break;
+          else if (key === dateKey) sessionClose = map[key];
+          else break;
         }
         const live = S.sp[s.sym];
-        if (dateKey === todayKey && timestampIsTodayInIsrael(live?.quoteTime) && live?.price > 0) {
-          sessionClose = live.price;
-          if (live.prevClose > 0) previousClose = live.prevClose;
+        // For TODAY (or the latest row when markets data is live): the live quote is
+        // authoritative. Derive prevClose from change% if the field is missing.
+        const isLatestDay = dateKey === todayKey || dateKey === allDays[allDays.length - 1];
+        if (isLatestDay && live?.price > 0) {
+          let lp = live.prevClose;
+          if (!(lp > 0) && Number.isFinite(live.change) && live.change !== 0) {
+            // price = prev * (1 + change/100)  →  prev = price / (1 + change/100)
+            lp = live.price / (1 + live.change / 100);
+          }
+          if (lp > 0) {
+            sessionClose = live.price;
+            previousClose = lp;
+          }
         }
-        if (!(previousClose > 0)) continue;
-        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
+        // Fallback: if no historical close is available at all, value the position
+        // at the current live price so the stock still counts toward the base total.
+        if (!(previousClose > 0)) {
+          const livePx = live?.price > 0 ? live.price : 0;
+          if (livePx > 0) {
+            const factor0 = stockUsesIls(s) ? 1 : fx;
+            stockStart += livePx * qty * factor0;
+            stockEnd   += livePx * qty * factor0;
+          }
+          continue;
+        }
         const factor = stockUsesIls(s) ? 1 : fx;
+        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
         stockStart += previousClose * qty * factor;
         stockEnd += endPrice * qty * factor;
         if (sessionClose > 0) {
@@ -5356,6 +5748,16 @@ async function buildHistoryTable() {
     }
     rows.reverse();
     window.__lastHistoryRows = rows;
+    // Diagnostics: how many stocks returned usable history vs only live price
+    const stockDiag = S.stocks.map(s => ({
+      sym: s.sym,
+      histPoints: Object.keys(stockHist[s.sym] || {}).length,
+      live: S.sp[s.sym]?.price > 0 ? Math.round(S.sp[s.sym].price*100)/100 : null,
+      prevClose: S.sp[s.sym]?.prevClose || null,
+      change: S.sp[s.sym]?.change ?? null,
+    }));
+    window.__stockDiag = stockDiag;
+    console.log('[P&L history] stock data:', stockDiag);
 
     if (!rows.length) {
       el.innerHTML = '<div style="color:var(--t3);font-size:11px;padding:8px;text-align:center">אין היסטוריית נתונים מוקלטת</div>';
@@ -5388,11 +5790,16 @@ async function buildHistoryTable() {
       const dateStr = fDateShort(new Date(`${row.dateKey}T12:00:00Z`));
       const pct = row.prevTotal ? (row.pnl / row.prevTotal * 100) : 0;
       const up = row.pnl >= 0;
+      const stockCell = row.stockHasData
+        ? pnlCell(row.stockPnl)
+        : (window.__stockHistLoadedAny === false
+            ? '<span style="color:var(--t3)" title="לא נטענו נתוני מניות — בעיית רשת/שרת">—</span>'
+            : '<span style="color:var(--t3)" title="השוק סגור ביום זה">₪0</span>');
       html += `<tr style="${row.hasTrading?'':'opacity:.5'}">
-        <td style="padding:8px 4px;color:var(--t2);white-space:nowrap">${dateStr}${row.hasTrading?'':' 🔒'}</td>
+        <td style="padding:8px 4px;color:var(--t2);white-space:nowrap">${dateStr}${row.hasTrading?'':' <i class="ph-thin ph-lock-simple"></i>'}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.prevTotal)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
-        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.stockHasData?pnlCell(row.stockPnl):'<span style="color:var(--t3)">₪0</span>'}</td>
+        <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):'<span style="color:var(--t3)">₪0</span>'}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
@@ -5435,30 +5842,33 @@ async function openDet(sym, type) {
   document.body.style.overflow = 'hidden';
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
   const el = document.getElementById('detContent');
-  el.dataset.detailType = type;
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
-function closeDet() { window.exitLayoutEditMode?.(); document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
+function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
 
 async function renderCryptoModal(a, el) {
   const p = S.cp[a.id]; const pu = p?.usd || 0; const pi = pu * S.fx;
   const val = cv(a); const ch24 = p?.ch24 || 0; const pnl = cpnl(a) || 0;
   const {g} = tots(); const pct = g ? val / g * 100 : 0;
   const sig = ch24 > 5 ? 'buy' : ch24 < -5 ? 'sell' : 'hold';
-  const sigTxt = sig==='buy'?'🟢 מומנטום חיובי מובהק':sig==='sell'?'🔴 לחץ מכירות':'🟡 פוזיציה נייטרלית';
+  const sigTxt = sig==='buy'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);vertical-align:middle;margin-inline-end:5px"></span>מומנטום חיובי מובהק':sig==='sell'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);vertical-align:middle;margin-inline-end:5px"></span>לחץ מכירות':'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gd);vertical-align:middle;margin-inline-end:5px"></span>פוזיציה נייטרלית';
 
   const avg = avgEntry(a);
   const totalPnl = cryptoTotalPnl(a);
   el.innerHTML = `
-    <div class="mh"><div class="mico">${a.icon}</div><div><h2>${a.sym}</h2><p>${a.name} · ${fNum(cQty(a))} יחידות החזקה</p></div></div>
-    <div class="mkpis" data-layout-group="detail-crypto-kpis" data-layout-label="נתוני הנכס">
-      <div class="mkpi" data-layout-key="value"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
-      <div class="mkpi" data-layout-key="price"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${pu?'$'+fP(pu):'--'}</div></div>
-      <div class="mkpi" data-layout-key="change"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
-      <div class="mkpi" data-layout-key="daily-pnl"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
-      ${avg!=null ? `<div class="mkpi" data-layout-key="avg-entry"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
-      ${totalPnl!=null ? `<div class="mkpi" data-layout-key="total-pnl"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+    <div class="mh"><div class="mico">${a.icon}</div><div class="mh-titles"><h2>${a.sym}</h2><p>${a.name} · ${fNum(cQty(a))} יחידות החזקה</p></div>
+      <div class="mh-actions">
+        <button class="mh-btn" onclick="editFromModal('crypto','${a.sym}')" title="עריכה"><i class="ph-thin ph-pencil-simple"></i></button>
+        <button class="mh-btn" onclick="refreshFromModal('crypto','${a.sym}',this)" title="רענון"><i class="ph-thin ph-arrows-clockwise"></i></button>
+      </div></div>
+    <div class="mkpis">
+      <div class="mkpi"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${pu?'$'+fP(pu):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
+      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">גרף רציף מוזן רשת <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -5471,14 +5881,14 @@ async function renderCryptoModal(a, el) {
       </div>
     </div>
     <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
-    <div class="man" data-layout-group="detail-crypto-analysis" data-layout-label="ניתוח הנכס">
-      <div class="manc" data-layout-key="holding"><div class="mant">📊 פוזיציית החזקה</div>
+    <div class="man">
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מאזן כמותי</span><span class="mrv">${fNum(a.qty)}</span></div>
         <div class="mr"><span class="mrl">שווי מיושר ₪</span><span class="mrv">${fILS(pi,2)}</span></div>
         <div class="mr"><span class="mrl">ערך בדולר</span><span class="mrv">USD ${(val/S.fx).toFixed(0)}</span></div>
         <div class="mr"><span class="mrl">משקל בתיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
       </div>
-      <div class="manc" data-layout-key="market"><div class="mant">📈 ביצועי שוק</div>
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-line-up" style="margin-inline-end:5px"></i>ביצועי שוק</div>
         <div class="mr"><span class="mrl">וולטיליות 24ש</span><span class="mrv ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</span></div>
         <div class="mr"><span class="mrl">P&L יומי</span><span class="mrv ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</span></div>
         <div class="mr"><span class="mrl">ערך ביחידה</span><span class="mrv">USD ${fP(pu)}</span></div>
@@ -5486,13 +5896,13 @@ async function renderCryptoModal(a, el) {
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>
-    <div class="fundamentals-grid" data-layout-group="detail-crypto-fundamentals" data-layout-label="נתוני יסוד">
-      <div class="fund-cell" data-layout-key="market-cap"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
-      <div class="fund-cell" data-layout-key="rank"><div class="fund-l">דירוג שוק</div><div class="fund-v">${p?.rank?'#'+p.rank:'--'}</div></div>
-      <div class="fund-cell" data-layout-key="ath"><div class="fund-l">שיא כל הזמנים</div><div class="fund-v up" style="color:var(--gr)">${p?.ath?fPriceCur(p.ath):'--'}${p?.athPct!=null?`<span style="font-size:9px;opacity:.7;margin-inline-start:4px">${p.athPct.toFixed(1)}%</span>`:''}</div></div>
-      <div class="fund-cell" data-layout-key="volume"><div class="fund-l">מחזור יומי</div><div class="fund-v">${p?.volume24h?fBigCur(p.volume24h):'--'}</div></div>
-      <div class="fund-cell" data-layout-key="circulating"><div class="fund-l">היצע במחזור</div><div class="fund-v">${p?.circulatingSupply?fBig(p.circulatingSupply)+' '+a.sym:'--'}</div></div>
-      <div class="fund-cell" data-layout-key="total-supply"><div class="fund-l">היצע כולל</div><div class="fund-v">${p?.totalSupply?fBig(p.totalSupply)+' '+a.sym:'--'}</div></div>
+    <div class="fundamentals-grid">
+      <div class="fund-cell"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">דירוג שוק</div><div class="fund-v">${p?.rank?'#'+p.rank:'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">שיא כל הזמנים</div><div class="fund-v up" style="color:var(--gr)">${p?.ath?fPriceCur(p.ath):'--'}${p?.athPct!=null?`<span style="font-size:9px;opacity:.7;margin-inline-start:4px">${p.athPct.toFixed(1)}%</span>`:''}</div></div>
+      <div class="fund-cell"><div class="fund-l">מחזור יומי</div><div class="fund-v">${p?.volume24h?fBigCur(p.volume24h):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">היצע במחזור</div><div class="fund-v">${p?.circulatingSupply?fBig(p.circulatingSupply)+' '+a.sym:'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">היצע כולל</div><div class="fund-v">${p?.totalSupply?fBig(p.totalSupply)+' '+a.sym:'--'}</div></div>
     </div>
     ${lotsHistoryHTML(a, pu || 0, 'crypto')}
     <button class="sell-btn" onclick="sellAsset('${a.id}','crypto')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
@@ -5524,12 +5934,12 @@ function renderStockModal(s, el) {
   const p = S.sp[s.sym]; const val = sv(s); const chg = p?.change ?? null; const pnl = spnl(s);
   const pu = p?.price; const {g} = tots(); const pct = g ? val / g * 100 : 0; const sh = getShares(s);
   const sig = chg == null ? 'hold' : chg > 2 ? 'buy' : chg < -2 ? 'sell' : 'hold';
-  const sigTxt = sig==='buy'?'🟢 מומנטום חיובי מובהק':sig==='sell'?'🔴 לחץ מימוש':'🟡 פוזיציה נייטרלית';
+  const sigTxt = sig==='buy'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);vertical-align:middle;margin-inline-end:5px"></span>מומנטום חיובי מובהק':sig==='sell'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);vertical-align:middle;margin-inline-end:5px"></span>לחץ מימוש':'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gd);vertical-align:middle;margin-inline-end:5px"></span>פוזיציה נייטרלית';
 
   const avg = avgEntry(s);
   const totalPnl = stockTotalPnl(s);
   el.innerHTML = `
-    <div class="mh"><div class="mico">${s.icon}</div><div><h2>${s.sym}</h2><p>${s.name} · ${(() => {
+    <div class="mh"><div class="mico">${s.icon}</div><div class="mh-titles"><h2>${s.sym}</h2><p>${s.name} · ${(() => {
         const c = (p?.currency || 'USD').toUpperCase();
         if (c === 'USD') return 'NASDAQ / NYSE';
         if (c === 'ILS' || c === 'ILA') return 'TASE · בורסת תל אביב';
@@ -5538,14 +5948,18 @@ function renderStockModal(s, el) {
         if (c === 'JPY') return 'TSE · Tokyo Stock Exchange';
         if (c === 'HKD') return 'HKEX · Hong Kong';
         return c + ' Exchange';
-      })()}</p></div></div>
-    <div class="mkpis" data-layout-group="detail-stock-kpis" data-layout-label="נתוני הנכס">
-      <div class="mkpi" data-layout-key="value"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
-      <div class="mkpi" data-layout-key="price"><div class="mkpi-l">מחיר מנייה</div><div class="mkpi-v">${pu?fPriceNative(pu, p?.currency, 2):'--'}</div></div>
-      <div class="mkpi" data-layout-key="change"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
-      <div class="mkpi" data-layout-key="daily-pnl"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
-      ${avg!=null ? `<div class="mkpi" data-layout-key="avg-entry"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
-      ${totalPnl!=null ? `<div class="mkpi" data-layout-key="total-pnl"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+      })()}</p></div>
+      <div class="mh-actions">
+        <button class="mh-btn" onclick="editFromModal('stock','${s.sym}')" title="עריכה"><i class="ph-thin ph-pencil-simple"></i></button>
+        <button class="mh-btn" onclick="refreshFromModal('stock','${s.sym}',this)" title="רענון"><i class="ph-thin ph-arrows-clockwise"></i></button>
+      </div></div>
+    <div class="mkpis">
+      <div class="mkpi"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">מחיר מנייה</div><div class="mkpi-v">${pu?fPriceNative(pu, p?.currency, 2):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
+      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -5560,14 +5974,14 @@ function renderStockModal(s, el) {
       </div>
     </div>
     <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
-    <div class="man" data-layout-group="detail-stock-analysis" data-layout-label="ניתוח הנכס">
-      <div class="manc" data-layout-key="holding"><div class="mant">📊 פוזיציית החזקה</div>
+    <div class="man">
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מספר מניות</span><span class="mrv">${sh?sh.toFixed(3):'--'}</span></div>
         <div class="mr"><span class="mrl">שווי כולל</span><span class="mrv">${fPriceNative(pu * (sh||0), p?.currency, 0)}</span></div>
         ${(p?.currency||'USD')!=='USD' && (p?.currency||'USD')!=='ILS' ? `<div class="mr"><span class="mrl">שווי ב-USD</span><span class="mrv">USD ${(val/S.fx).toFixed(0)}</span></div>` : ''}
         <div class="mr"><span class="mrl">נתח בתיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
       </div>
-      <div class="manc" data-layout-key="market"><div class="mant">📈 נתוני מסחר</div>
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-line" style="margin-inline-end:5px"></i>נתוני מסחר</div>
         <div class="mr"><span class="mrl">שינוי יומי</span><span class="mrv ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</span></div>
         <div class="mr"><span class="mrl">P&L יומי</span><span class="mrv ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</span></div>
         <div class="mr"><span class="mrl">סגירה קודמת</span><span class="mrv">${p?.prevClose?fPriceNative(p.prevClose, p?.currency, 2):'--'}</span></div>
@@ -5576,11 +5990,11 @@ function renderStockModal(s, el) {
         <div class="sig ${sig}"><div class="sdot"></div><div class="stxt">${sigTxt}</div></div>
       </div>
     </div>
-    <div class="fundamentals-grid" data-layout-group="detail-stock-fundamentals" data-layout-label="נתוני יסוד">
-      <div class="fund-cell" data-layout-key="market-cap"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fBigCur(p.marketCap):'--'}</div></div>
-      <div class="fund-cell" data-layout-key="pe"><div class="fund-l">מכפיל רווח</div><div class="fund-v">${p?.peRatio?p.peRatio.toFixed(2):'--'}</div></div>
-      <div class="fund-cell" data-layout-key="high-52w"><div class="fund-l">שיא 52ש</div><div class="fund-v up" style="color:var(--gr)">${p?.high52w?fPriceCur(p.high52w,2):'--'}</div></div>
-      <div class="fund-cell" data-layout-key="low-52w"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" style="color:var(--rd)">${p?.low52w?fPriceCur(p.low52w,2):'--'}</div></div>
+    <div class="fundamentals-grid">
+      <div class="fund-cell"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fMarketCapByExchange(p.marketCap, p.currency):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">מכפיל רווח</div><div class="fund-v">${p?.peRatio?p.peRatio.toFixed(2):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">שיא 52ש</div><div class="fund-v up" style="color:var(--gr)">${p?.high52w?fPriceCur(p.high52w,2):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" style="color:var(--rd)">${p?.low52w?fPriceCur(p.low52w,2):'--'}</div></div>
     </div>
     ${lotsHistoryHTML(s, pu || 0, 'stock')}
     <button class="sell-btn" onclick="sellAsset('${s.sym}','stock')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
@@ -5877,6 +6291,61 @@ function drawSChart(prices, labels, sym) {
 // ═══════════════════════════════════════════
 let edTab = 'stock';
 function openEditor(tab) { edTab = tab || 'stock'; document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd(); }
+
+// From the asset detail modal: jump straight to the editor for this asset.
+let _edReturnTo = null;   // {sym, type} to return to when pressing back, or null
+function editFromModal(tab, sym) {
+  _edReturnTo = { sym, type: tab };   // remember where we came from
+  closeDet();
+  edTab = tab || 'stock';
+  openEditor(edTab);
+  // scroll the matching asset row into view + briefly highlight it
+  setTimeout(() => {
+    const list = edTab === 'crypto' ? S.crypto : S.stocks;
+    const idx = list.findIndex(x => x.sym === sym);
+    if (idx >= 0) {
+      const row = document.querySelectorAll('#edContent .erow')[idx];
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('erow-flash');
+        setTimeout(() => row.classList.remove('erow-flash'), 1400);
+      }
+    }
+  }, 120);
+}
+
+// Back button: if we entered the editor from an asset card, return to that card.
+// Otherwise just close the editor.
+function edBack() {
+  const ret = _edReturnTo;
+  _edReturnTo = null;
+  closeEd();
+  if (ret && ret.sym) {
+    setTimeout(() => openDet(ret.sym, ret.type), 80);
+  }
+}
+window.edBack = edBack;
+
+// From the asset detail modal: refresh just this asset's live data.
+async function refreshFromModal(tab, sym, btn) {
+  const icon = btn?.querySelector('i');
+  if (icon) icon.classList.add('mh-spin');
+  try {
+    if (tab === 'crypto') await getCrypto(); else await getStocks();
+    // re-render the open modal with fresh numbers
+    const el = document.getElementById('detContent');
+    const list = tab === 'crypto' ? S.crypto : S.stocks;
+    const asset = list.find(x => x.sym === sym);
+    if (el && asset) {
+      if (tab === 'crypto') renderCryptoModal(asset, el); else renderStockModal(asset, el);
+    }
+    renderDashStocks(); renderDashCrypto(); updateKPIs();
+  } catch (_) {} finally {
+    if (icon) icon.classList.remove('mh-spin');
+  }
+}
+window.editFromModal = editFromModal;
+window.refreshFromModal = refreshFromModal;
 function closeEd() {
   document.getElementById('edOv').classList.remove('open');
   document.body.style.overflow = '';
@@ -5921,7 +6390,7 @@ function renderEd() {
           ${iC
             ? `<input class="einput" type="number" value="${totalQty}" step="any" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="S.crypto[${i}].qty=parseFloat(this.value)||0;markEdit()">`
             : `<input class="einput" type="number" value="${totalQty}" step="any" placeholder="מניות" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="S.stocks[${i}].shares=parseFloat(this.value)||0;markEdit()">`}
-          <button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'📊 '+a.lots.length:'➕ קנייה'}</button>
+          <button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-chart-bar"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> קנייה'}</button>
           <div class="emove">
             <button class="emove-btn" title="הזז למעלה" onclick="moveAsset(${i},-1)" ${i === 0 ? 'disabled' : ''}><i class="fi fi-tr-angle-up"></i></button>
             <button class="emove-btn" title="הזז למטה" onclick="moveAsset(${i},1)" ${i === list.length - 1 ? 'disabled' : ''}><i class="fi fi-tr-angle-down"></i></button>
@@ -5935,12 +6404,13 @@ function renderEd() {
     <div class="aform">
       <div class="af-t">+ הוספת נכס חדש</div>
       <div class="fg">
-        <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${iC?'BTC':'AAPL'}" oninput="this.value=this.value.toUpperCase();edPickedId=null;edAC(this.value)" onfocus="edAC(this.value)"><div class="ac-box" id="acBox"></div></div>
+        <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${iC?'BTC':'AAPL'}" oninput="this.value=this.value.toUpperCase();edPickedId=null;edAC(this.value);var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency()" onfocus="edAC(this.value)"><div class="ac-box" id="acBox"></div></div>
         <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${iC?'Bitcoin':'Apple'}"></div>
         ${iC
-          ? `<div class="ff"><label>כמות החזקה</label><input id="nQ" type="number" placeholder="0.5" step="any"></div>`
-          : `<div class="ff"><label>כמות מניות</label><input id="nQ" type="number" placeholder="10.5" step="any"></div>`}
-        <div class="ff"><label>מחיר כניסה $ <span style="color:var(--t3);font-size:10px">(אופציונלי)</span></label><input id="nP" type="number" placeholder="0.00" step="any"></div>
+          ? `<div class="ff"><label>כמות החזקה</label><input id="nQ" type="number" placeholder="0.5" step="any" oninput="onNewQtyInput()"></div>`
+          : `<div class="ff"><label>כמות מניות</label><input id="nQ" type="number" placeholder="10.5" step="any" oninput="onNewQtyInput()"></div>`}
+        <div class="ff"><label>סה״כ עלות ${iC?'$':'₪'} <span style="color:var(--t3);font-size:10px">(מחושב אוטומטית)</span></label><input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1'"></div>
+        <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
       </div>
       <button class="fadd" onclick="addA()"><i class="ph-thin ph-plus"></i> הוסף לרשימת המעקב</button>
     </div>
@@ -6135,7 +6605,7 @@ function _renderReviewList() {
     </div>
     ${_parsedAssets.map((a, i) => `
       <div class="review-row">
-        <div class="review-row-tp">${a.type === 'crypto' ? '🪙' : '📈'}</div>
+        <div class="review-row-tp">${a.type === 'crypto' ? '<i class="ph-thin ph-coin"></i>' : '<i class="ph-thin ph-chart-line-up"></i>'}</div>
         <div>
           <div class="review-row-sym">${a.sym}</div>
           <div class="review-row-name">${a.name}</div>
@@ -6514,10 +6984,11 @@ function lotsPanelHTML(i) {
         ${avg!=null ? `<span class="lots-panel-avg">מחיר ממוצע: $${avg.toFixed(2)}</span>` : ''}
       </div>
       ${a.lots.map((l, j) => `
-        <div class="lot-row">
-          <input type="number" step="any" placeholder="כמות" value="${l.qty||''}" oninput="updateLot(${i},${j},'qty',this.value)">
-          <input type="number" step="any" placeholder="מחיר $" value="${l.price||''}" oninput="updateLot(${i},${j},'price',this.value)">
-          <input type="date" value="${l.date||''}" oninput="updateLot(${i},${j},'date',this.value)">
+        <div class="lot-row" data-lot="${i}-${j}">
+          <input type="number" step="any" placeholder="כמות" value="${l.qty||''}" oninput="onLotQtyInput(${i},${j},this.value)">
+          <input type="number" step="any" placeholder="סה״כ ${edTab==='crypto'?'$':'₪'}" value="${(l.qty>0&&l.price>0)?(Math.round(l.qty*l.price*100)/100):''}" oninput="onLotTotalInput(${i},${j},this.value)">
+          <input type="date" value="${l.date||''}" oninput="stageLot(${i},${j},'date',this.value)">
+          <button class="lot-ok" onclick="confirmLot(${i},${j})" title="אישור"><i class="ph-thin ph-check" style="font-size:14px"></i></button>
           <button class="lot-del" onclick="delLot(${i},${j})" title="מחק קנייה"><i class="ph-thin ph-trash" style="font-size:13px"></i></button>
         </div>
       `).join('')}
@@ -6549,10 +7020,193 @@ function updateLot(i, j, field, value) {
   if (field === 'date') list[i].lots[j].date = value;
   else list[i].lots[j][field] = parseFloat(value) || 0;
   markEdit();
-  // Don't full re-render (would lose input focus). Just update the avg display in this row.
-  const avgEl = document.querySelector('.erow:nth-of-type(' + (i+1) + ') .erow-info div:last-child');
-  // (lightweight: skip live avg update — it'll refresh next render)
 }
+
+// Live-edit a lot field without re-rendering (keeps input focus).
+function stageLot(i, j, field, value) {
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  if (!Array.isArray(list[i].lots) || !list[i].lots[j]) return;
+  if (field === 'date') list[i].lots[j].date = value;
+  else list[i].lots[j][field] = parseFloat(value) || 0;
+  markEdit();
+}
+
+// When the user types a quantity, auto-fill the entry price with the current
+// market price if the price field is still empty/zero — so they don't have to
+// look it up manually. Editing the price afterwards overrides this.
+function onLotQtyInput(i, j, value) {
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const lot = list[i]?.lots?.[j];
+  if (!lot) return;
+  lot.qty = parseFloat(value) || 0;
+  markEdit();
+  const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
+  const totalInp = row?.querySelectorAll('input')[1];
+  if (!totalInp) return;
+  const manual = totalInp.dataset.manual === '1';
+  if (manual && parseFloat(totalInp.value) > 0 && lot.qty > 0) {
+    // User fixed a total cost → keep that total, derive per-unit from it.
+    lot.price = (parseFloat(totalInp.value) || 0) / lot.qty;
+  } else if (lot.qty > 0) {
+    // Auto mode: total = qty × current market (or existing per-unit) price.
+    const mkt = currentMarketPrice(list[i], edTab);
+    const unit = mkt > 0 ? mkt : (lot.price > 0 ? lot.price : 0);
+    if (unit > 0) {
+      lot.price = unit;
+      totalInp.value = Math.round(lot.qty * unit * 100) / 100;
+      totalInp.classList.add('lot-autofilled');
+    }
+  } else {
+    totalInp.value = '';
+  }
+}
+
+// User typed a TOTAL amount → store per-unit price = total / qty.
+function onLotTotalInput(i, j, value) {
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const lot = list[i]?.lots?.[j];
+  if (!lot) return;
+  const total = parseFloat(value) || 0;
+  const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
+  const totalInp = row?.querySelectorAll('input')[1];
+  if (totalInp) { totalInp.classList.remove('lot-autofilled'); totalInp.dataset.manual = '1'; }
+  lot.price = lot.qty > 0 ? total / lot.qty : total;
+  markEdit();
+}
+window.onLotTotalInput = onLotTotalInput;
+
+// Current live market price for an asset, in its native quote currency.
+function currentMarketPrice(asset, type) {
+  if (type === 'crypto') {
+    const p = S.cp[asset.id]?.usd;
+    return p > 0 ? p : 0;
+  }
+  const sp = S.sp[asset.sym];
+  return sp?.price > 0 ? sp.price : 0;
+}
+
+// Confirm button (✓): flash feedback, persist, and re-render to refresh the avg.
+function confirmLot(i, j) {
+  const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
+  if (row) {
+    const ok = row.querySelector('.lot-ok');
+    if (ok) { ok.classList.add('lot-ok-done'); }
+  }
+  markEdit();
+  saveLS();
+  setTimeout(() => renderEd(), 250);
+}
+window.onLotQtyInput = onLotQtyInput;
+window.stageLot = stageLot;
+window.confirmLot = confirmLot;
+
+// Auto-fill entry price in the "add new asset" form when a quantity is typed.
+// Updates on every keystroke. If the price isn't known locally yet, fetch it live (once).
+let _newPriceFetching = false;
+async function onNewQtyInput() {
+  const symInp = document.getElementById('nS');
+  const qtyInp = document.getElementById('nQ');
+  const priceInp = document.getElementById('nP');
+  if (!symInp || !qtyInp || !priceInp) return;
+  const sym = (symInp.value || '').trim().toUpperCase();
+  const qty = parseFloat(qtyInp.value) || 0;
+  if (priceInp.dataset.manual === '1') return;   // user typed their own price — don't override
+  if (!sym || !(qty > 0)) return;
+
+  const iC = edTab === 'crypto';
+  // 1) try a price we already have in memory
+  let mkt = 0;
+  if (iC) {
+    const id = (CG_ID[sym] ? sym : null);
+    // crypto: look up by id/sym across known maps
+    const cid = Object.keys(S.cp).find(k => k.toUpperCase() === sym || CG_ID[sym]);
+    mkt = S.cp[sym?.toLowerCase()]?.usd || S.cp[CG_ID[sym]]?.usd || 0;
+    if (!mkt) { const hit = Object.values(S.cp).find(v => v?.sym?.toUpperCase?.() === sym); mkt = hit?.usd || 0; }
+  } else {
+    mkt = S.sp[sym]?.price || 0;
+    // Fallback: if this symbol is already in the portfolio, reuse its avg lot price
+    // so the calculation still works even when the live TASE quote is momentarily down.
+    if (!(mkt > 0)) {
+      const existing = S.stocks.find(x => x.sym === sym);
+      if (existing?.lots?.length) {
+        let tq = 0, tc = 0;
+        existing.lots.forEach(l => { if (l.qty > 0 && l.price > 0) { tq += l.qty; tc += l.qty * l.price; } });
+        if (tq > 0) mkt = tc / tq;
+      }
+    }
+  }
+  if (mkt > 0) { fillNewPrice(priceInp, mkt * qty); return; }   // TOTAL = unit × qty
+
+  // 2) fetch live (debounced single-flight)
+  if (_newPriceFetching) return;
+  _newPriceFetching = true;
+  try {
+    let price = 0;
+    if (iC) {
+      const bs = BN[sym] || (sym + 'USDT');
+      try {
+        const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${bs}`, { signal: AbortSignal.timeout(7000) });
+        const d = await r.json();
+        price = parseFloat(d?.price) || 0;
+      } catch (_) {}
+    } else if (sym.includes('.')) {
+      // TASE / international — Yahoo first, then Stooq
+      const q = await fetchYahooQuote(sym).catch(() => null);
+      price = q?.price || 0;
+      if (!(price > 0) && /\.TA$/i.test(sym)) {
+        const su = await fetchStooqQuote(sym.replace(/\.TA$/i,'').toLowerCase()+'.il').catch(()=>null);
+        if (su?.price > 0) price = su.price / 100; // agorot → shekels
+      }
+    } else {
+      // US stock — Finnhub is the most reliable, then Yahoo, then Stooq
+      try {
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
+        if (r.ok) { const d = await r.json(); if (d?.c > 0) price = d.c; }
+      } catch (_) {}
+      if (!(price > 0)) { const q = await fetchYahooQuote(sym).catch(() => null); price = q?.price || 0; }
+      if (!(price > 0)) { const su = await fetchStooqQuote(sym).catch(() => null); price = su?.price || 0; }
+    }
+    // only fill if the user hasn't since typed a manual price and qty still set
+    if (price > 0 && priceInp.dataset.manual !== '1' && (parseFloat(qtyInp.value) || 0) > 0) {
+      const q = parseFloat(qtyInp.value) || 0;
+      fillNewPrice(priceInp, price * q);   // show TOTAL = unit price × quantity
+    }
+  } finally {
+    _newPriceFetching = false;
+    // if the symbol/qty changed during the fetch and price still empty, try once more
+    const p = parseFloat(priceInp.value) || 0;
+    const q2 = parseFloat(qtyInp.value) || 0;
+    if (!(p > 0) && q2 > 0 && priceInp.dataset.manual !== '1' && (symInp.value||'').trim().toUpperCase() !== sym) {
+      onNewQtyInput();
+    }
+  }
+}
+function fillNewPrice(priceInp, price) {
+  priceInp.value = Math.round(price * 100) / 100;
+  priceInp.classList.add('lot-autofilled');
+}
+// Reflect the correct currency symbol on the price label based on the entered symbol.
+function updateNewPriceCurrency() {
+  const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
+  const lbl = document.getElementById('nP')?.closest('.ff')?.querySelector('label');
+  if (!lbl) return;
+  const iC = edTab === 'crypto';
+  let cur = '$';
+  if (!iC) {
+    const dotIdx = sym.lastIndexOf('.');
+    const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1) : '';
+    const mapping = SUFFIX_TO_GOOGLE[sfx];
+    const code = mapping ? mapping.cur : 'USD';
+    const SYM = { USD:'$', ILS:'₪', EUR:'€', GBP:'£', JPY:'¥', CNY:'¥', CHF:'CHF ',
+      CAD:'C$', AUD:'A$', HKD:'HK$', INR:'₹', BRL:'R$', KRW:'₩', SEK:'kr ',
+      NOK:'kr ', DKK:'kr ', PLN:'zł ', TRY:'₺', ZAR:'R ', SGD:'S$', NZD:'NZ$',
+      TWD:'NT$', THB:'฿', MXN:'$', SAR:'﷼ ' };
+    cur = SYM[code] || (code + ' ');
+  }
+  lbl.innerHTML = `סה״כ עלות ${cur} <span style="color:var(--t3);font-size:10px">(מחושב אוטומטית)</span>`;
+}
+window.updateNewPriceCurrency = updateNewPriceCurrency;
+window.onNewQtyInput = onNewQtyInput;
 
 function addA() {
   const sym   = (document.getElementById('nS')?.value || '').trim().toUpperCase();
@@ -6562,11 +7216,14 @@ function addA() {
   const icon  = autoIcon(sym, name, edTab, color);
   if (!sym) { alert('יש להזין סימבול'); return; }
   const qty = parseFloat(document.getElementById('nQ')?.value);
-  const entryPrice = parseFloat(document.getElementById('nP')?.value);
+  const totalCost = parseFloat(document.getElementById('nP')?.value);
+  const buyDate = document.getElementById('nD')?.value || new Date().toISOString().slice(0,10);
   if (isNaN(qty) || qty <= 0) { alert(edTab==='crypto' ? 'הזן כמות חיובית' : 'הזן כמות מניות חיובית'); return; }
+  // nP holds the TOTAL cost; store per-unit price = total / qty
+  const entryPrice = (!isNaN(totalCost) && totalCost > 0) ? totalCost / qty : NaN;
   // Build initial lot if entry price provided
   const lots = (!isNaN(entryPrice) && entryPrice > 0)
-    ? [{qty, price: entryPrice, date: new Date().toISOString().slice(0,10)}]
+    ? [{qty, price: entryPrice, date: buyDate}]
     : null;
   if (edTab === 'crypto') {
     if (S.crypto.find(a => a.sym === sym)) { alert('הנכס כבר קיים'); return; }
@@ -6597,7 +7254,7 @@ function saveClose() { saveLS(); S.sparks = {}; S.sChg = {}; S.cChg = {}; closeE
 // ═══════════════════════════════════════════
 // PERIOD PERFORMANCE SUMMARY — purchase-date aware + persistent cache
 // ═══════════════════════════════════════════
-let dashPeriod = 'month';
+let dashPeriod = 'today';
 let dashPeriodRequestId = 0;
 let dashPeriodInFlight = new Map();
 let dashPeriodAutoAt = 0;
@@ -6661,23 +7318,39 @@ function dashSetStatus(text = '', state = '') {
   el.textContent = text;
 }
 function dashAddDays(key, amount) {
+  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
   const [y,m,d] = key.split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+    return new Date(Date.now() + amount*86400000).toISOString().slice(0,10);
+  }
   return new Date(Date.UTC(y,m-1,d+amount,12)).toISOString().slice(0,10);
 }
 function dashAddMonths(key, amount) {
+  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
   const [y,m,d] = key.split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+    key = todayIsraelDateKey();
+    const [yy,mm,dd] = key.split('-').map(Number);
+    const dt0 = new Date(Date.UTC(yy,mm-1+amount,1,12));
+    return dt0.toISOString().slice(0,10);
+  }
   const dt = new Date(Date.UTC(y,m-1+amount,1,12));
   const last = new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth()+1,0,12)).getUTCDate();
   dt.setUTCDate(Math.min(d,last));
   return dt.toISOString().slice(0,10);
 }
-function dashFirstOfMonth(key) { return key.slice(0,7) + '-01'; }
+function dashFirstOfMonth(key) {
+  if (!key || typeof key !== 'string' || key.length < 7) key = todayIsraelDateKey();
+  return key.slice(0,7) + '-01';
+}
 function dashLastOfMonth(key) {
   const firstNext = dashAddMonths(dashFirstOfMonth(key),1);
   return dashAddDays(firstNext,-1);
 }
 function dashKeyToIsraelMidnightMs(key) {
+  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
   const [y,m,d] = key.split('-').map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return Date.now();
   const localAsUtc = Date.UTC(y,m-1,d,0,0,0,0);
   let guess = localAsUtc;
   for (let i=0;i<3;i++) guess = localAsUtc - timeZoneOffsetMs(guess, APP_TIME_ZONE);
@@ -6888,18 +7561,33 @@ async function dashComputePeriod(range){
   return {range,items,stocks,crypto,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
 }
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
-function dashSummaryCell(key,label,g){const up=g.pnl>=0;return `<div class="period-summary-cell" data-layout-key="${key}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
+function dashSummaryCell(label,g,primary){const up=g.pnl>=0;return `<div class="period-summary-cell${primary?' is-primary':''}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
 function dashRenderPeriodData(data,{cached=false}={}){
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   const cards=data.items.map(x=>{
     const up=x.pnl>=0,from=x.basis==='entry'?'מחושב ממחיר הקנייה':(x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'');
-    return `<div class="period-asset-card" data-layout-key="${x.type}:${x.sym}" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
+    return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid" data-layout-group="dashboard-period-summary" data-layout-label="סיכום התקופה">${dashSummaryCell('total','כלל התיק',data.total)}${dashSummaryCell('stocks','מניות',data.stocks)}${dashSummaryCell('crypto','קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
-  grid.innerHTML=(cards||'<div class="period-initial">אין נתונים מספקים לתקופה שנבחרה</div>')+summary;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const cardsBlock = cards
+    ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
+    : '';
+  grid.innerHTML = summary + (cardsBlock || '');
+  // restore open/closed state (default: open after a period click)
+  applyPeriodCardsState();
   dashSetStatus(cached?'מוצג מהזיכרון':'עודכן עכשיו',cached?'updating':'fresh');
 }
+// ── Collapsible asset detail under the period summary ──
+let _periodCardsOpen = false;
+function togglePeriodCards(){ _periodCardsOpen = !_periodCardsOpen; applyPeriodCardsState(); }
+function applyPeriodCardsState(){
+  const wrap=document.getElementById('periodCardsWrap'), caret=document.getElementById('periodCardsCaret');
+  if(!wrap)return;
+  wrap.style.display=_periodCardsOpen?'grid':'none';
+  if(caret) caret.style.transform=_periodCardsOpen?'rotate(180deg)':'rotate(0deg)';
+}
+window.togglePeriodCards=togglePeriodCards;
 function dashPeriodCacheKey(range){return `result:${dashPortfolioSignature()}:${range.fromKey}:${range.endKey}`;}
 async function renderDashPeriod(period=dashPeriod,customFrom,customTo){
   dashPeriod=period;
@@ -6961,6 +7649,40 @@ async function doRefresh() {
   finally { refreshInFlight = null; }
 }
 
+// ── Automatic live refresh ──
+// Re-pull prices on a fixed cadence so the portfolio reflects near-real-time data
+// without the user having to tap the refresh button. Only runs while the tab is
+// visible (saves battery/quota); a faster cadence when the tab is in focus.
+let _autoRefreshTimer = null;
+const AUTO_REFRESH_MS = 90000;   // 90s — gentle on the free proxies (avoids 429 rate-limits)
+function startAutoRefresh() {
+  clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && !refreshInFlight) {
+      doRefresh();
+    }
+  }, AUTO_REFRESH_MS);
+}
+// Fast catch-up: in the first ~80s, retry any stocks still missing a price every 10s
+// so slow international/TASE symbols fill in quickly instead of waiting a full cycle.
+let _catchupCount = 0;
+const _catchupTimer = setInterval(() => {
+  _catchupCount++;
+  if (_catchupCount > 8) { clearInterval(_catchupTimer); return; }
+  if (document.visibilityState !== 'visible' || refreshInFlight) return;
+  const stillMissing = (S.stocks || []).some(s => !(S.sp[s.sym]?.price > 0));
+  if (stillMissing && typeof getStocks === 'function') {
+    getStocks().then(() => { renderDashStocks?.(); updateKPIs?.(); }).catch(() => {});
+  } else if (!stillMissing) {
+    clearInterval(_catchupTimer);
+  }
+}, 10000);
+// Refresh immediately when the user returns to the tab (data may be stale).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !refreshInFlight) doRefresh();
+});
+startAutoRefresh();
+
 
 // ── Dual clock (Israel + New York), updates every 30s ──
 function updateClocks() {
@@ -6988,7 +7710,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v10-iphone-layout');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -7015,11 +7737,6 @@ function applyCloudPortfolio(data, { force = false } = {}) {
   }
   if (Array.isArray(data.stocks)) {
     S.stocks = normalizeStocks(data.stocks);
-    changed = true;
-  }
-  if (data.layouts && typeof data.layouts === 'object' && !Array.isArray(data.layouts)) {
-    S.layouts = data.layouts;
-    try { localStorage.setItem('vector_layouts_v1', JSON.stringify(S.layouts)); } catch(_) {}
     changed = true;
   }
   if (data.preferences && typeof data.preferences === 'object') {
@@ -7104,7 +7821,7 @@ async function connectCloudForCurrentUser({ loadFirst = true } = {}) {
 
   if (window.fbListen) {
     portfolioSnapshotUnsubscribe = window.fbListen(data => {
-      if (document.getElementById('edOv')?.classList.contains('open') || document.body.classList.contains('layout-edit-mode')) {
+      if (document.getElementById('edOv')?.classList.contains('open')) {
         window._pendingRemotePortfolio = data;
         return;
       }
@@ -7138,6 +7855,8 @@ window.proceedToApp = async function() {
 
   // Market prices refresh in the background; synchronized holdings are already visible.
   doRefresh();
+  // Load asset-related news for the dashboard (slight delay so holdings are ready)
+  setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
   const scheduleRefresh = () => {
     const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
@@ -7279,7 +7998,7 @@ async function importPortfolio(event) {
     fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
     saveLS();
     if (window.fbSave) window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
-    alert('הגיבוי נטען בהצלחה! 🎉');
+    alert('הגיבוי נטען בהצלחה!');
     location.reload();
   } catch (e) {
     alert('שגיאה בקריאת הקובץ: ' + e.message);
