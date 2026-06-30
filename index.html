@@ -503,6 +503,13 @@ body.light .tk-opt.sel { color: #F4EFE5; }
 
 /* ── SYMBOL AUTOCOMPLETE ── */
 .ff { position: relative; }
+/* Currency selector embedded inside the "buy price" field. */
+.cur-input-wrap { display: flex; align-items: stretch; border: 1px solid var(--b1); border-radius: var(--radius-sm); overflow: hidden; background: var(--s1); }
+.cur-input-wrap .cur-select { flex-shrink: 0; width: auto; max-width: 78px; border: none; border-inline-end: 1px solid var(--b1); background: var(--s3); color: var(--t2); font-family: var(--font-mono); font-size: 12px; font-weight: 700; padding: 0 6px; cursor: pointer; outline: none; }
+.cur-input-wrap input { flex: 1; min-width: 0; border: none !important; border-radius: 0 !important; background: transparent !important; }
+.cur-input-wrap input:focus { outline: none; box-shadow: none; }
+body.light .cur-input-wrap { background: #fff; }
+body.light .cur-input-wrap .cur-select { background: rgba(10,15,31,0.04); }
 .ac-box { position: absolute; top: calc(100% + 4px); right: 0; left: 0; background: var(--s2); border: 1px solid var(--b2); border-radius: var(--radius-sm); box-shadow: 0 12px 30px rgba(0,0,0,.45); z-index: 30; overflow: hidden; display: none; }
 .ac-box.show { display: block; }
 .ac-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--b1); transition: background .12s; direction: ltr; text-align: left; }
@@ -3748,6 +3755,35 @@ function updateFxKpi() {
 // Format a price in the asset's native exchange currency (USD for NASDAQ, ILS for TASE, etc.)
 // pu: the raw price as returned by Yahoo for the symbol (already in native currency).
 // nativeCode: the meta.currency code returned by Yahoo (e.g. 'USD', 'ILS', 'EUR', 'GBP', 'JPY').
+// The native (market) currency code of an asset, regardless of editor context.
+function nativeCurrencyForAsset(asset, type) {
+  if (type === 'crypto') return 'USD';
+  return (S.sp?.[asset?.sym]?.currency || 'USD').toUpperCase();
+}
+// Convert an amount in a NATIVE currency (USD/ILS/EUR/...) into ILS, using the
+// same FX rates the rest of the app uses. Falls back to treating the amount as
+// USD-equivalent if the currency isn't one we have a live rate for.
+// Convert an amount from one currency code to another using fxConvRates
+// (USD value of 1 unit of X). Falls back to returning the amount unconverted
+// if either currency isn't one we have a live rate for.
+function convertCurrencyAmount(amount, fromCode, toCode) {
+  if (amount == null || isNaN(amount) || fromCode === toCode) return amount;
+  const rates = (typeof fxConvRates !== 'undefined') ? fxConvRates : null;
+  const fromRate = fromCode === 'USD' ? 1 : rates?.[fromCode];
+  const toRate   = toCode   === 'USD' ? 1 : rates?.[toCode];
+  if (!fromRate || !toRate) return amount;   // can't convert reliably — leave as typed
+  const usd = amount * fromRate;
+  return usd / toRate;
+}
+function nativeToILS(amountNative, nativeCur) {
+  if (amountNative == null || isNaN(amountNative)) return 0;
+  const code = (nativeCur || 'USD').toUpperCase();
+  if (code === 'ILS') return amountNative;
+  if (code === 'USD') return amountNative * S.fx;
+  const rate = (typeof fxConvRates !== 'undefined') ? fxConvRates[code] : null;  // USD value of 1 unit of `code`
+  if (rate) return amountNative * rate * S.fx;       // native → USD → ILS
+  return amountNative * S.fx;                        // best-effort fallback
+}
 function fPriceNative(pu, nativeCode, decimals = 2) {
   if (pu == null || isNaN(pu)) return '--';
   // Prices are already normalized (ILA→ILS done in fetchYahooQuote). Just format.
@@ -10228,7 +10264,12 @@ function renderEd() {
         <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency()" ${cat.live?'onfocus="edAC(this.value)"':''}><div class="ac-box" id="acBox"></div></div>
         <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}"></div>
         <div class="ff"><label>${cat.unit==='מניות'?'כמות מניות':'כמות החזקה'}</label><input id="nQ" type="number" placeholder="${iC?'0.5':'10.5'}" step="any" oninput="onNewQtyInput()"></div>
-        <div class="ff"><label>שער קנייה <span id="nPCur">${cat.curr}</span> <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label><input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled')"></div>
+        <div class="ff"><label>שער קנייה <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label>
+          <div class="cur-input-wrap">
+            <select id="nPCur" class="cur-select" onchange="this.dataset.manualCur='1';fillNewUnitPrice()">${CUR_OPTION_LIST.map(c=>`<option value="${c}"${c==='USD'?' selected':''}>${CUR_SYM_MAP[c]} ${c}</option>`).join('')}</select>
+            <input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled')">
+          </div>
+        </div>
         <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}" onchange="onNewDateInput()"></div>
       </div>
       <button class="fadd" onclick="addA()"><i class="ph-thin ph-plus"></i> הוסף לרשימת המעקב</button>
@@ -10490,10 +10531,12 @@ function edPick(sym, name, id) {
   if (nN && name) nN.value = name.replace(/\b\w+/g, w => w.length > 3 ? w[0] + w.slice(1).toLowerCase() : w);
   const box = document.getElementById('acBox');
   if (box) { box.classList.remove('show'); box.innerHTML = ''; }
-  // Reset the price field, update the currency symbol to the new market, and
-  // re-fill the per-unit price for the picked symbol.
+  // Reset the price field and currency lock, update the currency to the new
+  // market, and re-fill the per-unit price for the picked symbol.
   const nP = document.getElementById('nP');
   if (nP) { nP.dataset.manual = ''; nP.classList.remove('lot-autofilled'); }
+  const nPCur = document.getElementById('nPCur');
+  if (nPCur) nPCur.dataset.manualCur = '';
   updateNewPriceCurrency();
   document.getElementById('nQ')?.focus();
 }
@@ -10506,24 +10549,23 @@ document.addEventListener('click', e => {
 function lotsHistoryHTML(a, currentPrice, type) {
   if (!Array.isArray(a.lots) || !a.lots.length) return '';
   const avg = avgEntry(a);
-  // Currency-aware formatting — fPriceCur converts USD → active display currency.
-  const curCode = (S.currency || 'ils').toUpperCase();
+  const nativeCur = nativeCurrencyForAsset(a, type);   // the asset's own market currency
+  const curCode = (S.currency || 'ils').toUpperCase(); // the user's chosen display currency (for P&L only)
   const curDef = CURRENCIES[curCode] || CURRENCIES.ILS;
   return `
     <div class="lots-history">
       <div class="lots-history-title">
         <h3>היסטוריית קניות</h3>
-        <span class="avg-pill">מחיר ממוצע ${fPriceCur(avg, 2)} · ${a.lots.length} קניות</span>
+        <span class="avg-pill">מחיר ממוצע ${fPriceNative(avg, nativeCur, 2)} · ${a.lots.length} קניות</span>
       </div>
       ${a.lots.map((l, j) => {
         const q = parseFloat(l.qty) || 0;
         const p = parseFloat(l.price) || 0;
-        const cost = q * p;                          // in USD
-        const value = q * currentPrice;              // in USD
-        const lotPnlUSD = value - cost;
-        // Convert lot P&L from USD to active display currency: USD → ILS → display
-        const inIls = lotPnlUSD * S.fx;
-        const lotPnl = convertFromILS(inIls, curCode);
+        const cost = q * p;                          // native currency
+        const value = q * currentPrice;               // native currency (currentPrice is already native)
+        const lotPnlNative = value - cost;
+        // Convert the lot's P&L into the user's chosen display currency.
+        const lotPnl = convertFromILS(nativeToILS(lotPnlNative, nativeCur), curCode);
         const lotPnlPct = p > 0 ? ((currentPrice - p) / p) * 100 : 0;
         const up = lotPnl >= 0;
         const dateStr = l.date ? fDate(new Date(l.date), { year: 'numeric' }) : '--';
@@ -10531,7 +10573,7 @@ function lotsHistoryHTML(a, currentPrice, type) {
           <div class="lot-card">
             <div class="lot-card-cell"><div class="lc-l">תאריך</div><div class="lc-v" style="font-size:11px">${dateStr}</div></div>
             <div class="lot-card-cell"><div class="lc-l">כמות</div><div class="lc-v">${q.toLocaleString('en', {maximumFractionDigits:4})}</div></div>
-            <div class="lot-card-cell"><div class="lc-l">מחיר ${curDef.sym}</div><div class="lc-v">${fPriceCur(p, 2)}</div></div>
+            <div class="lot-card-cell"><div class="lc-l">מחיר</div><div class="lc-v">${fPriceNative(p, nativeCur, 2)}</div></div>
             <div class="lot-card-cell"><div class="lc-l">רווח/הפסד</div><div class="lc-v ${up?'up':'dn'}">${up?'+':''}${curDef.sym}${Math.abs(lotPnl).toFixed(2)}<span style="font-size:10px;opacity:.7;margin-inline-start:4px">${up?'+':''}${lotPnlPct.toFixed(1)}%</span></div></div>
           </div>`;
       }).join('')}
@@ -10610,7 +10652,7 @@ function lotsPanelHTML(i) {
       ${a.lots.map((l, j) => `
         <div class="lot-row" data-lot="${i}-${j}">
           <input type="number" step="any" placeholder="${i18nGetText('כמות')}" value="${l.qty||''}" oninput="onLotQtyInput(${i},${j},this.value)">
-          <input type="number" step="any" placeholder="${curSym}${i18nGetText('ליחידה')}" value="${l.price>0?l.price:''}" oninput="onLotPriceInput(${i},${j},this.value)">
+          <input type="number" step="0.01" placeholder="${curSym}${i18nGetText('ליחידה')}" value="${l.price>0?(Math.round(l.price*100)/100):''}" oninput="onLotPriceInput(${i},${j},this.value)">
           <input type="date" value="${l.date||''}" oninput="onLotDateInput(${i},${j},this.value)">
           <button class="lot-ok" onclick="confirmLot(${i},${j})" title="${i18nGetText('שמור וסגור')}"><i class="ph-thin ph-check" style="font-size:14px"></i></button>
           <button class="lot-del" onclick="delLot(${i},${j})" title="מחק קנייה"><i class="ph-thin ph-trash" style="font-size:13px"></i></button>
@@ -10763,6 +10805,9 @@ function currentMarketPrice(asset, type) {
 // Confirm button (✓): commit the edits, clear the dirty flag, and close the panel.
 function confirmLot(i, j) {
   const key = i + '-' + edTab;
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const lot = list[i]?.lots?.[j];
+  if (lot && lot.price) lot.price = Math.round(lot.price * 100) / 100;   // keep prices to 2 decimals
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
   if (row) {
     const ok = row.querySelector('.lot-ok');
@@ -10781,11 +10826,15 @@ window.confirmLot = confirmLot;
 // Auto-fill entry price in the "add new asset" form when a quantity is typed.
 // Updates on every keystroke. If the price isn't known locally yet, fetch it live (once).
 async function onNewQtyInput() {
-  // Quantity changed — if no per-unit price yet, auto-fill it from the date/market.
-  const priceInp = document.getElementById('nP');
-  if (priceInp && priceInp.dataset.manual !== '1' && !(parseFloat(priceInp.value) > 0)) {
-    fillNewUnitPrice();
-  }
+  // Quantity changed — debounce the price autofill so rapid typing of a
+  // multi-digit quantity doesn't fire a fetch per keystroke.
+  clearTimeout(window._newQtyDebounce);
+  window._newQtyDebounce = setTimeout(() => {
+    const priceInp = document.getElementById('nP');
+    if (priceInp && priceInp.dataset.manual !== '1' && !(parseFloat(priceInp.value) > 0)) {
+      fillNewUnitPrice();
+    }
+  }, 350);
 }
 // When the buy date changes, refresh the per-unit price to that day's close.
 async function onNewDateInput() {
@@ -10858,32 +10907,52 @@ async function fillNewUnitPrice() {
     _newPriceFetching = false;
   }
 }
-function fillNewPrice(priceInp, price) {
-  priceInp.value = Math.round(price * 100) / 100;
+function fillNewPrice(priceInp, nativePrice) {
+  // `nativePrice` is always in the asset's own market currency. If the user has
+  // manually locked the currency picker to something else, convert for display.
+  const sel = document.getElementById('nPCur');
+  let shown = nativePrice;
+  if (sel && sel.dataset.manualCur === '1') {
+    const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
+    const nativeCur = marketCurrencyCodeFor(sym);
+    if (sel.value !== nativeCur) shown = convertCurrencyAmount(nativePrice, nativeCur, sel.value);
+  }
+  priceInp.value = Math.round(shown * 100) / 100;
   priceInp.classList.add('lot-autofilled');
 }
 // Reflect the asset's market currency symbol on the price label.
+// Determine the market currency code for a symbol (no network — pure lookup).
+function marketCurrencyCodeFor(sym) {
+  if (edTab === 'crypto') return 'USD';
+  const dotIdx = sym.lastIndexOf('.');
+  const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1) : '';
+  const mapping = SUFFIX_TO_GOOGLE[sfx];
+  return mapping ? mapping.cur : 'USD';
+}
+const CUR_SYM_MAP = { USD:'$', ILS:'₪', EUR:'€', GBP:'£', JPY:'¥', CNY:'¥', CHF:'CHF',
+  CAD:'C$', AUD:'A$', HKD:'HK$', INR:'₹', BRL:'R$', KRW:'₩', SEK:'kr',
+  NOK:'kr', DKK:'kr', PLN:'zł', TRY:'₺', ZAR:'R', SGD:'S$', NZD:'NZ$',
+  TWD:'NT$', THB:'฿', MXN:'$', SAR:'﷼' };
+// Ordered list for the currency <select> in "+ הוספת נכס חדש" — USD first (default).
+const CUR_OPTION_LIST = ['USD','ILS','EUR','GBP','JPY','CNY','CHF','CAD','AUD','HKD',
+  'INR','BRL','KRW','SEK','NOK','DKK','PLN','TRY','ZAR','SGD','NZD','TWD','THB','MXN','SAR'];
+// Instant, local-only: refresh the currency selector to match the typed symbol's
+// market — unless the user already picked a currency manually for this entry.
 function updateNewPriceCurrency() {
   const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
-  const curEl = document.getElementById('nPCur');
-  if (!curEl) return;
-  const iC = edTab === 'crypto';
-  let cur = '$';
-  if (!iC) {
-    const dotIdx = sym.lastIndexOf('.');
-    const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1) : '';
-    const mapping = SUFFIX_TO_GOOGLE[sfx];
-    const code = mapping ? mapping.cur : 'USD';
-    const SYM = { USD:'$', ILS:'₪', EUR:'€', GBP:'£', JPY:'¥', CNY:'¥', CHF:'CHF ',
-      CAD:'C$', AUD:'A$', HKD:'HK$', INR:'₹', BRL:'R$', KRW:'₩', SEK:'kr ',
-      NOK:'kr ', DKK:'kr ', PLN:'zł ', TRY:'₺', ZAR:'R ', SGD:'S$', NZD:'NZ$',
-      TWD:'NT$', THB:'฿', MXN:'$', SAR:'﷼ ' };
-    cur = SYM[code] || (code + ' ');
+  const sel = document.getElementById('nPCur');
+  if (!sel) return;
+  if (sel.dataset.manualCur !== '1') {
+    sel.value = marketCurrencyCodeFor(sym);
   }
-  curEl.textContent = cur;
-  // Re-fill the price for the (possibly new) symbol unless the user typed manually.
-  const priceInp = document.getElementById('nP');
-  if (priceInp && priceInp.dataset.manual !== '1') fillNewUnitPrice();
+  // Debounce the (network-dependent) price fill so rapid typing doesn't fire a
+  // fetch per keystroke — this was hammering the same API key used by the
+  // symbol search and causing it to intermittently report "no results".
+  clearTimeout(window._newPriceDebounce);
+  window._newPriceDebounce = setTimeout(() => {
+    const priceInp = document.getElementById('nP');
+    if (priceInp && priceInp.dataset.manual !== '1') fillNewUnitPrice();
+  }, 350);
 }
 window.updateNewPriceCurrency = updateNewPriceCurrency;
 window.onNewQtyInput = onNewQtyInput;
@@ -10899,11 +10968,18 @@ function addA() {
   const unitPrice = parseFloat(document.getElementById('nP')?.value);
   const buyDate = document.getElementById('nD')?.value || new Date().toISOString().slice(0,10);
   if (isNaN(qty) || qty <= 0) { alert(edTab==='crypto' ? 'הזן כמות חיובית' : 'הזן כמות מניות חיובית'); return; }
-  // nP now holds the PER-UNIT buy price directly.
-  const entryPrice = (!isNaN(unitPrice) && unitPrice > 0) ? unitPrice : NaN;
+  // nP holds the PER-UNIT buy price, entered in whatever currency the picker shows.
+  // Convert it to the asset's native market currency so internal P&L math stays
+  // consistent with the live price feed (which is always native).
+  let entryPrice = (!isNaN(unitPrice) && unitPrice > 0) ? unitPrice : NaN;
+  if (!isNaN(entryPrice)) {
+    const pickedCur = document.getElementById('nPCur')?.value || 'USD';
+    const nativeCur = marketCurrencyCodeFor(sym);
+    if (pickedCur !== nativeCur) entryPrice = convertCurrencyAmount(entryPrice, pickedCur, nativeCur);
+  }
   // Build initial lot if entry price provided
   const lots = (!isNaN(entryPrice) && entryPrice > 0)
-    ? [{qty, price: entryPrice, date: buyDate}]
+    ? [{qty, price: Math.round(entryPrice * 100) / 100, date: buyDate}]
     : null;
   if (edTab === 'crypto') {
     if (S.crypto.find(a => a.sym === sym)) { alert('הנכס כבר קיים'); return; }
