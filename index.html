@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-30-debugged-v10">
+<meta name="app-version" content="2026-06-30-fast-charts-v11">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-30-debugged-v10");
+console.info("Vector build: 2026-06-30-fast-charts-v11");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1232,6 +1232,19 @@ body.light .mkpi-v.ac { color: var(--t1); }
 .rb:hover { color: var(--t1); background: var(--s3); }
 .rb.active { background: var(--s1); color: var(--t1); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6px rgba(11,30,63,0.12); }
+
+/* Fast interactive stock charts */
+.mchb { position: relative; }
+.stock-chart-status {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; text-align: center; pointer-events: none;
+  color: var(--t3); font-size: 11px; font-family: var(--font-body);
+  background: color-mix(in srgb, var(--s1) 68%, transparent);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.stock-chart-status.hidden { display: none; }
+.stock-chart-status .spinner { margin-inline-end: 7px; }
 .mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 240px; position: relative; margin-bottom: 16px; overflow: hidden; }
 
 .man { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -2729,6 +2742,293 @@ const MY_PROXY = '';
 // This fetches Israeli (.TA) + global stocks DIRECTLY from the browser, no proxy needed.
 const TWELVE_DATA_KEY = '';
 
+// ── Fast chart data layer ───────────────────────────────────────────────────
+// The database stores the user's portfolio. It is deliberately NOT in the hot
+// path for charts. Chart speed comes from the market-data source, request
+// parallelism, cache, prefetch, and rendering.
+const STOCK_CHART_CACHE_VERSION = 3;
+const STOCK_CHART_CACHE_PREFIX = 'vector_stock_chart_v3:';
+const STOCK_CHART_MEM = new Map();
+const STOCK_CHART_PENDING = new Map();
+let _stockChartWarmupScheduled = false;
+
+function stockChartKey(sym, range) {
+  return `${String(sym || '').toUpperCase()}_${range}`;
+}
+function stockChartTTL(range) {
+  if (range === '1d') return 55 * 1000;
+  if (range === '5d') return 20 * 60 * 1000;
+  if (range === '1mo') return 3 * 60 * 60 * 1000;
+  if (range === '3mo') return 8 * 60 * 60 * 1000;
+  return 18 * 60 * 60 * 1000;
+}
+function stockChartMaxStale(range) {
+  return range === '1d' ? 3 * 24 * 60 * 60 * 1000 : 14 * 24 * 60 * 60 * 1000;
+}
+function validStockSeries(data) {
+  return Array.isArray(data) && data.length >= 2 && data.every(x => Number.isFinite(Number(x?.t)) && Number.isFinite(Number(x?.p)));
+}
+function normalizeStockSeries(data) {
+  if (!Array.isArray(data)) return null;
+  const out = data.map(x => ({
+    t: Number(x.t), p: Number(x.p),
+    o: Number.isFinite(Number(x.o)) ? Number(x.o) : Number(x.p),
+    label: typeof x.label === 'string' ? x.label : undefined,
+  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  out.sort((a, b) => a.t - b.t);
+  return out.length >= 2 ? out : null;
+}
+function readStockChartCache(sym, range, allowStale = true) {
+  const key = stockChartKey(sym, range);
+  let rec = STOCK_CHART_MEM.get(key) || null;
+  if (!rec && (range === '1d' || range === '1mo')) {
+    try {
+      const raw = localStorage.getItem(STOCK_CHART_CACHE_PREFIX + key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.v === STOCK_CHART_CACHE_VERSION && validStockSeries(parsed.data)) {
+          rec = { ts: Number(parsed.ts) || 0, data: normalizeStockSeries(parsed.data) };
+          STOCK_CHART_MEM.set(key, rec);
+        }
+      }
+    } catch (_) {}
+  }
+  if (!rec || !validStockSeries(rec.data)) return null;
+  const age = Date.now() - rec.ts;
+  if (!allowStale && age > stockChartTTL(range)) return null;
+  if (age > stockChartMaxStale(range)) return null;
+  return { data: rec.data, age, fresh: age <= stockChartTTL(range) };
+}
+function writeStockChartCache(sym, range, data) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  const key = stockChartKey(sym, range);
+  const rec = { ts: Date.now(), data: normalized };
+  STOCK_CHART_MEM.set(key, rec);
+  S.sChg[key] = normalized;
+  if (range === '1d' || range === '1mo') {
+    try {
+      localStorage.setItem(STOCK_CHART_CACHE_PREFIX + key, JSON.stringify({ v: STOCK_CHART_CACHE_VERSION, ...rec }));
+    } catch (_) {}
+  }
+  return normalized;
+}
+function peekStockHist(sym, range) {
+  const key = stockChartKey(sym, range);
+  const inState = normalizeStockSeries(S.sChg[key]);
+  if (inState) return inState;
+  return readStockChartCache(sym, range, true)?.data || null;
+}
+function marketTimeZoneForSymbol(sym) {
+  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+  return cur === 'ILS' ? 'Asia/Jerusalem' : cur === 'EUR' ? 'Europe/Paris'
+    : cur === 'GBP' ? 'Europe/London' : cur === 'JPY' ? 'Asia/Tokyo'
+    : cur === 'HKD' ? 'Asia/Hong_Kong' : cur === 'AUD' ? 'Australia/Sydney'
+    : cur === 'CAD' ? 'America/Toronto' : cur === 'CHF' ? 'Europe/Zurich'
+    : 'America/New_York';
+}
+function latestTradingSessionOnly(data, sym) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  const tz = marketTimeZoneForSymbol(sym);
+  const fmt = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:tz });
+  const latestDay = fmt.format(new Date(normalized[normalized.length - 1].t));
+  const sameDay = normalized.filter(x => fmt.format(new Date(x.t)) === latestDay);
+  return sameDay.length >= 2 ? sameDay : normalized;
+}
+async function fetchJsonFast(url, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_) { return null; }
+  finally { clearTimeout(timer); }
+}
+async function fetchTextFast(url, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.text();
+  } catch (_) { return null; }
+  finally { clearTimeout(timer); }
+}
+function firstValidResult(tasks, validator = validStockSeries) {
+  return new Promise(resolve => {
+    if (!tasks.length) return resolve(null);
+    let left = tasks.length, done = false;
+    tasks.forEach(task => Promise.resolve(task).then(value => {
+      if (!done && validator(value)) { done = true; resolve(value); return; }
+      if (--left === 0 && !done) resolve(null);
+    }).catch(() => { if (--left === 0 && !done) resolve(null); }));
+  });
+}
+function delayedTask(ms, fn) {
+  return new Promise(resolve => setTimeout(() => Promise.resolve(fn()).then(resolve).catch(() => resolve(null)), ms));
+}
+function chartRangeLookbackDays(range) {
+  return ({ '1d':7, '5d':12, '1mo':45, '3mo':130, '6mo':220, '1y':400, '5y':1900, 'ytd':400 })[range] || 45;
+}
+
+async function fetchFinnhubSeries(sym, range) {
+  if (!FINNHUB_KEY || String(sym).includes('.')) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - chartRangeLookbackDays(range) * 86400;
+  const resolution = range === '1d' ? '5' : 'D';
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
+  const d = await fetchJsonFast(url, 1800);
+  if (d?.s !== 'ok' || !Array.isArray(d.t) || !Array.isArray(d.c)) return null;
+  let data = d.t.map((t, i) => ({ t:Number(t) * 1000, p:Number(d.c[i]), o:Number(d.o?.[i] ?? d.c[i]) }))
+    .filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  if (range === '1d') data = latestTradingSessionOnly(data, sym) || [];
+  return validStockSeries(data) ? data : null;
+}
+
+async function fetchTwelveDataSeries(sym, range) {
+  if (!TWELVE_DATA_KEY) return null;
+  const cfg = range === '1d'
+    ? { interval:'5min', outputsize:160 }
+    : { interval:'1day', outputsize:({ '5d':10, '1mo':40, '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 40 };
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange&apikey=${TWELVE_DATA_KEY}`;
+  const d = await fetchJsonFast(url, 3500);
+  if (d?.status === 'error' || !Array.isArray(d?.values)) return null;
+  let values = d.values.slice();
+  if (range === '1d' && values.length) {
+    const day = String(values[values.length - 1].datetime || '').slice(0, 10);
+    values = values.filter(v => String(v.datetime || '').startsWith(day));
+  }
+  const data = values.map((v, i) => {
+    const dt = String(v.datetime || '');
+    const parsed = Date.parse(dt.replace(' ', 'T'));
+    return { t:Number.isFinite(parsed) ? parsed : Date.now() + i, p:Number(v.close), o:Number(v.open ?? v.close), label:dt.slice(11,16) || undefined };
+  }).filter(x => Number.isFinite(x.p));
+  return validStockSeries(data) ? data : null;
+}
+
+function parseYahooChartPayload(payload, sym, intraday) {
+  let json = payload;
+  if (typeof payload === 'string') {
+    try { json = JSON.parse(payload); } catch (_) { return null; }
+  }
+  if (typeof json?.contents === 'string') {
+    try { json = JSON.parse(json.contents); } catch (_) { return null; }
+  }
+  const result = json?.chart?.result?.[0];
+  const t = result?.timestamp;
+  const q = result?.indicators?.quote?.[0];
+  const c = q?.close;
+  if (!Array.isArray(t) || !Array.isArray(c)) return null;
+  const divisor = chartSubunitDivisor(sym, result?.meta?.currency);
+  let data = t.map((ts, i) => ({
+    t:Number(ts) * 1000,
+    p:Number(c[i]) / divisor,
+    o:Number(q?.open?.[i] ?? c[i]) / divisor,
+  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  if (intraday) data = latestTradingSessionOnly(data, sym) || [];
+  return validStockSeries(data) ? data : null;
+}
+
+async function fetchYahooSeries(sym, range) {
+  const intraday = range === '1d';
+  const interval = intraday ? '5m' : '1d';
+  const yahooRange = range;
+  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${yahooRange}&includePrePost=false&events=div%2Csplits`;
+  const candidates = [];
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  if (worker) {
+    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
+  }
+  // Public fallbacks are raced rather than attempted sequentially. This changes a
+  // possible 20–60 second wait into a bounded ~5 second first-load fallback.
+  candidates.push(delayedTask(worker ? 250 : 0, async () => {
+    const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 350 : 100, async () => {
+    const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 500 : 200, async () => {
+    const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
+    return parseYahooChartPayload(json, sym, intraday);
+  }));
+  return firstValidResult(candidates);
+}
+
+function trimStockSeriesToRange(data, range, sym) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  if (range === '1d') return latestTradingSessionOnly(normalized, sym);
+  const now = Date.now();
+  let cutoff = null;
+  if (range === 'ytd') cutoff = new Date(new Date().getFullYear(), 0, 1).getTime();
+  else {
+    const days = ({ '5d':8, '1mo':32, '3mo':95, '6mo':190, '1y':370, '5y':1850 })[range];
+    if (days) cutoff = now - days * 86400000;
+  }
+  if (!cutoff) return normalized;
+  const filtered = normalized.filter(x => x.t >= cutoff);
+  return filtered.length >= 2 ? filtered : normalized;
+}
+
+async function fetchBestStockSeries(sym, range) {
+  // Start the direct provider immediately and launch Yahoo shortly afterwards.
+  // This avoids both the old sequential 10-second waits and an unnecessary proxy
+  // storm when Finnhub answers quickly.
+  const isUS = !String(sym).includes('.');
+  const tasks = [];
+  if (isUS && FINNHUB_KEY) tasks.push(fetchFinnhubSeries(sym, range));
+  if (TWELVE_DATA_KEY) tasks.push(fetchTwelveDataSeries(sym, range));
+  const yahooDelay = MY_PROXY ? 0 : (isUS ? 650 : 0);
+  tasks.push(delayedTask(yahooDelay, () => fetchYahooSeries(sym, range)));
+  const data = await firstValidResult(tasks);
+  return trimStockSeriesToRange(data, range, sym);
+}
+
+async function getStockHist(sym, range, { force = false } = {}) {
+  const key = stockChartKey(sym, range);
+  const cached = readStockChartCache(sym, range, true);
+  if (!force && cached?.fresh) {
+    S.sChg[key] = cached.data;
+    return cached.data;
+  }
+  if (!force && STOCK_CHART_PENDING.has(key)) return STOCK_CHART_PENDING.get(key);
+  const promise = (async () => {
+    const fresh = await fetchBestStockSeries(sym, range);
+    if (fresh) return writeStockChartCache(sym, range, fresh);
+    return cached?.data || normalizeStockSeries(S.sChg[key]) || null;
+  })();
+  STOCK_CHART_PENDING.set(key, promise);
+  try { return await promise; }
+  finally { if (STOCK_CHART_PENDING.get(key) === promise) STOCK_CHART_PENDING.delete(key); }
+}
+
+function prefetchStockChart(sym) {
+  if (!sym) return;
+  getStockHist(sym, '1d').catch(() => {});
+  getStockHist(sym, '1mo').catch(() => {});
+}
+function scheduleStockChartWarmup() {
+  if (_stockChartWarmupScheduled || !Array.isArray(S.stocks) || !S.stocks.length) return;
+  _stockChartWarmupScheduled = true;
+  const queue = S.stocks.map(s => s.sym).filter(sym => !readStockChartCache(sym, '1d', false));
+  let index = 0, active = 0;
+  const pump = () => {
+    while (active < 2 && index < queue.length) {
+      active++;
+      getStockHist(queue[index++], '1d').catch(() => {}).finally(() => { active--; pump(); });
+    }
+    if (index >= queue.length && active === 0) _stockChartWarmupScheduled = false;
+  };
+  const start = () => pump();
+  if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout:1200 });
+  else setTimeout(start, 700);
+}
+
+
 // Fetch a quote from Google Finance (best for TASE .TA stocks)
 // Returns { price, prevClose, change, currency } or null
 // Map Yahoo symbol suffix → Google Finance exchange code + native currency.
@@ -3212,107 +3512,15 @@ async function getStocks() {
 }
 
 async function fetchYahooIntraday(sym) {
-  // 5-min candles for the most recent trading day — gives ~78 real data points
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=5m&range=1d`;
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  ];
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
-      if (!r.ok) continue;
-      let json = await r.json();
-      if (json.contents) json = JSON.parse(json.contents);
-      const result = json?.chart?.result?.[0];
-      if (!result) continue;
-      const t = result.timestamp;
-      const c = result.indicators?.quote?.[0]?.close;
-      if (!t?.length || !c?.length) continue;
-      const data = t.map((ts, i) => ({ t: ts * 1000, p: c[i] })).filter(x => x.p != null);
-      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
-      const meta = result?.meta;
-      const divisor = chartSubunitDivisor(sym, meta?.currency);
-      if (divisor !== 1) data.forEach(d => { d.p = d.p / divisor; });
-      if (data.length >= 2) return data;
-    } catch (_) {}
-  }
-  return null;
+  return getStockHist(sym, '1d');
 }
 
 async function fetchYahooCandles(sym, range) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-  const url2 = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-  const proxies = [
-    ...(MY_PROXY ? [`${MY_PROXY}/?url=${encodeURIComponent(url)}`] : []),
-    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url2)}`,
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-  ];
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy, {signal: AbortSignal.timeout(10000)});
-      if (!r.ok) continue;
-      const text = await r.text();
-      let body = text;
-      try { const j = JSON.parse(text); if (j && typeof j.contents === 'string') body = j.contents; } catch (_) {}
-      let json;
-      try { json = JSON.parse(body); } catch (_) { continue; }
-      const result = json?.chart?.result?.[0];
-      if (!result) continue;
-      const t  = result.timestamp;
-      const o  = result.indicators?.quote?.[0]?.open;
-      const c  = result.indicators?.quote?.[0]?.close;
-      if (!t?.length || !c?.length) continue;
-      const data = t.map((ts, i) => ({
-        t: ts * 1000,
-        p: c[i],
-        o: o?.[i] ?? c[i]
-      })).filter(x => x.p != null);
-      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
-      const cdiv = chartSubunitDivisor(sym, result?.meta?.currency);
-      if (cdiv !== 1) data.forEach(d => { d.p /= cdiv; d.o /= cdiv; });
-      if (data.length >= 2) return data;
-    } catch(_) {}
-  }
-  // Last-resort fallback: Stooq (no CORS issues, free, daily candles for US stocks)
-  try {
-    const today = new Date();
-    const yearStart = new Date(today.getFullYear(), 0, 1);
-    const rangeDays = { '5d': 5, '1mo': 31, '3mo': 93, '6mo': 186, '1y': 366, '5y': 1830, 'ytd': Math.ceil((today - yearStart) / 86400000) + 1 };
-    const days = rangeDays[range] || 31;
-    const d1 = new Date(today.getTime() - days * 86400000);
-    const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    const stooqUrl = `https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&d1=${fmt(d1)}&d2=${fmt(today)}&i=d`;
-    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(stooqUrl)}`, { signal: AbortSignal.timeout(10000) });
-    if (!r.ok) return null;
-    const csv = await r.text();
-    const lines = csv.trim().split('\n').slice(1);     // drop header
-    const data = lines.map(line => {
-      const cols = line.split(',');
-      const ts = new Date(cols[0]).getTime();
-      const close = parseFloat(cols[4]);
-      const open = parseFloat(cols[1]);
-      return { t: ts, p: close, o: isNaN(open) ? close : open };
-    }).filter(x => !isNaN(x.t) && !isNaN(x.p));
-    if (data.length >= 2) return data;
-  } catch (_) {}
-  return null;
+  return fetchBestStockSeries(sym, range);
 }
 
 async function fetchFinnhubCandles(sym, range) {
-  return fetchYahooCandles(sym, range);
-}
-
-async function getStockHist(sym, range) {
-  const key = sym + '_' + range;
-  if (S.sChg[key]) return S.sChg[key];
-  const data = await fetchFinnhubCandles(sym, range);
-  if (data && data.length >= 2) S.sChg[key] = data;
-  return data;
+  return fetchBestStockSeries(sym, range);
 }
 
 async function getCryptoHist(sym, days) {
@@ -8132,20 +8340,23 @@ async function drawSpark(cid, key, isCrypto, isUp) {
     await new Promise(r => requestAnimationFrame(r));
     if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 50));
   }
-  let prices = S.sparks[key];
+  let prices = isCrypto ? S.sparks[key] : null;
   if (!prices) {
     if (isCrypto) {
       // 30-day crypto history → ~30 points for a naturally curvy line
       const h = await getCryptoHist(key, 30);
       prices = h.map(([, p]) => p);
     } else {
-      // 1-month stock history (Yahoo daily candles) → ~22 trading-day points
-      try {
-        const data = await getStockHist(key, '1mo');
-        if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
-      } catch (_) {}
-      // Do not invent a financial time-series. If history is unavailable, leave the
-      // sparkline empty rather than drawing a plausible-looking but false curve.
+      // Paint cached data immediately, then refresh in the background. If a monthly
+      // series is unavailable, an actual intraday series is still a truthful fallback.
+      const cached = peekStockHist(key, '1mo') || peekStockHist(key, '1d');
+      if (cached?.length >= 2) prices = cached.map(d => d.p).filter(Number.isFinite);
+      const fresh = await getStockHist(key, '1mo');
+      if (fresh?.length >= 2) prices = fresh.map(d => d.p).filter(Number.isFinite);
+      if (!prices?.length) {
+        const day = await getStockHist(key, '1d');
+        if (day?.length >= 2) prices = day.map(d => d.p).filter(Number.isFinite);
+      }
       if (!prices?.length) {
         containers.forEach(c => {
           c.innerHTML = '<div style="height:56px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:9px">אין נתוני גרף</div>';
@@ -8206,7 +8417,7 @@ function cardHTML(o) {
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
-  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')">
+  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')" onpointerenter="${type==='stock'?`prefetchStockChart('${sym}')`:''}" onpointerdown="${type==='stock'?`prefetchStockChart('${sym}')`:''}">
     <div class="cg" style="background:${color}"></div>
     <div class="ct" style="direction:ltr;">
       <div class="cid"><div class="ico">${icon}</div>
@@ -8258,7 +8469,7 @@ function renderDashCrypto() {
     const html = cardHTML({sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  if (animate) sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 40));
+  sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), animate ? 40 : 0));
 }
 
 function renderDashStocks() {
@@ -8274,7 +8485,14 @@ function renderDashStocks() {
     const html = cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ / Equity',priceStr:pu?`<span>${fPriceNative(pu, S.sp[s.sym]?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s),pnlTotal:stockTotalPnl(s)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  if (animate) S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 40); });
+  // Always draw after every data refresh. Previously this ran only when the
+  // portfolio signature changed; the first render happened before prices arrived,
+  // so the second render skipped every dashboard sparkline.
+  S.stocks.forEach(s => {
+    const p = S.sp[s.sym];
+    setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, (p?.change ?? 0) >= 0), animate ? 40 : 0);
+  });
+  scheduleStockChartWarmup();
 }
 
 // Render the placeholder categories (commodities / bonds / etfs). They have no data
@@ -9668,6 +9886,7 @@ async function buildHistoryTable() {
 // ASSET MODALS
 // ═══════════════════════════════════════════
 async function openDet(sym, type) {
+  if (type === 'stock') prefetchStockChart(sym);
   S.sel = sym;
   document.getElementById('detOv').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -9832,258 +10051,157 @@ function renderStockModal(s, el) {
   loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
 
+function setStockChartStatus(text = '', loading = false) {
+  const box = document.getElementById('mchBox');
+  if (!box) return;
+  let el = box.querySelector('.stock-chart-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'stock-chart-status hidden';
+    box.appendChild(el);
+  }
+  if (!text) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
+}
+function stockChartLabels(data, sym, range) {
+  if (range !== '1d') return data.map(d => {
+    const dt = new Date(d.t);
+    if (range === '5d') return dt.toLocaleDateString(_dateLocale(), { weekday:'short' });
+    if (range === '1mo' || range === '3mo') return fDateShort(dt);
+    return dt.toLocaleDateString(_dateLocale(), { month:'2-digit', year:'2-digit' });
+  });
+  const tz = marketTimeZoneForSymbol(sym);
+  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+  const label = cur === 'ILS' ? 'TLV' : cur === 'EUR' ? 'EU' : cur === 'GBP' ? 'LON'
+    : cur === 'JPY' ? 'TYO' : cur === 'HKD' ? 'HKG' : cur === 'AUD' ? 'SYD'
+    : cur === 'CAD' ? 'TOR' : cur === 'CHF' ? 'ZRH' : 'NY';
+  const fmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz });
+  return data.map((d, i) => {
+    const time = d.label || fmt.format(new Date(d.t));
+    return i === 0 ? `${label} ${time}` : time;
+  });
+}
 async function loadSC(sym, range, btn, silent) {
   if (!silent) {
-    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active');
-    // Start/stop live refresh based on selected range
+    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
     if (range === '1d') startLiveChart(sym, 'stock'); else stopLiveChart();
   }
   const box = document.getElementById('mchBox');
-  if (box && !silent) { box.classList.add('chart-loading'); box.style.opacity = '1'; }
-  let prices = [], labels = [];
-  if (range === '1d') {
-    const intraday = await fetchYahooIntraday(sym);
-    // Determine exchange timezone + label from the stock's native currency
-    const nc = (S.sp[sym]?.currency || 'USD').toUpperCase();
-    const mktTz  = nc==='ILS'?'Asia/Jerusalem':nc==='EUR'?'Europe/Paris':nc==='GBP'?'Europe/London'
-                 : nc==='JPY'?'Asia/Tokyo':nc==='HKD'?'Asia/Hong_Kong':nc==='AUD'?'Australia/Sydney'
-                 : nc==='CAD'?'America/Toronto':nc==='CHF'?'Europe/Zurich':'America/New_York';
-    const mktLbl = nc==='ILS'?'TLV':nc==='EUR'?'EU':nc==='GBP'?'LON':nc==='JPY'?'TYO'
-                 : nc==='HKD'?'HKG':nc==='AUD'?'SYD':nc==='CAD'?'TOR':nc==='CHF'?'ZRH':'NY';
-    const mktOpenH  = nc==='ILS'?9:nc==='GBP'?8:nc==='JPY'?9:9;
-    const mktOpenM  = nc==='ILS'?59:nc==='USD'?30:0;
-    const mktCloseH = nc==='ILS'?17:nc==='GBP'?16:nc==='JPY'?15:16;
-    const mktCloseM = nc==='ILS'?25:0;
-    const mktTotalMins = (mktCloseH*60+mktCloseM) - (mktOpenH*60+mktOpenM);
-    const tzFmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:mktTz });
-    if (intraday?.length) {
-      prices = intraday.map(d => d.p);
-      labels = intraday.map((d, i) => {
-        const t = tzFmt.format(new Date(d.t));
-        return i === 0 ? `${mktLbl} ${t}` : t;
-      });
-    } else {
-      // Honest fallback: show only the two real quote endpoints. Never synthesize an
-      // intraday path that did not come from a market-data source.
-      const p = S.sp[sym];
-      if (p?.price > 0 && p?.prevClose > 0) {
-        prices = [p.prevClose, p.price];
-        labels = ['סגירה קודמת', 'מחיר נוכחי'];
-      }
-    }
-    if (box) box.classList.remove('chart-loading');
-    drawSChart(prices, labels, sym);
+  const cached = peekStockHist(sym, range);
+
+  // Instant paint from memory/local cache. This is what makes a click feel immediate.
+  if (cached?.length >= 2) {
+    drawSChart(cached.map(d => d.p), stockChartLabels(cached, sym, range), sym);
+    setStockChartStatus('');
     updateChartDate(range);
+  } else if (!silent) {
+    if (box) box.classList.add('chart-loading');
+    setStockChartStatus('טוען גרף שוק...', true);
+  }
+
+  const data = await getStockHist(sym, range, { force: Boolean(silent && range === '1d') });
+  if (box) box.classList.remove('chart-loading');
+  if (!data?.length) {
+    if (!cached?.length) {
+      if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+      setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.');
+    }
     return;
   }
-  const data = await getStockHist(sym, range);
-  if (box) box.classList.remove('chart-loading');
-  if (!data || !data.length) { const c = document.getElementById('dCanvas'); if (c) c.getContext('2d').clearRect(0,0,c.width,c.height); return; }
-  prices = data.map(d => d.p);
-  labels = data.map(d => {
-    const dt = new Date(d.t);
-    if (range==='5d') return dt.toLocaleDateString(_dateLocale(),{weekday:'short'});
-    if (range==='1mo'||range==='3mo') return fDateShort(dt);
-    return dt.toLocaleDateString(_dateLocale(),{month:'2-digit',year:'2-digit'});
-  });
-  drawSChart(prices, labels, sym);
+  if (S.sel !== sym || !document.getElementById('detOv')?.classList.contains('open')) return;
+  drawSChart(data.map(d => d.p), stockChartLabels(data, sym, range), sym);
+  setStockChartStatus('');
   updateChartDate(range);
 }
 
 function drawSChart(prices, labels, sym) {
-  const canvas = document.getElementById('dCanvas'); if (!canvas || !prices.length) return;
+  const canvas = document.getElementById('dCanvas');
+  if (!canvas || !Array.isArray(prices) || prices.length < 2) return;
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
-  const up  = prices[prices.length-1] >= prices[0];
+  const up = prices[prices.length - 1] >= prices[0];
   const col = up ? upColor() : downColor();
   const isLight = document.body.classList.contains('light');
-  // selection state lives on the canvas — survives redraws inside the same chart instance
-  const sel = { active: false, startIdx: null, endIdx: null, dragging: false };
+  const base = prices[0];
+
   S.dChart = new Chart(canvas, {
     type:'line',
-    data:{labels,datasets:[{
-      label:'$',data:prices,borderColor:col,borderWidth:2,
-      pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:col,pointHoverBorderColor:isLight?'#F4EFE5':'#0A0F1F',pointHoverBorderWidth:2,
-      tension:.2,fill:false
+    data:{ labels, datasets:[{
+      label:sym,
+      data:prices,
+      borderColor:col,
+      borderWidth:2,
+      pointRadius:0,
+      pointHitRadius:14,
+      pointHoverRadius:5,
+      pointHoverBackgroundColor:col,
+      pointHoverBorderColor:isLight ? '#F4EFE5' : '#0A0F1F',
+      pointHoverBorderWidth:2,
+      tension:.16,
+      spanGaps:true,
+      fill:false,
     }]},
     options:{
-      responsive:true,maintainAspectRatio:false,layout:{padding:0},
-      interaction:{mode:'index',intersect:false,axis:'x'},
-      hover:{mode:'index',intersect:false},
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      normalized:true,
+      resizeDelay:0,
+      interaction:{ mode:'index', intersect:false, axis:'x' },
+      hover:{ mode:'index', intersect:false },
+      events:['mousemove','mouseout','click','touchstart','touchmove'],
       plugins:{
         legend:{display:false},
         tooltip:{
-          enabled: !sel.active,        // hide normal tooltip while selecting
-          mode:'index',intersect:false,
-          backgroundColor: isLight ? 'rgba(11,30,63,0.96)' : 'rgba(17,26,51,0.96)',
-          titleColor: isLight ? '#F4EFE5' : '#F1F4FB',
-          bodyColor: isLight ? '#F4EFE5' : '#F1F4FB',
-          borderColor: col, borderWidth: 1,
-          padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
-          titleFont: { family:"'Newsreader', serif", size: 12, weight: '400' },
-          bodyFont:  { family:"'Geist Mono', monospace", size: 13, weight: '700' },
-          callbacks: {
-            title: items => items[0]?.label || '',
-            label: ctx => {
-              const v = ctx.parsed.y;
-              const nc = (S.sp[S.sel]?.currency || 'USD').toUpperCase();
-              const def = CURRENCIES[nc] || { sym: nc + ' ' };
-              return `${def.sym}: ${v.toFixed(2)}`;
+          enabled:true,
+          mode:'index', intersect:false,
+          animation:false,
+          backgroundColor:isLight ? 'rgba(11,30,63,0.97)' : 'rgba(17,26,51,0.97)',
+          titleColor:'#F1F4FB', bodyColor:'#F1F4FB',
+          borderColor:col, borderWidth:1, padding:10, cornerRadius:8,
+          displayColors:false,
+          titleFont:{ family:"'Newsreader', serif", size:12, weight:'400' },
+          bodyFont:{ family:"'Geist Mono', monospace", size:13, weight:'700' },
+          callbacks:{
+            title:items => items[0]?.label || '',
+            label:ctx => {
+              const v = Number(ctx.parsed.y);
+              const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+              const def = CURRENCIES[cur] || { sym:cur + ' ' };
+              const pct = base ? ((v - base) / base) * 100 : 0;
+              return `${def.sym}${v.toFixed(v >= 1 ? 2 : 4)}   ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
             },
           },
         },
       },
       scales:{
-        x:{ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6},grid:{display:false},border:{display:false}},
-        y:{ticks:{color:axisColor(),font:{size:9},callback:function(v){const nc=(S.sp[S.sel]?.currency||'USD').toUpperCase();const def=CURRENCIES[nc]||{sym:nc+' '};return def.sym+(v>=1?v.toFixed(0):v.toFixed(4));}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left'}
+        x:{ ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
+        y:{ ticks:{color:axisColor(),font:{size:9},callback:v=>{
+          const cur=(S.sp[sym]?.currency||'USD').toUpperCase();
+          const def=CURRENCIES[cur]||{sym:cur+' '};
+          return def.sym+(v>=1?Number(v).toFixed(2):Number(v).toFixed(4));
+        }},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left'}
       }
     },
-    plugins: [{
-      id: 'verticalCrosshair',
-      afterDraw: (chart) => {
+    plugins:[{
+      id:'verticalCrosshair',
+      afterDraw(chart) {
         const active = chart.tooltip?.getActiveElements?.();
-        if (!sel.active && active?.length) {
-          const ctx = chart.ctx;
-          const x = active[0].element.x;
-          const top = chart.chartArea.top, bottom = chart.chartArea.bottom;
-          ctx.save();
-          ctx.beginPath();
-          ctx.setLineDash([4, 4]);
-          ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.35)' : 'rgba(241,244,251,0.30)';
-          ctx.lineWidth = 1;
-          ctx.moveTo(x, top); ctx.lineTo(x, bottom);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // selection overlay: shaded band + edge guides + delta label
-        if (sel.active && sel.startIdx != null && sel.endIdx != null && sel.startIdx !== sel.endIdx) {
-          const ctx = chart.ctx;
-          const ca = chart.chartArea;
-          const meta = chart.getDatasetMeta(0);
-          const lo = Math.min(sel.startIdx, sel.endIdx);
-          const hi = Math.max(sel.startIdx, sel.endIdx);
-          const x1 = meta.data[lo].x, x2 = meta.data[hi].x;
-          const p1 = prices[lo], p2 = prices[hi];
-          const diff = p2 - p1;
-          const pct = p1 ? (diff / p1) * 100 : 0;
-          const rising = diff >= 0;
-          const bandCol = rising ? upColor() : downColor();
-
-          // shaded band
-          ctx.save();
-          ctx.fillStyle = (isLight ? 'rgba(11,30,63,' : 'rgba(241,244,251,') + '0.08)';
-          ctx.fillRect(Math.min(x1, x2), ca.top, Math.abs(x2 - x1), ca.bottom - ca.top);
-
-          // edge dashed lines
-          ctx.beginPath();
-          ctx.setLineDash([3, 4]);
-          ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.45)' : 'rgba(241,244,251,0.40)';
-          ctx.lineWidth = 1;
-          ctx.moveTo(x1, ca.top); ctx.lineTo(x1, ca.bottom);
-          ctx.moveTo(x2, ca.top); ctx.lineTo(x2, ca.bottom);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // dots at both ends
-          [{ x: x1, y: meta.data[lo].y }, { x: x2, y: meta.data[hi].y }].forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = bandCol;
-            ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = isLight ? '#F4EFE5' : '#0A0F1F';
-            ctx.stroke();
-          });
-
-          // delta label centered above the band
-          const sign = rising ? '+' : '−';
-          const txtVal = `${sign}$${Math.abs(diff).toFixed(2)}`;
-          const txtPct = `${sign}${Math.abs(pct).toFixed(2)}%`;
-          const labelText = `${txtVal}  (${txtPct})`;
-          ctx.font = "700 12px 'Geist Mono', monospace";
-          const w = ctx.measureText(labelText).width + 18;
-          const h = 26;
-          const cx = (x1 + x2) / 2;
-          const lx = Math.max(ca.left + 4, Math.min(ca.right - w - 4, cx - w / 2));
-          const ly = ca.top + 6;
-          ctx.fillStyle = isLight ? 'rgba(11,30,63,0.96)' : 'rgba(17,26,51,0.96)';
-          ctx.strokeStyle = bandCol;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(lx, ly, w, h, 6);
-          else ctx.rect(lx, ly, w, h);
-          ctx.fill(); ctx.stroke();
-          ctx.fillStyle = bandCol;
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'center';
-          ctx.fillText(labelText, lx + w / 2, ly + h / 2 + 1);
-          ctx.restore();
-        }
+        if (!active?.length) return;
+        const x = active[0].element.x;
+        const {top,bottom} = chart.chartArea;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4,4]);
+        ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.38)' : 'rgba(241,244,251,0.34)';
+        ctx.lineWidth = 1;
+        ctx.moveTo(x,top); ctx.lineTo(x,bottom); ctx.stroke();
+        ctx.restore();
       }
     }]
   });
-
-  // ── click & drag range selection ──
-  const getIdxFromEvent = (evt) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = (evt.touches?.[0]?.clientX ?? evt.clientX) - rect.left;
-    const ca = S.dChart.chartArea;
-    const meta = S.dChart.getDatasetMeta(0);
-    if (!meta?.data?.length) return null;
-    // clamp inside chart area
-    const xc = Math.max(ca.left, Math.min(ca.right, x));
-    // find nearest point by x
-    let best = 0, bestD = Infinity;
-    for (let i = 0; i < meta.data.length; i++) {
-      const d = Math.abs(meta.data[i].x - xc);
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    return best;
-  };
-
-  const onDown = (e) => {
-    const idx = getIdxFromEvent(e);
-    if (idx == null) return;
-    sel.active = true; sel.dragging = true; sel.startIdx = idx; sel.endIdx = idx;
-    // suppress hover tooltip while selecting
-    S.dChart.options.plugins.tooltip.enabled = false;
-    S.dChart.update('none');
-    e.preventDefault();
-  };
-  const onMove = (e) => {
-    if (!sel.dragging) return;
-    const idx = getIdxFromEvent(e);
-    if (idx == null) return;
-    sel.endIdx = idx;
-    S.dChart.update('none');
-  };
-  const onUp = () => {
-    if (!sel.dragging) return;
-    sel.dragging = false;
-    // if user just clicked without dragging (start === end), clear the selection
-    if (sel.startIdx === sel.endIdx) {
-      sel.active = false; sel.startIdx = sel.endIdx = null;
-      S.dChart.options.plugins.tooltip.enabled = true;
-      S.dChart.update('none');
-    }
-  };
-
-  // remove old listeners if redrawing — store on canvas
-  if (canvas._selListeners) {
-    canvas.removeEventListener('mousedown', canvas._selListeners.down);
-    canvas.removeEventListener('mousemove', canvas._selListeners.move);
-    window.removeEventListener('mouseup', canvas._selListeners.up);
-    canvas.removeEventListener('touchstart', canvas._selListeners.down);
-    canvas.removeEventListener('touchmove', canvas._selListeners.move);
-    window.removeEventListener('touchend', canvas._selListeners.up);
-  }
-  canvas._selListeners = { down: onDown, move: onMove, up: onUp };
-  canvas.addEventListener('mousedown', onDown);
-  canvas.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-  canvas.addEventListener('touchstart', onDown, { passive: false });
-  canvas.addEventListener('touchmove', onMove, { passive: false });
-  window.addEventListener('touchend', onUp);
   canvas.style.cursor = 'crosshair';
 }
 
@@ -11488,7 +11606,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260630-fast-charts-v11');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
