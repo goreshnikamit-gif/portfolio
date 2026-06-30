@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
+<meta name="app-version" content="2026-06-30-debugged-v10">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
+console.info("Vector build: 2026-06-30-debugged-v10");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -2549,6 +2549,10 @@ function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
     stocks: S.stocks,
+    commodities: S.commodities || [],
+    bonds: S.bonds || [],
+    etfs: S.etfs || [],
+    view: S.view || null,
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -2636,6 +2640,7 @@ async function getCrypto() {
     S.crypto.forEach(a => {
       const t = m[BN[a.sym]];
       if (t) S.cp[a.id] = {
+        ...(S.cp[a.id] || {}),
         usd: parseFloat(t.lastPrice),
         ch24: parseFloat(t.priceChangePercent),
         quoteTime: Number(t.closeTime) || Date.now(),
@@ -2648,6 +2653,7 @@ async function getCrypto() {
         const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${bs}`);
         const t = await r.json();
         S.cp[a.id] = {
+          ...(S.cp[a.id] || {}),
           usd: parseFloat(t.lastPrice),
           ch24: parseFloat(t.priceChangePercent),
           quoteTime: Number(t.closeTime) || Date.now(),
@@ -2660,7 +2666,11 @@ async function getCrypto() {
   // midnight, so we fetch the exact candle at local-midnight instead.
   const localDayKey = todayLocalDateKey();
   const localDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
-  await Promise.all(S.crypto.map(async a => {
+  const cryptoNeedingOpen = S.crypto.filter(a => {
+    const p = S.cp[a.id];
+    return BN[a.sym] && p && !(p.openToday > 0 && p.openTodayDateKey === localDayKey);
+  });
+  await Promise.all(cryptoNeedingOpen.map(async a => {
     const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
     try {
       const endTime = Math.min(Date.now(), localDayStartMs + 5 * 60 * 1000);
@@ -2677,30 +2687,35 @@ async function getCrypto() {
       }
     } catch(_) {}
   }));
-  // Extended fundamentals from CoinGecko — market cap, ATH (all-time-high = 52w-equivalent), ATL.
-  try {
-    const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
-    if (ids) {
-      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
-      const arr = await r.json();
-      if (Array.isArray(arr)) {
-        arr.forEach(c => {
-          const ent = S.cp[c.id];
-          if (!ent) return;
-          ent.marketCap = c.market_cap;
-          ent.high52w = c.high_24h ?? null;       // Binance gives 24h high, CG gives ath separately
-          ent.low52w  = c.low_24h ?? null;
-          ent.ath = c.ath ?? null;                // all-time-high (better than 52w for crypto)
-          ent.athPct = c.ath_change_percentage ?? null;
-          ent.atl = c.atl ?? null;
-          ent.totalSupply = c.total_supply;
-          ent.circulatingSupply = c.circulating_supply;
-          ent.rank = c.market_cap_rank;
-          ent.volume24h = c.total_volume;
-        });
+  // Extended fundamentals from CoinGecko. Cache for 10 minutes: these fields do not
+  // need to be re-downloaded on every live-price refresh.
+  const CG_FUND_TTL = 10 * 60 * 1000;
+  if (!S._cgFundTs || Date.now() - S._cgFundTs >= CG_FUND_TTL) {
+    try {
+      const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
+      if (ids) {
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
+        const arr = await r.json();
+        if (Array.isArray(arr)) {
+          arr.forEach(c => {
+            const ent = S.cp[c.id];
+            if (!ent) return;
+            ent.marketCap = c.market_cap;
+            ent.high52w = c.high_24h ?? null;
+            ent.low52w  = c.low_24h ?? null;
+            ent.ath = c.ath ?? null;
+            ent.athPct = c.ath_change_percentage ?? null;
+            ent.atl = c.atl ?? null;
+            ent.totalSupply = c.total_supply;
+            ent.circulatingSupply = c.circulating_supply;
+            ent.rank = c.market_cap_rank;
+            ent.volume24h = c.total_volume;
+          });
+          S._cgFundTs = Date.now();
+        }
       }
-    }
-  } catch(_) {}
+    } catch(_) {}
+  }
 }
 
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
@@ -3140,14 +3155,11 @@ async function getStocks() {
         q = valid[0];
       }
     } else {
-      const [fhResult, yhResult] = await Promise.allSettled([
-        fetchFinnhubQuote(s.sym),
-        fetchYahooQuote(s.sym),
-      ]);
-      const fh = fhResult.status === 'fulfilled' ? fhResult.value : null;
-      const yh = yhResult.status === 'fulfilled' ? yhResult.value : null;
-      if (yh) yh._source = 'yahoo';
-      q = fresherQuote(fh, yh);
+      q = await fetchFinnhubQuote(s.sym);
+      if (!q) {
+        q = await fetchYahooQuote(s.sym);
+        if (q) q._source = 'yahoo';
+      }
     }
 
     if (q && q.price > 0) {
@@ -4265,10 +4277,10 @@ function detectBrowserLang() {
     : [navigator.language || navigator.userLanguage || 'en'];
   for (const pref of prefs) {
     const base = String(pref).toLowerCase().split('-')[0];   // 'it-IT' → 'it'
-    if (LANGS[base]) return base;
+    if (['he','en','ru','es','fr','ar','de','zh','nl'].includes(base)) return base;
     // Map a few common variants whose base code differs from our keys
     if (base === 'iw') return 'he';   // legacy Hebrew code
-    if (base === 'in') return 'nl';   // (no-op safety; rare)
+    if (base === 'in') return 'en';   // legacy Indonesian code; Indonesian UI is not bundled
   }
   return 'en';   // default for unsupported browser languages
 }
@@ -8083,7 +8095,7 @@ function tkStart() {
   clearInterval(tkTimer);
   tkTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && S.curPage === 'dash') tkFetch();
-  }, 30000);
+  }, 300000);
 }
 
 // ═══════════════════════════════════════════
@@ -8132,32 +8144,13 @@ async function drawSpark(cid, key, isCrypto, isUp) {
         const data = await getStockHist(key, '1mo');
         if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
       } catch (_) {}
-      // fallback if Yahoo blocks: still better than 3 points — interpolate intraday-style noise
+      // Do not invent a financial time-series. If history is unavailable, leave the
+      // sparkline empty rather than drawing a plausible-looking but false curve.
       if (!prices?.length) {
-        const p = S.sp[key];
-        // Use known prices if we have them, otherwise a generic sine wave so the area isn't empty
-        const open  = p?.prevClose ?? 100;
-        const close = p?.price ?? (open * (isUp ? 1.05 : 0.95));
-        // Hash the symbol to a stable per-symbol seed so each ticker gets a unique fake curve
-        let seed = 0;
-        for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
-        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;             // 0.7–1.7
-        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;        // 1.2–2.5
-        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;        // 0.3–1.1
-        const phase = (Math.abs(seed >> 3) % 628) / 100;           // 0–2π
-        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;       // 0.22–0.4
-        const n = 30;
-        prices = Array.from({ length: n }, (_, i) => {
-          const t = i / (n - 1);
-          const trend = open + (close - open) * t;
-          const wave = (
-            Math.sin(i * f1 + phase) +
-            Math.sin(i * f2 + phase * 1.7) * 0.6 +
-            Math.sin(i * f3 + phase * 0.4) * 0.4
-          );
-          const noise = wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
-          return trend + noise;
+        containers.forEach(c => {
+          c.innerHTML = '<div style="height:56px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:9px">אין נתוני גרף</div>';
         });
+        return;
       }
     }
     if (prices?.length) S.sparks[key] = prices;
@@ -9310,17 +9303,24 @@ async function buildHistoryTable() {
     const ms = Date.parse(raw);
     return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
   };
-  const qtyOnDate = (asset, dateKey, type) => {
+  // Split the position into units held before the day and lots bought during the day.
+  // This prevents attributing price movement from before the purchase to the user.
+  const positionOnDate = (asset, dateKey, type) => {
     if (Array.isArray(asset.lots) && asset.lots.length) {
-      let qty = 0;
+      let existingQty = 0;
+      const boughtToday = [];
       for (const lot of asset.lots) {
-        const q = parseFloat(lot.qty) || 0;
+        const qty = parseFloat(lot.qty) || 0;
+        if (!(qty > 0)) continue;
         const lk = lotDateKey(lot.date);
-        if (!lk || lk <= dateKey) qty += q;
+        if (!lk || lk < dateKey) existingQty += qty;
+        else if (lk === dateKey) boughtToday.push({ qty, price: parseFloat(lot.price) || 0 });
       }
-      return qty;
+      const boughtQty = boughtToday.reduce((sum, lot) => sum + lot.qty, 0);
+      return { qty: existingQty + boughtQty, existingQty, boughtToday };
     }
-    return type === 'stock' ? getShares(asset) : cQty(asset);
+    const qty = type === 'stock' ? getShares(asset) : cQty(asset);
+    return { qty, existingQty: qty, boughtToday: [] };
   };
   const stockUsesIls = s => {
     const currency = String(S.sp[s.sym]?.currency || '').toUpperCase();
@@ -9367,7 +9367,8 @@ async function buildHistoryTable() {
         });
       }
     } catch (_) {}
-    let lastFx = S.fx;
+    const priorFxKeys = Object.keys(fxByDay).filter(k => k < boundaryKeys[0]).sort();
+    let lastFx = priorFxKeys.length ? fxByDay[priorFxKeys[priorFxKeys.length - 1]] : S.fx;
     for (const dk of boundaryKeys) {
       if (fxByDay[dk] > 0) lastFx = fxByDay[dk];
       else fxByDay[dk] = lastFx;
@@ -9491,8 +9492,8 @@ async function buildHistoryTable() {
       let cryptoStart = 0, cryptoEnd = 0, cryptoPnl = 0, cryptoHasData = false;
 
       for (const s of S.stocks) {
-        const qty = qtyOnDate(s, dateKey, 'stock');
-        if (!(qty > 0)) continue;
+        const pos = positionOnDate(s, dateKey, 'stock');
+        if (!(pos.qty > 0)) continue;
         const map = stockHist[s.sym] || {};
         const keys = Object.keys(map).sort();
         let previousClose = null;
@@ -9509,7 +9510,6 @@ async function buildHistoryTable() {
         if (isLatestDay && live?.price > 0) {
           let lp = live.prevClose;
           if (!(lp > 0) && Number.isFinite(live.change) && live.change !== 0) {
-            // price = prev * (1 + change/100)  →  prev = price / (1 + change/100)
             lp = live.price / (1 + live.change / 100);
           }
           if (lp > 0) {
@@ -9517,38 +9517,52 @@ async function buildHistoryTable() {
             previousClose = lp;
           }
         }
-        // Fallback: if no historical close is available at all, value the position
-        // at the current live price so the stock still counts toward the base total.
-        if (!(previousClose > 0)) {
-          const livePx = live?.price > 0 ? live.price : 0;
-          if (livePx > 0) {
-            const factor0 = stockUsesIls(s) ? 1 : fx;
-            stockStart += livePx * qty * factor0;
-            stockEnd   += livePx * qty * factor0;
-          }
-          continue;
+        const isIls = stockUsesIls(s);
+        const startFx = isIls ? 1 : fx;
+        const endFx = isIls ? 1 : (dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx));
+        const endPrice = sessionClose > 0 ? sessionClose : (previousClose > 0 ? previousClose : (live?.price || 0));
+        if (!(endPrice > 0)) continue;
+
+        let assetStart = 0;
+        if (pos.existingQty > 0) {
+          const basePrice = previousClose > 0 ? previousClose : endPrice;
+          assetStart += basePrice * pos.existingQty * startFx;
         }
-        const factor = stockUsesIls(s) ? 1 : fx;
-        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
-        stockStart += previousClose * qty * factor;
-        stockEnd += endPrice * qty * factor;
-        if (sessionClose > 0) {
-          stockPnl += (sessionClose - previousClose) * qty * factor;
-          stockHasData = true;
+        for (const lot of pos.boughtToday) {
+          const entryPrice = lot.price > 0 ? lot.price : (previousClose > 0 ? previousClose : endPrice);
+          assetStart += entryPrice * lot.qty * startFx;
         }
+        const assetEnd = endPrice * pos.qty * endFx;
+        stockStart += assetStart;
+        stockEnd += assetEnd;
+        stockPnl += assetEnd - assetStart;
+        if (sessionClose > 0 || endFx !== startFx || pos.boughtToday.length) stockHasData = true;
       }
 
       for (const a of S.crypto) {
-        const qty = qtyOnDate(a, dateKey, 'crypto');
-        if (!(qty > 0)) continue;
+        const pos = positionOnDate(a, dateKey, 'crypto');
+        if (!(pos.qty > 0)) continue;
         const map = cryptoBoundary[a.sym] || {};
-        const startPrice = Number(map[dateKey]);
+        const marketStartPrice = Number(map[dateKey]);
         let endPrice = Number(map[tomorrowKey]);
         if (dateKey === todayKey && S.cp[a.id]?.usd > 0) endPrice = Number(S.cp[a.id].usd);
-        if (!(startPrice > 0) || !(endPrice > 0)) continue;
-        cryptoStart += startPrice * qty * fx;
-        cryptoEnd += endPrice * qty * fx;
-        cryptoPnl += (endPrice - startPrice) * qty * fx;
+        if (!(endPrice > 0)) continue;
+        const startFx = fx;
+        const endFx = dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx);
+        let assetStart = 0;
+        if (pos.existingQty > 0) {
+          if (!(marketStartPrice > 0)) continue;
+          assetStart += marketStartPrice * pos.existingQty * startFx;
+        }
+        for (const lot of pos.boughtToday) {
+          const entryPrice = lot.price > 0 ? lot.price : marketStartPrice;
+          if (!(entryPrice > 0)) continue;
+          assetStart += entryPrice * lot.qty * startFx;
+        }
+        const assetEnd = endPrice * pos.qty * endFx;
+        cryptoStart += assetStart;
+        cryptoEnd += assetEnd;
+        cryptoPnl += assetEnd - assetStart;
         cryptoHasData = true;
       }
 
@@ -9849,42 +9863,12 @@ async function loadSC(sym, range, btn, silent) {
         return i === 0 ? `${mktLbl} ${t}` : t;
       });
     } else {
-      // Synthetic fallback using correct market timezone
+      // Honest fallback: show only the two real quote endpoints. Never synthesize an
+      // intraday path that did not come from a market-data source.
       const p = S.sp[sym];
-      if (p?.price && p?.prevClose) {
-        const open = p.prevClose, close = p.price;
-        const mktNow = new Date(new Date().toLocaleString('en-US', { timeZone: mktTz }));
-        const dow = mktNow.getDay();
-        const isClosed = (nc==='ILS' && dow===6) || (nc!=='ILS' && (dow===0||dow===6));
-        let minsFromOpen;
-        if (isClosed) {
-          minsFromOpen = mktTotalMins;
-        } else {
-          const todayOpen  = new Date(mktNow); todayOpen.setHours(mktOpenH, mktOpenM, 0, 0);
-          const todayClose = new Date(mktNow); todayClose.setHours(mktCloseH, mktCloseM, 0, 0);
-          if (mktNow < todayOpen) minsFromOpen = 0;
-          else if (mktNow > todayClose) minsFromOpen = mktTotalMins;
-          else minsFromOpen = Math.floor((mktNow - todayOpen) / 60000);
-        }
-        if (minsFromOpen <= 0) {
-          prices = [open];
-          labels = [`${mktLbl} ${String(mktOpenH).padStart(2,'0')}:${String(mktOpenM).padStart(2,'0')}`];
-        } else {
-          const n = Math.max(2, Math.min(78, Math.floor(minsFromOpen / 5) + 1));
-          prices = Array.from({ length: n }, (_, i) => {
-            const t = i / (n - 1);
-            const trend = open + (close - open) * t;
-            const noise = (Math.sin(i * 1.1) + Math.sin(i * 0.6)) * Math.abs(close - open) * 0.22;
-            return trend + noise;
-          });
-          labels = prices.map((_, i) => {
-            const m = (i / (prices.length - 1)) * minsFromOpen;
-            const totalMin = mktOpenH * 60 + mktOpenM + m;
-            const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
-            const mm = String(Math.floor(totalMin % 60)).padStart(2, '0');
-            return i === 0 ? `${mktLbl} ${hh}:${mm}` : `${hh}:${mm}`;
-          });
-        }
+      if (p?.price > 0 && p?.prevClose > 0) {
+        prices = [p.prevClose, p.price];
+        labels = ['סגירה קודמת', 'מחיר נוכחי'];
       }
     }
     if (box) box.classList.remove('chart-loading');
@@ -10129,6 +10113,7 @@ function openEditor(tab) {
   const enabled = edEnabledTabs();
   if (!enabled.includes(edTab)) edTab = enabled[0] || 'stock';
   document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd();
+  setTimeout(() => { if (typeof syncStatusRefresh === 'function') syncStatusRefresh(); }, 0);
 }
 
 // From the asset detail modal: jump straight to the editor for this asset.
@@ -10471,7 +10456,7 @@ function edAC(q) {
   if (q.length < 1) { box.classList.remove('show'); box.innerHTML = ''; return; }
   box.innerHTML = '<div class="ac-load">מחפש...</div>';
   box.classList.add('show');
-  acTimer = setTimeout(() => acFetch(q), 300);
+  acTimer = setTimeout(() => acFetch(q), 220);
 }
 
 async function acFetch(q) {
@@ -10512,13 +10497,29 @@ async function acFetch(q) {
     }
     if (seq !== acSeq || !box) return;            // a newer search already ran
     if (!items.length) { box.innerHTML = '<div class="ac-load">לא נמצאו תוצאות</div>'; return; }
-    box.innerHTML = items.map(it =>
-      `<div class="ac-item" onmousedown="event.preventDefault();edPick('${it.sym}',\`${(it.name || '').replace(/`/g, '')}\`,${it.id ? `'${it.id}'` : 'null'})">` +
-      (it.thumb ? `<img class="ac-thumb" src="${it.thumb}" alt="">` : '') +
-      `<span class="ac-sym">${it.sym}</span><span class="ac-name">${it.name || ''}</span>` +
-      (it.exch ? `<span class="ac-exch">${it.exch}</span>` : '') +
-      `</div>`
-    ).join('');
+    // Build autocomplete results with DOM APIs. API-provided symbols/names must never
+    // be interpolated into executable HTML or inline event attributes.
+    box.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'ac-item';
+      row.addEventListener('mousedown', event => {
+        event.preventDefault();
+        edPick(String(it.sym || ''), String(it.name || ''), it.id || null);
+      });
+      if (it.thumb) {
+        const img = document.createElement('img');
+        img.className = 'ac-thumb'; img.alt = ''; img.referrerPolicy = 'no-referrer';
+        try { const u = new URL(it.thumb, location.href); if (u.protocol === 'https:') img.src = u.href; } catch (_) {}
+        row.appendChild(img);
+      }
+      const sym = document.createElement('span'); sym.className = 'ac-sym'; sym.textContent = String(it.sym || ''); row.appendChild(sym);
+      const name = document.createElement('span'); name.className = 'ac-name'; name.textContent = String(it.name || ''); row.appendChild(name);
+      if (it.exch) { const exch = document.createElement('span'); exch.className = 'ac-exch'; exch.textContent = String(it.exch); row.appendChild(exch); }
+      frag.appendChild(row);
+    });
+    box.appendChild(frag);
   } catch (_) {
     if (seq === acSeq && box) box.innerHTML = '<div class="ac-load">שגיאה בחיפוש</div>';
   }
@@ -11256,7 +11257,8 @@ async function dashGetFxMap(range,lotDates=[]) {
     const d=await r.json(); Object.entries(d?.rates||{}).forEach(([k,v])=>{const n=Number(v?.ILS);if(n>0)map[k]=n;});
   }catch(_){}
   if(!Object.keys(map).length && stale) return stale;
-  let last=S.fx;
+  const fetchedKeys=Object.keys(map).sort();
+  let last=fetchedKeys.length ? map[fetchedKeys[0]] : S.fx;
   for(let k=from;k<=to;k=dashAddDays(k,1)){ if(map[k]>0)last=map[k]; else map[k]=last; }
   if(range.includesToday) map[todayLocalDateKey()]=S.fx;
   dashCachePut(key,map); return map;
@@ -11414,6 +11416,7 @@ async function doRefresh() {
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
+      S._lastRefreshAt = Date.now();
       if (btn) btn.classList.remove('spin');
       if (overlay) overlay.classList.remove('show');
     }
@@ -11441,7 +11444,7 @@ function startAutoRefresh() {
 let _catchupCount = 0;
 const _catchupTimer = setInterval(() => {
   _catchupCount++;
-  if (_catchupCount > 8) { clearInterval(_catchupTimer); return; }
+  if (_catchupCount > 3) { clearInterval(_catchupTimer); return; }
   if (document.visibilityState !== 'visible' || refreshInFlight) return;
   const stillMissing = (S.stocks || []).some(s => !(S.sp[s.sym]?.price > 0));
   if (stillMissing && typeof getStocks === 'function') {
@@ -11449,12 +11452,13 @@ const _catchupTimer = setInterval(() => {
   } else if (!stillMissing) {
     clearInterval(_catchupTimer);
   }
-}, 10000);
+}, 20000);
 // Refresh immediately when the user returns to the tab (data may be stale).
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !refreshInFlight) doRefresh();
+  const stale = !S._lastRefreshAt || Date.now() - S._lastRefreshAt > 60 * 1000;
+  if (document.visibilityState === 'visible' && !refreshInFlight && stale) doRefresh();
 });
-startAutoRefresh();
+// The app-level adaptive scheduler below is the single refresh loop.
 
 
 // ── Dual clock (user's local time + New York), updates every 30s ──
@@ -11511,6 +11515,17 @@ function applyCloudPortfolio(data, { force = false } = {}) {
   }
   if (Array.isArray(data.stocks)) {
     S.stocks = normalizeStocks(data.stocks);
+    changed = true;
+  }
+  if (Array.isArray(data.commodities)) { S.commodities = data.commodities; changed = true; }
+  if (Array.isArray(data.bonds))       { S.bonds = data.bonds; changed = true; }
+  if (Array.isArray(data.etfs))        { S.etfs = data.etfs; changed = true; }
+  if (data.view && typeof data.view === 'object') {
+    S.view = {
+      show: { ...VIEW_DEFAULT.show, ...(data.view.show || {}) },
+      widgets: { ...VIEW_DEFAULT.widgets, ...(data.view.widgets || {}) },
+    };
+    saveView();
     changed = true;
   }
   if (data.preferences && typeof data.preferences === 'object') {
@@ -11636,7 +11651,7 @@ window.proceedToApp = async function() {
   setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
   const scheduleRefresh = () => {
-    const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
+    const delay = isUsRegularMarketOpenNow() ? 60000 : 180000;
     appRefreshTimer = setTimeout(async () => {
       if (document.visibilityState === 'visible') await doRefresh();
       scheduleRefresh();
@@ -11740,6 +11755,10 @@ function exportPortfolio() {
     portfolio: {
       crypto: S.crypto,
       stocks: S.stocks,
+      commodities: S.commodities || [],
+      bonds: S.bonds || [],
+      etfs: S.etfs || [],
+      view: S.view || null,
       currency: S.currency,
       fx: S.fx,
     },
@@ -11763,18 +11782,34 @@ async function importPortfolio(event) {
     const text = await file.text();
     const data = JSON.parse(text);
     const p = data.portfolio || data;
-    if (!p.crypto && !p.stocks) {
+    if (!p.crypto && !p.stocks && !p.commodities && !p.bonds && !p.etfs) {
       alert('הקובץ לא מכיל נתוני תיק תקינים.');
       return;
     }
-    if (!confirm(`לטעון גיבוי?\n\n• ${p.crypto?.length || 0} מטבעות\n• ${p.stocks?.length || 0} מניות\n\nהנתונים הקיימים יוחלפו.`)) return;
-    if (p.crypto?.length) S.crypto = p.crypto;
-    if (p.stocks?.length) S.stocks = normalizeStocks(p.stocks);
+    if (!confirm(`לטעון גיבוי?
+
+• ${p.crypto?.length || 0} מטבעות
+• ${p.stocks?.length || 0} מניות
+• ${(p.commodities?.length || 0) + (p.bonds?.length || 0) + (p.etfs?.length || 0)} נכסים נוספים
+
+הנתונים הקיימים יוחלפו.`)) return;
+    if (Array.isArray(p.crypto)) S.crypto = p.crypto;
+    if (Array.isArray(p.stocks)) S.stocks = normalizeStocks(p.stocks);
+    if (Array.isArray(p.commodities)) S.commodities = p.commodities;
+    if (Array.isArray(p.bonds)) S.bonds = p.bonds;
+    if (Array.isArray(p.etfs)) S.etfs = p.etfs;
+    if (p.view && typeof p.view === 'object') {
+      S.view = {
+        show: { ...VIEW_DEFAULT.show, ...(p.view.show || {}) },
+        widgets: { ...VIEW_DEFAULT.widgets, ...(p.view.widgets || {}) },
+      };
+      saveView();
+    }
     if (p.currency) S.currency = p.currency;
     if (p.fx)       S.fx = p.fx;
     fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
     saveLS();
-    if (window.fbSave) window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
+    if (window.fbSave) window.fbSave(currentCloudPortfolioPayload());
     alert('הגיבוי נטען בהצלחה!');
     location.reload();
   } catch (e) {
@@ -11782,16 +11817,6 @@ async function importPortfolio(event) {
   } finally {
     event.target.value = '';   // allow re-importing the same file
   }
-}
-
-// Refresh the sync status whenever the editor opens
-const _origOpenEd = window.openEd;
-if (_origOpenEd) {
-  window.openEd = function(...args) {
-    const r = _origOpenEd.apply(this, args);
-    setTimeout(syncStatusRefresh, 50);
-    return r;
-  };
 }
 
 // ═══════════════════════════════════════════
