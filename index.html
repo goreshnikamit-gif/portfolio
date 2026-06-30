@@ -867,10 +867,17 @@ body.light .total::before { display:none; }
 
 /* ── STAT GRID ── */
 .stat-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; width: 100%; }
-/* Mobile / narrow: up to 3 tiles per row (so 4→3+1, 5→3+2, 6→3+3 …) */
-.stat-g[data-count="4"], .stat-g[data-count="5"], .stat-g[data-count="6"],
-.stat-g[data-count="7"], .stat-g[data-count="8"], .stat-g[data-count="9"],
-.stat-g[data-count="10"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Mobile: balanced two rows, never a lone tile in a row.
+   4→2+2, 5→3+2, 6→3+3, 7→4+3, 8→4+4 (columns = ceil(n/2)). */
+.stat-g[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat-g[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat-g[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stat-g[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat-g[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat-g[data-count="7"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stat-g[data-count="8"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stat-g[data-count="9"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stat-g[data-count="10"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .stat { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; overflow: hidden; }
 /* Desktop: hero card with KPI on one side and 4 sub-stats in a 2x2 grid on the other */
 @media (min-width: 640px) {
@@ -882,7 +889,7 @@ body.light .total::before { display:none; }
   /* Column count adapts to the number of visible tiles so the grid always forms two
      balanced rows on desktop: 4→2+2, 5→3+2, 6→3+3, 7→4+3, 8→4+4. */
   .hero-block .stat-g[data-count="2"] { grid-template-columns: repeat(2, 1fr); }
-  .hero-block .stat-g[data-count="3"] { grid-template-columns: repeat(2, 1fr); }
+  .hero-block .stat-g[data-count="3"] { grid-template-columns: repeat(3, 1fr); }
   .hero-block .stat-g[data-count="4"] { grid-template-columns: repeat(2, 1fr); }
   .hero-block .stat-g[data-count="5"] { grid-template-columns: repeat(3, 1fr); }
   .hero-block .stat-g[data-count="6"] { grid-template-columns: repeat(3, 1fr); }
@@ -1132,17 +1139,6 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-confirm:hover { filter: brightness(1.08); }
 .sell-confirm:disabled { opacity: .4; cursor: not-allowed; }
 
-/* ── Upload screenshot button ── */
-.upload-shot-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin: 10px 0; border-radius: 14px; border: 1.5px dashed color-mix(in srgb, var(--ac) 55%, transparent); background: color-mix(in srgb, var(--ac) 8%, transparent); color: var(--t1); font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
-.upload-shot-btn:hover { background: color-mix(in srgb, var(--ac) 14%, transparent); border-color: var(--ac); }
-.upload-shot-btn i { font-size: 18px; color: var(--ac); }
-.upload-shot-hint { margin-inline-start: auto; font-size: 10px; color: var(--t3); font-weight: 400; }
-body.light .upload-shot-btn { background: rgba(10,15,31,0.04) !important; border-color: rgba(10,15,31,0.25) !important; }
-body.light .upload-shot-btn:hover { background: rgba(10,15,31,0.08) !important; }
-
-/* ── Review modal for parsed assets ── */
-.review-modal { width: min(520px, 94vw); background: var(--s2); border: 1px solid var(--b1); border-radius: 22px; padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.55); font-family: var(--font-body); max-height: 88vh; overflow-y: auto; }
-
 /* ── VIEW SETTINGS (modular display control) ── */
 .view-toolbar { display: flex; justify-content: flex-start; margin-bottom: 10px; }
 .view-toggle-btn {
@@ -1197,45 +1193,6 @@ body.light .view-done-btn { color: var(--bg); }
 .empty-cat-ico { width: 48px; height: 48px; border-radius: 14px; background: var(--s3); border: 1px solid var(--b1); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--ac); }
 .empty-cat-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 17px; font-weight: 400; color: var(--t1); }
 .empty-cat-sub { font-size: 12px; color: var(--t3); }
-.review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.review-head i { font-size: 22px; color: var(--ac); }
-.review-title { font-family: var(--font-display, var(--font-body)); font-size: 18px; font-weight: 600; color: var(--t1); }
-.review-sub { font-size: 12px; color: var(--t3); margin-bottom: 14px; }
-.review-stage { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 24px; color: var(--t2); font-size: 13px; }
-.review-spin { width: 18px; height: 18px; border: 2.5px solid var(--b1); border-top-color: var(--ac); border-radius: 50%; animation: rot .7s linear infinite; }
-.review-img { max-width: 100%; max-height: 200px; border-radius: 10px; margin-bottom: 12px; display: block; object-fit: contain; background: var(--bg); }
-.review-row { display: grid; grid-template-columns: 28px 1fr 80px 90px 70px 24px; gap: 8px; align-items: center; padding: 10px; background: var(--s3); border-radius: 10px; margin-bottom: 6px; }
-body.light .review-row { background: rgba(10,15,31,0.05) !important; }
-.review-row-tp { font-size: 14px; text-align: center; }
-.review-row-sym { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--t1); }
-.review-row-name { font-size: 10px; color: var(--t3); margin-top: 2px; }
-.review-row input { background: var(--bg); border: 1px solid var(--b1); border-radius: 7px; padding: 6px 8px; font-family: var(--font-mono); font-size: 12px; color: var(--t1); width: 100%; box-sizing: border-box; min-width: 0; outline: none; }
-.review-row input:focus { border-color: var(--ac); }
-.review-row-rm { background: transparent; border: none; color: var(--t3); cursor: pointer; font-size: 14px; padding: 0; }
-.review-row-rm:hover { color: var(--rd); }
-.review-empty { text-align: center; padding: 30px; color: var(--t3); font-size: 13px; }
-.review-actions { display: flex; gap: 10px; margin-top: 16px; }
-.review-actions button { flex: 1; padding: 13px; border-radius: 12px; font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
-.review-cancel { background: var(--s3); color: var(--t2); border: 1px solid var(--b1) !important; }
-.review-confirm { background: var(--ac); color: #fff; }
-.review-confirm:disabled { opacity: .4; cursor: not-allowed; }
-.review-err { color: var(--rd); font-size: 12px; padding: 10px; background: color-mix(in srgb, var(--rd) 8%, transparent); border-radius: 8px; margin: 10px 0; }
-.review-row-head { font-size: 9px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .5px; padding: 0 10px; margin-bottom: 4px; display: grid; grid-template-columns: 28px 1fr 80px 90px 70px 24px; gap: 8px; }
-#reviewOv { align-items: center; justify-content: center; z-index: 300; }
-
-/* ── API key setup modal ── */
-.key-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
-.key-step { display: flex; gap: 12px; align-items: flex-start; }
-.key-step-n { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: var(--ac); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
-.key-step-body { flex: 1; min-width: 0; }
-.key-step-t { font-size: 13px; color: var(--t1); font-weight: 600; margin-bottom: 5px; }
-.key-step-d { font-size: 11px; color: var(--t3); line-height: 1.5; }
-.key-step-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ac); text-decoration: none; padding: 6px 10px; background: color-mix(in srgb, var(--ac) 12%, transparent); border-radius: 8px; font-weight: 600; transition: background .12s; }
-.key-step-link:hover { background: color-mix(in srgb, var(--ac) 20%, transparent); }
-.key-step-link i { font-size: 14px; }
-.key-input { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--b1); background: var(--bg); color: var(--t1); font-family: var(--font-mono); font-size: 12px; outline: none; box-sizing: border-box; margin-top: 6px; }
-.key-input:focus { border-color: var(--ac); }
-.key-foot { font-size: 10.5px; color: var(--t3); padding: 10px; background: color-mix(in srgb, var(--gr) 6%, transparent); border-radius: 8px; line-height: 1.5; text-align: center; margin-bottom: 12px; }
 
 .mh { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-inline-start: 48px; }
 .mh-titles { min-width: 0; }
@@ -2395,10 +2352,6 @@ onAuthStateChanged(auth, async user => {
   </div>
 </div>
 
-<!-- ── חלונית סקירה לזיהוי אוטומטי ── -->
-<div class="ov" id="reviewOv" onclick="if(event.target===this)closeReview()">
-  <div class="review-modal" id="reviewModal"></div>
-</div>
 
 <!-- ── חלונית מכירה ── -->
 <div class="ov" id="sellOv" onclick="if(event.target===this)closeSell()">
@@ -8301,6 +8254,99 @@ function applyViewNav() {
   }
 }
 
+// ═══════════════════════════════════════════
+// VIEW SETTINGS MODAL — modular category & widget control
+// ═══════════════════════════════════════════
+// One toggle per category. Shown ⇒ visible everywhere AND counted in the total.
+function viewRow(cat) {
+  const on = !!S.view.show[cat.key];
+  return `
+    <div class="view-row">
+      <div class="view-row-left">
+        <span class="view-row-ico"><i class="ph-thin ${cat.icon}"></i></span>
+        <span class="view-row-label">${cat.label}${cat.live ? '' : ' <span class="view-soon">בקרוב</span>'}</span>
+      </div>
+      <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
+        onclick="toggleView('${cat.key}')">
+        <span class="view-switch-knob"></span>
+      </button>
+    </div>`;
+}
+// Row for an optional KPI widget tile.
+function viewWidgetRow(w) {
+  const on = widgetShown(w.key);
+  return `
+    <div class="view-row">
+      <div class="view-row-left">
+        <span class="view-row-ico"><i class="ph-thin ${w.icon}"></i></span>
+        <span class="view-row-label">${w.label}</span>
+      </div>
+      <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
+        onclick="toggleWidget('${w.key}')">
+        <span class="view-switch-knob"></span>
+      </button>
+    </div>`;
+}
+function renderViewModalBody() {
+  const body = document.getElementById('viewModalBody');
+  if (!body) return;
+  const catRows    = VIEW_CATEGORIES.map(viewRow).join('');
+  const widgetRows = WIDGET_TILES.map(viewWidgetRow).join('');
+  body.innerHTML = `
+    <div class="view-section">
+      <div class="view-section-title">קטגוריות מוצגות</div>
+      <div class="view-section-hint">קטגוריה שמוצגת נכללת אוטומטית בשווי השוק הכולל</div>
+      <div class="view-list">${catRows}</div>
+    </div>
+    <div class="view-section">
+      <div class="view-section-title">תצוגות נוספות בכרטיסייה</div>
+      <div class="view-list">${widgetRows}</div>
+    </div>`;
+}
+function toggleWidget(key) {
+  S.view.widgets[key] = !widgetShown(key);
+  saveView();
+  renderViewModalBody();
+  applyWidgetTiles();
+}
+window.toggleWidget = toggleWidget;
+function toggleView(key) {
+  S.view.show[key] = !S.view.show[key];
+  saveView();
+  renderViewModalBody();
+  applyViewEverywhere();
+}
+window.toggleView = toggleView;
+// Re-render every surface that depends on the view config.
+function applyViewEverywhere() {
+  renderDashCrypto();
+  renderDashStocks();
+  renderExtraCategories();
+  applyViewNav();
+  updateKPIs();
+  applyWidgetTiles();
+  if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
+    const from = document.getElementById('dashDateFrom')?.value;
+    const to   = document.getElementById('dashDateTo')?.value;
+    renderDashPeriod(dashPeriod, dashPeriod === 'custom' ? from : undefined, dashPeriod === 'custom' ? to : undefined);
+  }
+  if (S.curPage === 'stocks' && typeof renderStocksPage === 'function') renderStocksPage();
+  if (S.curPage === 'crypto' && typeof renderCryptoPage === 'function') renderCryptoPage();
+  if (S.curPage === 'insights' && typeof renderInsights === 'function') renderInsights();
+  if (['commodities','bonds','etfs'].includes(S.curPage)) renderManualPage(S.curPage);
+}
+function openViewModal() {
+  renderViewModalBody();
+  document.getElementById('viewOv').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+window.openViewModal = openViewModal;
+function closeViewModal() {
+  document.getElementById('viewOv').classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.closeViewModal = closeViewModal;
+
 function updateKPIs() {
   const {c, st, g} = tots();
   const prevTotal = S._lastTotal || 0;
@@ -10012,12 +10058,6 @@ function renderEd() {
   el.innerHTML = `
     <div class="ed-t">ניהול פוזיציות ונכסים</div>
     <div class="ed-s">שינוי כמויות, הוספה או גריעה מתיק הנכסים</div>
-    <button class="upload-shot-btn" onclick="document.getElementById('shotInp').click()">
-      <i class="ph-thin ph-camera-plus"></i>
-      <span>העלה צילום מסך — זיהוי אוטומטי</span>
-      <span class="upload-shot-hint">קבלות, ברוקר, Binance, בנק...</span>
-    </button>
-    <input type="file" id="shotInp" accept="image/*" style="display:none" onchange="onShotUpload(event)">
     <div class="tabr">
       ${enabledTabs.map(k => {
         const c = ED_CATS[k];
@@ -10069,33 +10109,6 @@ function renderEd() {
     </div>
     <button class="fsave" onclick="saveClose()"><i class="ph-thin ph-floppy-disk"></i> שמור שינויים ורענן</button>
 
-    <!-- ─── Sync & Backup section ─── -->
-    <div class="sync-section">
-      <div class="sync-title">סנכרון וגיבוי</div>
-      <div class="sync-status" id="syncStatus">
-        <i class="ph-thin ph-cloud-slash"></i>
-        <span>מצב מקומי — הנתונים נשמרים רק במכשיר זה</span>
-      </div>
-      <button class="sync-btn primary" id="syncSignIn" onclick="syncSignIn()">
-        <i class="ph-thin ph-google-logo"></i> התחבר ל-Google לסנכרון בין מכשירים
-      </button>
-      <button class="sync-btn primary" id="syncSignOut" onclick="syncSignOut()" style="display:none">
-        <i class="ph-thin ph-sign-out"></i> התנתק
-      </button>
-      <button class="sync-btn" id="syncReload" onclick="reloadPortfolioFromCloud()">
-        <i class="ph-thin ph-cloud-arrow-down"></i> טען מחדש מהענן
-      </button>
-      <div class="sync-row">
-        <button class="sync-btn" onclick="exportPortfolio()">
-          <i class="ph-thin ph-download-simple"></i> ייצא גיבוי
-        </button>
-        <button class="sync-btn" onclick="document.getElementById('importFile').click()">
-          <i class="ph-thin ph-upload-simple"></i> ייבא גיבוי
-        </button>
-        <input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importPortfolio(event)">
-      </div>
-    </div>
-
     <button style="width:100%;background:transparent;border:1px solid var(--b2);border-radius:var(--radius-sm);padding:10px;color:var(--t3);font-family:var(--font-body);font-size:11px;cursor:pointer;margin-top:7px" onclick="if(confirm('לאפס את כל נתוני התיק השמורים ולחזור להגדרות ברירת המחדל?')){localStorage.removeItem('pc');localStorage.removeItem('ps');location.reload();}"><i class="ph-thin ph-arrow-counter-clockwise"></i> אפס לברירת מחדל</button>
   `;
 }
@@ -10106,318 +10119,7 @@ function refreshAllCategoryViews() {
   try { renderDashCrypto(); renderDashStocks(); if (typeof renderManualCategories==='function') renderManualCategories(); updateKPIs(); } catch(_) {}
 }
 
-// ═══════════════════════════════════════════
-// SCREENSHOT → AUTO-PARSE ASSETS (Claude AI Vision)
-// ═══════════════════════════════════════════
-let _parsedAssets = []; // {type, sym, name, qty, entry}
-let _shotPreview = null; // base64 preview
-
-// Embedded Gemini API key — free tier (1,500 requests/day shared across all users).
-// Get yours at https://aistudio.google.com/apikey and paste below.
-const GEMINI_KEY = 'AQ.Ab8RN6IpB8xkRCFNCKGUgg8Rh1HQo3LeHJUMfpFdPdqtGGt4Tw';
-
-async function onShotUpload(ev) {
-  const file = ev.target.files?.[0];
-  ev.target.value = ''; // reset so re-uploading same file works
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { alert('יש לבחור קובץ תמונה'); return; }
-  if (file.size > 8 * 1024 * 1024) { alert('התמונה גדולה מדי (מקסימום 8MB)'); return; }
-
-  // open review modal with loading state
-  _shotPreview = await _fileToBase64(file);
-  _parsedAssets = [];
-  openReview();
-  _renderReviewLoading();
-
-  try {
-    const result = await _parseScreenshot(file, _shotPreview);
-    _parsedAssets = result;
-    _renderReviewList();
-  } catch (e) {
-    _renderReviewError(e.message || String(e));
-  }
-}
-window.onShotUpload = onShotUpload;
-
-
-
-function _fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result.split(',')[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
-async function _parseScreenshot(file, base64Data) {
-  const prompt = `You are a financial OCR assistant. Extract holdings (stocks and cryptocurrencies) from this screenshot of an investment portfolio / broker / exchange.
-
-Return ONLY valid JSON in this exact shape, no preamble, no markdown fences:
-{"assets":[{"type":"stock"|"crypto","sym":"TICKER","name":"Full Name","qty":NUMBER,"entry":NUMBER_OR_NULL}]}
-
-Rules:
-- "type" = "stock" for equities/ETFs/indices, "crypto" for cryptocurrencies/tokens
-- "sym" = uppercase ticker (e.g. "AAPL", "BTC", "DSCT.TA"). For TASE Israeli stocks add ".TA" suffix.
-- "name" = the company/coin name in English if visible, else as shown
-- "qty" = number of shares/units held. If only a transaction (buy) is shown, use that quantity.
-- "entry" = average entry price PER UNIT in native currency (USD for US/crypto, ILS for TASE). null if not visible.
-- If you can't find any holdings, return {"assets":[]}
-- Do not invent assets. Only extract what you actually see.`;
-
-  const body = {
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inline_data: { mime_type: file.type, data: base64Data } }
-      ]
-    }],
-    generationConfig: { temperature: 0, responseMimeType: 'application/json' }
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': GEMINI_KEY,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) {
-    const t = await resp.text();
-    if (resp.status === 400 && t.includes('API_KEY')) throw new Error('מפתח הזיהוי לא הוגדר נכון. פני למפתח/ת האפליקציה.');
-    if (resp.status === 401) throw new Error('מפתח הזיהוי לא תקף. פני למפתח/ת האפליקציה.');
-    if (resp.status === 429) throw new Error('המכסה היומית של הזיהוי האוטומטי נגמרה — נסי שוב מחר.');
-    if (resp.status === 403) throw new Error('הזיהוי האוטומטי אינו זמין כרגע (בעיית הרשאות).');
-    throw new Error(`שגיאת זיהוי (${resp.status})`);
-  }
-
-  const data = await resp.json();
-  const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-  if (!text) throw new Error('לא התקבל מידע מהזיהוי. נסי תמונה ברורה יותר.');
-
-  // extract JSON (strip code fences if present)
-  let jsonStr = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-  const a = jsonStr.indexOf('{'), b = jsonStr.lastIndexOf('}');
-  if (a >= 0 && b > a) jsonStr = jsonStr.slice(a, b + 1);
-
-  let parsed;
-  try { parsed = JSON.parse(jsonStr); }
-  catch { throw new Error('הזיהוי לא החזיר תוצאה תקינה. נסי תמונה ברורה יותר.'); }
-
-  const assets = (parsed.assets || []).filter(a => a.sym && a.qty > 0).map(a => ({
-    type: a.type === 'crypto' ? 'crypto' : 'stock',
-    sym: String(a.sym).toUpperCase().trim(),
-    name: String(a.name || a.sym).trim(),
-    qty: parseFloat(a.qty) || 0,
-    entry: a.entry != null ? parseFloat(a.entry) : null,
-  }));
-  return assets;
-}
-
-// ═══════════════════════════════════════════
-// VIEW SETTINGS MODAL — modular "Edit Actions"-style category control
-// ═══════════════════════════════════════════
-function viewRow(cat) {
-  const on = !!S.view.show[cat.key];
-  return `
-    <div class="view-row">
-      <div class="view-row-left">
-        <span class="view-row-ico"><i class="ph-thin ${cat.icon}"></i></span>
-        <span class="view-row-label">${cat.label}${cat.live ? '' : ' <span class="view-soon">בקרוב</span>'}</span>
-      </div>
-      <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
-        onclick="toggleView('${cat.key}')">
-        <span class="view-switch-knob"></span>
-      </button>
-    </div>`;
-}
-// Row for an optional KPI widget tile.
-function viewWidgetRow(w) {
-  const on = widgetShown(w.key);
-  return `
-    <div class="view-row">
-      <div class="view-row-left">
-        <span class="view-row-ico"><i class="ph-thin ${w.icon}"></i></span>
-        <span class="view-row-label">${w.label}</span>
-      </div>
-      <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
-        onclick="toggleWidget('${w.key}')">
-        <span class="view-switch-knob"></span>
-      </button>
-    </div>`;
-}
-function renderViewModalBody() {
-  const body = document.getElementById('viewModalBody');
-  if (!body) return;
-  const catRows    = VIEW_CATEGORIES.map(viewRow).join('');
-  const widgetRows = WIDGET_TILES.map(viewWidgetRow).join('');
-  body.innerHTML = `
-    <div class="view-section">
-      <div class="view-section-title">קטגוריות מוצגות</div>
-      <div class="view-section-hint">קטגוריה שמוצגת נכללת אוטומטית בשווי השוק הכולל</div>
-      <div class="view-list">${catRows}</div>
-    </div>
-    <div class="view-section">
-      <div class="view-section-title">תצוגות נוספות בכרטיסייה</div>
-      <div class="view-list">${widgetRows}</div>
-    </div>`;
-}
-function toggleWidget(key) {
-  S.view.widgets[key] = !widgetShown(key);
-  saveView();
-  renderViewModalBody();
-  applyWidgetTiles();
-}
-window.toggleWidget = toggleWidget;
-function toggleView(key) {
-  S.view.show[key] = !S.view.show[key];
-  saveView();
-  renderViewModalBody();           // refresh switch states
-  applyViewEverywhere();           // re-render the app to reflect the change
-}
-window.toggleView = toggleView;
-// Re-render every surface that depends on the view config.
-function applyViewEverywhere() {
-  renderDashCrypto();
-  renderDashStocks();
-  renderExtraCategories();
-  applyViewNav();                  // show/hide the manual-category nav tabs
-  updateKPIs();
-  applyWidgetTiles();
-  if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
-    const from = document.getElementById('dashDateFrom')?.value;
-    const to   = document.getElementById('dashDateTo')?.value;
-    renderDashPeriod(dashPeriod, dashPeriod === 'custom' ? from : undefined, dashPeriod === 'custom' ? to : undefined);
-  }
-  if (S.curPage === 'stocks' && typeof renderStocksPage === 'function') renderStocksPage();
-  if (S.curPage === 'crypto' && typeof renderCryptoPage === 'function') renderCryptoPage();
-  if (S.curPage === 'insights' && typeof renderInsights === 'function') renderInsights();
-  if (['commodities','bonds','etfs'].includes(S.curPage)) renderManualPage(S.curPage);
-  if (typeof tkStart === 'function') tkStart();    // rebuild ticker respecting categories
-}
-function openViewModal() {
-  renderViewModalBody();
-  document.getElementById('viewOv').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-window.openViewModal = openViewModal;
-function closeViewModal() {
-  document.getElementById('viewOv').classList.remove('open');
-  document.body.style.overflow = '';
-}
-window.closeViewModal = closeViewModal;
-
-function openReview() {
-  document.getElementById('reviewOv').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closeReview() {
-  document.getElementById('reviewOv').classList.remove('open');
-  document.body.style.overflow = '';
-  _parsedAssets = [];
-  _shotPreview = null;
-}
-window.closeReview = closeReview;
-
-function _renderReviewLoading() {
-  document.getElementById('reviewModal').innerHTML = `
-    <div class="review-head"><i class="ph-thin ph-sparkle"></i><div class="review-title">זיהוי אוטומטי בעיבוד...</div></div>
-    ${_shotPreview ? `<img class="review-img" src="data:image/*;base64,${_shotPreview}">` : ''}
-    <div class="review-stage"><div class="review-spin"></div>מזהה נכסים מהתמונה...</div>
-  `;
-}
-function _renderReviewError(msg) {
-  document.getElementById('reviewModal').innerHTML = `
-    <div class="review-head"><i class="ph-thin ph-warning"></i><div class="review-title">שגיאה בזיהוי</div></div>
-    <div class="review-err">${msg}</div>
-    <div class="review-actions">
-      <button class="review-cancel" onclick="closeReview()">סגירה</button>
-    </div>
-  `;
-}
-function _renderReviewList() {
-  if (!_parsedAssets.length) {
-    document.getElementById('reviewModal').innerHTML = `
-      <div class="review-head"><i class="ph-thin ph-magnifying-glass"></i><div class="review-title">לא זוהו נכסים</div></div>
-      <div class="review-sub">הזיהוי לא הצליח למצוא מניות או קריפטו בתמונה. נסי תמונה ברורה יותר עם סימבולים וכמויות גלויים.</div>
-      <div class="review-actions"><button class="review-cancel" onclick="closeReview()">סגירה</button></div>
-    `;
-    return;
-  }
-  document.getElementById('reviewModal').innerHTML = `
-    <div class="review-head"><i class="ph-thin ph-sparkle"></i><div class="review-title">זוהו ${_parsedAssets.length} נכסים</div></div>
-    <div class="review-sub">בדקי את הפרטים, ערכי במידת הצורך, ולחצי "הוסף לתיק". מחיר הכניסה רשות.</div>
-    <div class="review-row-head">
-      <span>סוג</span><span>סימבול / שם</span><span>כמות</span><span>מחיר כניסה</span><span></span><span></span>
-    </div>
-    ${_parsedAssets.map((a, i) => `
-      <div class="review-row">
-        <div class="review-row-tp">${a.type === 'crypto' ? '<i class="ph-thin ph-coin"></i>' : '<i class="ph-thin ph-chart-line-up"></i>'}</div>
-        <div>
-          <div class="review-row-sym">${a.sym}</div>
-          <div class="review-row-name">${a.name}</div>
-        </div>
-        <input type="number" step="any" value="${a.qty}" oninput="_parsedAssets[${i}].qty=parseFloat(this.value)||0">
-        <input type="number" step="any" value="${a.entry ?? ''}" placeholder="—" oninput="_parsedAssets[${i}].entry=this.value?parseFloat(this.value):null">
-        <select onchange="_parsedAssets[${i}].type=this.value" style="background:var(--bg);border:1px solid var(--b1);border-radius:7px;padding:6px;font-size:11px;color:var(--t1)">
-          <option value="stock" ${a.type==='stock'?'selected':''}>מניה</option>
-          <option value="crypto" ${a.type==='crypto'?'selected':''}>קריפטו</option>
-        </select>
-        <button class="review-row-rm" title="הסר" onclick="_parsedAssets.splice(${i},1);_renderReviewList()"><i class="ph-thin ph-x"></i></button>
-      </div>
-    `).join('')}
-    <div class="review-actions">
-      <button class="review-cancel" onclick="closeReview()">ביטול</button>
-      <button class="review-confirm" onclick="confirmAddParsed()">הוסף לתיק (${_parsedAssets.length})</button>
-    </div>
-  `;
-}
-window._renderReviewList = _renderReviewList;
-
-function confirmAddParsed() {
-  if (!_parsedAssets.length) return;
-  const palette = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EC4899','#06B6D4','#84CC16','#EF4444'];
-  for (const a of _parsedAssets) {
-    if (!a.sym || a.qty <= 0) continue;
-    const color = palette[Math.floor(Math.random() * palette.length)];
-    const iconHTML = a.type === 'crypto'
-      ? `<i class="ph-thin ph-coin"></i>`
-      : `<i class="ph-thin ph-chart-line-up"></i>`;
-    if (a.type === 'crypto') {
-      // avoid duplicates: if already exists, merge quantities
-      const id = a.sym.toLowerCase();
-      const existing = S.crypto.find(c => c.id === id || c.sym === a.sym);
-      if (existing) {
-        existing.qty = (parseFloat(existing.qty) || 0) + a.qty;
-        if (a.entry && !existing.lots) existing.lots = [];
-        if (a.entry && existing.lots) existing.lots.push({ qty: a.qty, price: a.entry, date: new Date().toISOString().slice(0,10) });
-      } else {
-        const newAsset = { id, sym: a.sym, name: a.name, icon: iconHTML, color, qty: a.qty };
-        if (a.entry) newAsset.lots = [{ qty: a.qty, price: a.entry, date: new Date().toISOString().slice(0,10) }];
-        S.crypto.push(newAsset);
-      }
-    } else {
-      const existing = S.stocks.find(s => s.sym === a.sym);
-      if (existing) {
-        existing.shares = (parseFloat(existing.shares) || 0) + a.qty;
-        if (a.entry && !existing.lots) existing.lots = [];
-        if (a.entry && existing.lots) existing.lots.push({ qty: a.qty, price: a.entry, date: new Date().toISOString().slice(0,10) });
-      } else {
-        const newAsset = { sym: a.sym, name: a.name, icon: iconHTML, color, shares: a.qty };
-        if (a.entry) newAsset.lots = [{ qty: a.qty, price: a.entry, date: new Date().toISOString().slice(0,10) }];
-        S.stocks.push(newAsset);
-      }
-    }
-  }
-  saveLS();
-  closeReview();
-  renderEd();
-  doRefresh();
-}
-window.confirmAddParsed = confirmAddParsed;
+// (Screenshot auto-detect feature removed)
 
 // ── מכירה: פותח חלונית מעוצבת לבחירת כמות ──
 let _sellCtx = null; // {key, type, held, asset, unit, priceUSD}
