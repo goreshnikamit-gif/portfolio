@@ -765,6 +765,8 @@ body.light .fund-cell {
 .lots-close i { font-size: 14px; }
 body.light .lots-close { background: rgba(255,255,255,0.7) !important; border-color: rgba(10,15,31,0.15) !important; }
 .lot-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+.lot-row-head { margin-bottom: 4px; }
+.lot-row-head span { font-size: 9.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .4px; padding-inline-start: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lot-row input { background: var(--s1); border: 1px solid var(--b1); border-radius: 4px; padding: 6px 8px; font-family: var(--font-mono); font-size: 11px; color: var(--t1); width: 100%; }
 .lot-row input:focus { border-color: var(--ac); outline: none; }
 .lot-row input.lot-autofilled { border-color: color-mix(in srgb, var(--ac) 50%, var(--b1)); background: color-mix(in srgb, var(--ac) 6%, var(--s1)); }
@@ -3765,6 +3767,20 @@ function fPriceCur(usdVal, decimals = 4) {
   const formatted = v < 1 ? v.toFixed(8).replace(/0+$/,'').replace(/\.$/,'') : v.toFixed(decimals);
   return def.sym + formatted;
 }
+// The native currency symbol of an asset's market (stocks: by listing currency;
+// crypto: USD). Used so the per-unit entry price is shown in the right currency
+// (Italy → €, US → $, Israel → ₪).
+function priceCurSymbolFor(a) {
+  if (edTab === 'crypto') return '$';
+  const cur = (S.sp?.[a.sym]?.currency || 'USD').toUpperCase();
+  const def = CURRENCIES[cur];
+  return def ? def.sym : (cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur === 'ILS' ? '₪' : cur === 'GBP' ? '£' : cur + ' ');
+}
+// The native currency code of an asset's market.
+function priceCurCodeFor(a) {
+  if (edTab === 'crypto') return 'USD';
+  return (S.sp?.[a.sym]?.currency || 'USD').toUpperCase();
+}
 const fILS = (n, d = 0) => {
   const cur = (S.currency || 'ils').toUpperCase();
   const def = CURRENCIES[cur] || CURRENCIES.ILS;
@@ -4191,6 +4207,15 @@ const I18N = {
 
   // ── Timezone-aware calendar label ──
   'יום קלנדרי':'calendar day',
+
+  // ── Lot editor (per-unit) strings ──
+  'שער ממוצע':'Avg. price',
+  'שער ליחידה':'Price per unit',
+  'ליחידה':'per unit',
+  'שמור וסגור':'Save & close',
+
+  // ── Unsaved-changes prompt ──
+  'יש שינויים שלא נשמרו — לשמור אותם?':'You have unsaved changes — save them?',
 
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
@@ -4820,6 +4845,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Эта категория управляется вручную — без живых цен. Введите символ, количество и стоимость.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'календарный день',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'Средняя цена',
+    'שער ליחידה':'Цена за единицу',
+    'ליחידה':'за единицу',
+    'שמור וסגור':'Сохранить и закрыть',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'Есть несохранённые изменения — сохранить?',
   },
   es: {
     'שוק אמריקאי':'Mercado de EE. UU.',
@@ -5275,6 +5307,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Esta categoría se gestiona manualmente — sin precios en vivo. Introduce símbolo, cantidad y coste.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'día natural',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'Precio medio',
+    'שער ליחידה':'Precio por unidad',
+    'ליחידה':'por unidad',
+    'שמור וסגור':'Guardar y cerrar',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'Tienes cambios sin guardar, ¿guardarlos?',
   },
   fr: {
     'שוק אמריקאי':'Marché américain',
@@ -5730,6 +5769,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Cette catégorie est gérée manuellement — pas de prix en direct. Saisissez symbole, quantité et coût.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'jour calendaire',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'Prix moyen',
+    'שער ליחידה':'Prix unitaire',
+    'ליחידה':'par unité',
+    'שמור וסגור':'Enregistrer et fermer',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'Des modifications non enregistrées — les enregistrer ?',
   },
   ar: {
     'שוק אמריקאי':'السوق الأمريكي',
@@ -6185,6 +6231,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'تُدار هذه الفئة يدويًا — لا أسعار حية بعد. أدخل الرمز والكمية والتكلفة.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'يوم تقويمي',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'متوسط السعر',
+    'שער ליחידה':'السعر للوحدة',
+    'ליחידה':'للوحدة',
+    'שמור וסגור':'حفظ وإغلاق',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'لديك تغييرات غير محفوظة — هل تحفظها؟',
   },
   de: {
     'שוק אמריקאי':'US-Markt',
@@ -6640,6 +6693,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Diese Kategorie wird manuell verwaltet — noch keine Live-Preise. Symbol, Menge und Kosten eingeben.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'Kalendertag',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'Ø Preis',
+    'שער ליחידה':'Preis pro Einheit',
+    'ליחידה':'pro Einheit',
+    'שמור וסגור':'Speichern & schließen',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'Ungespeicherte Änderungen — speichern?',
   },
   zh: {
     'שוק אמריקאי':'美国市场',
@@ -7095,6 +7155,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'此类别为手动管理——暂无实时价格。请输入代码、数量和成本。',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'日历日',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'平均价',
+    'שער ליחידה':'单价',
+    'ליחידה':'每单位',
+    'שמור וסגור':'保存并关闭',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'有未保存的更改——要保存吗？',
   },
   nl: {
     'שוק אמריקאי':'Amerikaanse markt',
@@ -7550,6 +7617,13 @@ const LANG_DICTS = {
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Deze categorie wordt handmatig beheerd — nog geen live prijzen. Voer symbool, aantal en kosten in.',
       // ── Timezone-aware calendar label ──
     'יום קלנדרי':'kalenderdag',
+      // ── Lot editor (per-unit) strings ──
+    'שער ממוצע':'Gem. prijs',
+    'שער ליחידה':'Prijs per eenheid',
+    'ליחידה':'per eenheid',
+    'שמור וסגור':'Opslaan & sluiten',
+      // ── Unsaved-changes prompt ──
+    'יש שינויים שלא נשמרו — לשמור אותם?':'Niet-opgeslagen wijzigingen — opslaan?',
   },
 };
 
@@ -10076,6 +10150,19 @@ async function refreshFromModal(tab, sym, btn) {
 window.editFromModal = editFromModal;
 window.refreshFromModal = refreshFromModal;
 function closeEd() {
+  // Revert any lot panels left open with unsaved edits (user didn't press ✓).
+  if (S._lotsDirty && S._lotsBackup) {
+    Object.keys(S._lotsDirty).forEach(key => {
+      if (!S._lotsDirty[key] || !S._lotsBackup[key]) return;
+      const [idxStr, tab] = key.split('-');
+      const idx = parseInt(idxStr, 10);
+      const list = tab === 'crypto' ? S.crypto : S.stocks;
+      if (list[idx]) list[idx].lots = JSON.parse(JSON.stringify(S._lotsBackup[key]));
+    });
+  }
+  S._lotsDirty = {};
+  S._lotsBackup = {};
+  S._lotsOpen = {};
   document.getElementById('edOv').classList.remove('open');
   document.body.style.overflow = '';
   if (window._pendingRemotePortfolio) {
@@ -10123,7 +10210,7 @@ function renderEd() {
             ${avg!=null ? `<div style="font-size:10px;color:var(--gd);font-family:var(--font-mono);margin-top:2px">@ ${fPriceCur(avg,2)} ממוצע</div>` : ''}
           </div>
           <input class="einput" type="number" value="${totalQty}" step="any" placeholder="${cat.unit}" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="${qtyBind}">
-          ${cat.live ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-chart-bar"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> קנייה'}</button>` : ''}
+          ${cat.live ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
           <div class="emove">
             <button class="emove-btn" title="הזז למעלה" onclick="moveAsset(${i},-1)" ${i === 0 ? 'disabled' : ''}><i class="fi fi-tr-angle-up"></i></button>
             <button class="emove-btn" title="הזז למטה" onclick="moveAsset(${i},1)" ${i === list.length - 1 ? 'disabled' : ''}><i class="fi fi-tr-angle-down"></i></button>
@@ -10141,8 +10228,8 @@ function renderEd() {
         <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency()" ${cat.live?'onfocus="edAC(this.value)"':''}><div class="ac-box" id="acBox"></div></div>
         <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}"></div>
         <div class="ff"><label>${cat.unit==='מניות'?'כמות מניות':'כמות החזקה'}</label><input id="nQ" type="number" placeholder="${iC?'0.5':'10.5'}" step="any" oninput="onNewQtyInput()"></div>
-        <div class="ff"><label>סה״כ עלות ${cat.curr} <span style="color:var(--t3);font-size:10px">(${cat.live?'מחושב אוטומטית':'הזן ידנית'})</span></label><input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1'"></div>
-        <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="ff"><label>שער קנייה <span id="nPCur">${cat.curr}</span> <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label><input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled')"></div>
+        <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}" onchange="onNewDateInput()"></div>
       </div>
       <button class="fadd" onclick="addA()"><i class="ph-thin ph-plus"></i> הוסף לרשימת המעקב</button>
     </div>
@@ -10403,6 +10490,11 @@ function edPick(sym, name, id) {
   if (nN && name) nN.value = name.replace(/\b\w+/g, w => w.length > 3 ? w[0] + w.slice(1).toLowerCase() : w);
   const box = document.getElementById('acBox');
   if (box) { box.classList.remove('show'); box.innerHTML = ''; }
+  // Reset the price field, update the currency symbol to the new market, and
+  // re-fill the per-unit price for the picked symbol.
+  const nP = document.getElementById('nP');
+  if (nP) { nP.dataset.manual = ''; nP.classList.remove('lot-autofilled'); }
+  updateNewPriceCurrency();
   document.getElementById('nQ')?.focus();
 }
 document.addEventListener('click', e => {
@@ -10449,48 +10541,89 @@ function lotsHistoryHTML(a, currentPrice, type) {
 // ── Lots management — granular buys per asset ──
 function toggleLots(i) {
   if (!S._lotsOpen) S._lotsOpen = {};
+  if (!S._lotsBackup) S._lotsBackup = {};
+  if (!S._lotsDirty) S._lotsDirty = {};
   const key = i + '-' + edTab;
-  S._lotsOpen[key] = !S._lotsOpen[key];
-  // Ensure the asset has a lots array; if not, seed with the current qty as a single lot
+  const wasOpen = S._lotsOpen[key];
   const list = edTab === 'crypto' ? S.crypto : S.stocks;
   const a = list[i];
+
+  if (wasOpen) {
+    // Closing the panel. If there are unsaved edits, ask the user.
+    if (S._lotsDirty[key]) {
+      const save = confirm(i18nGetText('יש שינויים שלא נשמרו — לשמור אותם?'));
+      if (save) {
+        saveLS();
+      } else {
+        // Revert to the snapshot taken when the panel was opened.
+        if (S._lotsBackup[key]) a.lots = JSON.parse(JSON.stringify(S._lotsBackup[key]));
+      }
+      S._lotsDirty[key] = false;
+    }
+    delete S._lotsBackup[key];
+    S._lotsOpen[key] = false;
+    renderEd();
+    return;
+  }
+
+  // Opening the panel. Ensure a lots array exists, then snapshot it for revert.
   if (!Array.isArray(a.lots)) {
     const q = edTab === 'crypto' ? (a.qty || 0) : getShares(a);
     a.lots = q > 0 ? [{qty: q, price: 0, date: new Date().toISOString().slice(0,10)}] : [];
   }
+  S._lotsBackup[key] = JSON.parse(JSON.stringify(a.lots));
+  S._lotsDirty[key] = false;
+  S._lotsOpen[key] = true;
   renderEd();
+  setTimeout(() => {
+    const panel = document.getElementById(`lotsPanel-${i}-${edTab}`);
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 60);
+}
+// Mark a lot panel as having unsaved changes (without persisting to localStorage).
+function markLotDirty(i) {
+  if (!S._lotsDirty) S._lotsDirty = {};
+  S._lotsDirty[i + '-' + edTab] = true;
+  lastLocalEdit = Date.now();
 }
 function lotsPanelHTML(i) {
   const list = edTab === 'crypto' ? S.crypto : S.stocks;
   const a = list[i];
   if (!Array.isArray(a.lots)) a.lots = [];
   const avg = avgEntry(a);
+  const curSym = priceCurSymbolFor(a);     // ₪ / $ / € by the asset's market
   return `
-    <div class="lots-panel">
+    <div class="lots-panel" id="lotsPanel-${i}-${edTab}">
       <div class="lots-panel-title">
         <button class="lots-close" onclick="toggleLots(${i})" title="סגור">
           <i class="ph-thin ph-caret-up"></i>
         </button>
-        <span>קניות (${a.lots.length})</span>
-        ${avg!=null ? `<span class="lots-panel-avg">מחיר ממוצע: $${avg.toFixed(2)}</span>` : ''}
+        <span>${i18nGetText('ניהול קניות')} (${a.lots.length})</span>
+        ${avg!=null ? `<span class="lots-panel-avg">${i18nGetText('שער ממוצע')}: ${curSym}${avg.toFixed(2)}</span>` : ''}
+      </div>
+      <div class="lot-row lot-row-head">
+        <span>${i18nGetText('כמות')}</span>
+        <span>${i18nGetText('שער ליחידה')} ${curSym}</span>
+        <span>${i18nGetText('תאריך קנייה')}</span>
+        <span></span><span></span>
       </div>
       ${a.lots.map((l, j) => `
         <div class="lot-row" data-lot="${i}-${j}">
-          <input type="number" step="any" placeholder="כמות" value="${l.qty||''}" oninput="onLotQtyInput(${i},${j},this.value)">
-          <input type="number" step="any" placeholder="סה״כ ${edTab==='crypto'?'$':'₪'}" value="${(l.qty>0&&l.price>0)?(Math.round(l.qty*l.price*100)/100):''}" oninput="onLotTotalInput(${i},${j},this.value)">
-          <input type="date" value="${l.date||''}" oninput="stageLot(${i},${j},'date',this.value)">
-          <button class="lot-ok" onclick="confirmLot(${i},${j})" title="אישור"><i class="ph-thin ph-check" style="font-size:14px"></i></button>
+          <input type="number" step="any" placeholder="${i18nGetText('כמות')}" value="${l.qty||''}" oninput="onLotQtyInput(${i},${j},this.value)">
+          <input type="number" step="any" placeholder="${curSym}${i18nGetText('ליחידה')}" value="${l.price>0?l.price:''}" oninput="onLotPriceInput(${i},${j},this.value)">
+          <input type="date" value="${l.date||''}" oninput="onLotDateInput(${i},${j},this.value)">
+          <button class="lot-ok" onclick="confirmLot(${i},${j})" title="${i18nGetText('שמור וסגור')}"><i class="ph-thin ph-check" style="font-size:14px"></i></button>
           <button class="lot-del" onclick="delLot(${i},${j})" title="מחק קנייה"><i class="ph-thin ph-trash" style="font-size:13px"></i></button>
         </div>
       `).join('')}
-      <button class="lot-add" onclick="addLot(${i})"><i class="ph-thin ph-plus" style="font-size:11px"></i> הוסף קנייה</button>
+      <button class="lot-add" onclick="addLot(${i})"><i class="ph-thin ph-plus" style="font-size:11px"></i> ${i18nGetText('הוסף קנייה')}</button>
     </div>`;
 }
 function addLot(i) {
   const list = edTab === 'crypto' ? S.crypto : S.stocks;
   if (!Array.isArray(list[i].lots)) list[i].lots = [];
   list[i].lots.push({qty: 0, price: 0, date: new Date().toISOString().slice(0,10)});
-  markEdit();
+  markLotDirty(i);
   renderEd();
 }
 function delLot(i, j) {
@@ -10502,7 +10635,7 @@ function delLot(i, j) {
     : 'למחוק את הקנייה הזו?';
   if (!confirm(msg)) return;
   if (Array.isArray(list[i].lots)) list[i].lots.splice(j, 1);
-  markEdit();
+  markLotDirty(i);
   renderEd();
 }
 function updateLot(i, j, field, value) {
@@ -10530,41 +10663,92 @@ function onLotQtyInput(i, j, value) {
   const lot = list[i]?.lots?.[j];
   if (!lot) return;
   lot.qty = parseFloat(value) || 0;
-  markEdit();
+  markLotDirty(i);
+  // If the per-unit price is still empty, auto-fill it (date price, else market).
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
-  const totalInp = row?.querySelectorAll('input')[1];
-  if (!totalInp) return;
-  const manual = totalInp.dataset.manual === '1';
-  if (manual && parseFloat(totalInp.value) > 0 && lot.qty > 0) {
-    // User fixed a total cost → keep that total, derive per-unit from it.
-    lot.price = (parseFloat(totalInp.value) || 0) / lot.qty;
-  } else if (lot.qty > 0) {
-    // Auto mode: total = qty × current market (or existing per-unit) price.
-    const mkt = currentMarketPrice(list[i], edTab);
-    const unit = mkt > 0 ? mkt : (lot.price > 0 ? lot.price : 0);
-    if (unit > 0) {
-      lot.price = unit;
-      totalInp.value = Math.round(lot.qty * unit * 100) / 100;
-      totalInp.classList.add('lot-autofilled');
-    }
-  } else {
-    totalInp.value = '';
+  const priceInp = row?.querySelectorAll('input')[1];
+  if (priceInp && priceInp.dataset.manual !== '1' && !(lot.price > 0) && lot.qty > 0) {
+    autoFillLotPrice(i, j);
   }
 }
 
-// User typed a TOTAL amount → store per-unit price = total / qty.
-function onLotTotalInput(i, j, value) {
+// User typed a PER-UNIT price → store it directly.
+function onLotPriceInput(i, j, value) {
   const list = edTab === 'crypto' ? S.crypto : S.stocks;
   const lot = list[i]?.lots?.[j];
   if (!lot) return;
-  const total = parseFloat(value) || 0;
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
-  const totalInp = row?.querySelectorAll('input')[1];
-  if (totalInp) { totalInp.classList.remove('lot-autofilled'); totalInp.dataset.manual = '1'; }
-  lot.price = lot.qty > 0 ? total / lot.qty : total;
-  markEdit();
+  const priceInp = row?.querySelectorAll('input')[1];
+  if (priceInp) { priceInp.classList.remove('lot-autofilled'); priceInp.dataset.manual = '1'; }
+  lot.price = parseFloat(value) || 0;
+  markLotDirty(i);
 }
-window.onLotTotalInput = onLotTotalInput;
+window.onLotPriceInput = onLotPriceInput;
+
+// User picked a date → auto-fill the per-unit price with that day's closing price
+// (unless they already typed their own price).
+async function onLotDateInput(i, j, value) {
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const lot = list[i]?.lots?.[j];
+  if (!lot) return;
+  lot.date = value;
+  markLotDirty(i);
+  const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
+  const priceInp = row?.querySelectorAll('input')[1];
+  if (priceInp && priceInp.dataset.manual === '1') return;  // respect manual entry
+  autoFillLotPrice(i, j);
+}
+window.onLotDateInput = onLotDateInput;
+
+// Fill a lot's per-unit price from the historical close on lot.date (fallback: live price).
+async function autoFillLotPrice(i, j) {
+  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const lot = list[i]?.lots?.[j];
+  const asset = list[i];
+  if (!lot || !asset) return;
+  let price = 0;
+  try {
+    if (lot.date) price = await historicalPriceOn(asset, lot.date) || 0;
+  } catch(_) {}
+  if (!(price > 0)) price = currentMarketPrice(asset, edTab);   // fallback to live
+  if (price > 0) {
+    lot.price = price;
+    const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
+    const priceInp = row?.querySelectorAll('input')[1];
+    if (priceInp && priceInp.dataset.manual !== '1') {
+      priceInp.value = Math.round(price * 100) / 100;
+      priceInp.classList.add('lot-autofilled');
+    }
+    markLotDirty(i);
+  }
+}
+
+// Best-effort historical close price for an asset on a given YYYY-MM-DD (native currency).
+async function historicalPriceOn(asset, dateKey) {
+  try {
+    if (edTab === 'crypto') {
+      const ms = keyToLocalMidnightMs ? keyToLocalMidnightMs(dateKey) : new Date(dateKey + 'T12:00:00Z').getTime();
+      const bs = BN[asset.sym];
+      if (!bs) return 0;
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1d&startTime=${ms}&limit=1`, { signal: AbortSignal.timeout(8000) });
+      const kl = await r.json();
+      if (Array.isArray(kl) && kl[0]) return parseFloat(kl[0][4]) || 0;   // close
+    } else {
+      const hist = await getStockHist(asset.sym, '1y');
+      if (Array.isArray(hist) && hist.length) {
+        // candle: { t: ms, p: price }. Find the close on or before dateKey.
+        let best = null;
+        for (const d of hist) {
+          const k = d.t ? dateKeyInTimeZone(d.t, APP_TIME_ZONE) : '';
+          if (k && k <= dateKey) best = d;
+          else if (k && k > dateKey) break;
+        }
+        if (best) return best.p ?? 0;
+      }
+    }
+  } catch(_) {}
+  return 0;
+}
 
 // Current live market price for an asset, in its native quote currency.
 function currentMarketPrice(asset, type) {
@@ -10576,16 +10760,19 @@ function currentMarketPrice(asset, type) {
   return sp?.price > 0 ? sp.price : 0;
 }
 
-// Confirm button (✓): flash feedback, persist, and re-render to refresh the avg.
+// Confirm button (✓): commit the edits, clear the dirty flag, and close the panel.
 function confirmLot(i, j) {
+  const key = i + '-' + edTab;
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
   if (row) {
     const ok = row.querySelector('.lot-ok');
-    if (ok) { ok.classList.add('lot-ok-done'); }
+    if (ok) ok.classList.add('lot-ok-done');
   }
-  markEdit();
-  saveLS();
-  setTimeout(() => renderEd(), 250);
+  saveLS();                                  // persist the committed values
+  if (S._lotsDirty) S._lotsDirty[key] = false;
+  if (S._lotsBackup) delete S._lotsBackup[key];
+  if (S._lotsOpen) S._lotsOpen[key] = false;  // close the panel
+  setTimeout(() => renderEd(), 200);
 }
 window.onLotQtyInput = onLotQtyInput;
 window.stageLot = stageLot;
@@ -10593,94 +10780,93 @@ window.confirmLot = confirmLot;
 
 // Auto-fill entry price in the "add new asset" form when a quantity is typed.
 // Updates on every keystroke. If the price isn't known locally yet, fetch it live (once).
-let _newPriceFetching = false;
 async function onNewQtyInput() {
-  const symInp = document.getElementById('nS');
-  const qtyInp = document.getElementById('nQ');
+  // Quantity changed — if no per-unit price yet, auto-fill it from the date/market.
   const priceInp = document.getElementById('nP');
-  if (!symInp || !qtyInp || !priceInp) return;
-  const sym = (symInp.value || '').trim().toUpperCase();
-  const qty = parseFloat(qtyInp.value) || 0;
-  if (priceInp.dataset.manual === '1') return;   // user typed their own price — don't override
-  if (!sym || !(qty > 0)) return;
+  if (priceInp && priceInp.dataset.manual !== '1' && !(parseFloat(priceInp.value) > 0)) {
+    fillNewUnitPrice();
+  }
+}
+// When the buy date changes, refresh the per-unit price to that day's close.
+async function onNewDateInput() {
+  const priceInp = document.getElementById('nP');
+  if (priceInp && priceInp.dataset.manual === '1') return;
+  fillNewUnitPrice();
+}
+window.onNewDateInput = onNewDateInput;
 
+let _newPriceFetching = false;
+// Fill the "buy price" field with the PER-UNIT price: the close on the selected date
+// if available, otherwise the live market price. Currency is the asset's market currency.
+async function fillNewUnitPrice() {
+  const symInp = document.getElementById('nS');
+  const priceInp = document.getElementById('nP');
+  const dateInp = document.getElementById('nD');
+  if (!symInp || !priceInp) return;
+  const sym = (symInp.value || '').trim().toUpperCase();
+  if (!sym) return;
+  if (priceInp.dataset.manual === '1') return;
   const iC = edTab === 'crypto';
-  // 1) try a price we already have in memory
-  let mkt = 0;
-  if (iC) {
-    const id = (CG_ID[sym] ? sym : null);
-    // crypto: look up by id/sym across known maps
-    const cid = Object.keys(S.cp).find(k => k.toUpperCase() === sym || CG_ID[sym]);
-    mkt = S.cp[sym?.toLowerCase()]?.usd || S.cp[CG_ID[sym]]?.usd || 0;
-    if (!mkt) { const hit = Object.values(S.cp).find(v => v?.sym?.toUpperCase?.() === sym); mkt = hit?.usd || 0; }
-  } else {
-    mkt = S.sp[sym]?.price || 0;
-    // Fallback: if this symbol is already in the portfolio, reuse its avg lot price
-    // so the calculation still works even when the live TASE quote is momentarily down.
-    if (!(mkt > 0)) {
-      const existing = S.stocks.find(x => x.sym === sym);
-      if (existing?.lots?.length) {
-        let tq = 0, tc = 0;
-        existing.lots.forEach(l => { if (l.qty > 0 && l.price > 0) { tq += l.qty; tc += l.qty * l.price; } });
-        if (tq > 0) mkt = tc / tq;
+  const dateKey = (dateInp?.value || '').slice(0,10);
+  const today = new Date().toISOString().slice(0,10);
+
+  // 1) Try the historical close on the chosen date (when it's a past date).
+  let price = 0;
+  const pseudoAsset = iC
+    ? { sym, id: CG_ID[sym] || sym.toLowerCase() }
+    : { sym };
+  if (dateKey && dateKey < today) {
+    try { price = await historicalPriceOn(pseudoAsset, dateKey) || 0; } catch(_) {}
+  }
+
+  // 2) Fall back to a price we already have in memory.
+  if (!(price > 0)) {
+    if (iC) {
+      price = S.cp[sym?.toLowerCase()]?.usd || S.cp[CG_ID[sym]]?.usd || 0;
+      if (!price) { const hit = Object.values(S.cp).find(v => v?.sym?.toUpperCase?.() === sym); price = hit?.usd || 0; }
+    } else {
+      price = S.sp[sym]?.price || 0;
+      if (!(price > 0)) {
+        const existing = S.stocks.find(x => x.sym === sym);
+        if (existing?.lots?.length) {
+          let tq=0,tc=0; existing.lots.forEach(l=>{ if(l.qty>0&&l.price>0){tq+=l.qty;tc+=l.qty*l.price;} });
+          if (tq>0) price = tc/tq;
+        }
       }
     }
   }
-  if (mkt > 0) { fillNewPrice(priceInp, mkt * qty); return; }   // TOTAL = unit × qty
+  if (price > 0) { fillNewPrice(priceInp, price); return; }
 
-  // 2) fetch live (debounced single-flight)
+  // 3) Fetch live (single-flight).
   if (_newPriceFetching) return;
   _newPriceFetching = true;
   try {
-    let price = 0;
+    let p = 0;
     if (iC) {
       const bs = BN[sym] || (sym + 'USDT');
-      try {
-        const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${bs}`, { signal: AbortSignal.timeout(7000) });
-        const d = await r.json();
-        price = parseFloat(d?.price) || 0;
-      } catch (_) {}
+      try { const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${bs}`, { signal: AbortSignal.timeout(7000) }); const d = await r.json(); p = parseFloat(d?.price)||0; } catch(_){}
     } else if (sym.includes('.')) {
-      // TASE / international — Yahoo first, then Stooq
-      const q = await fetchYahooQuote(sym).catch(() => null);
-      price = q?.price || 0;
-      if (!(price > 0) && /\.TA$/i.test(sym)) {
-        const su = await fetchStooqQuote(sym.replace(/\.TA$/i,'').toLowerCase()+'.il').catch(()=>null);
-        if (su?.price > 0) price = su.price / 100; // agorot → shekels
-      }
+      const q = await fetchYahooQuote(sym).catch(()=>null); p = q?.price || 0;
+      if (!(p>0) && /\.TA$/i.test(sym)) { const su = await fetchStooqQuote(sym.replace(/\.TA$/i,'').toLowerCase()+'.il').catch(()=>null); if (su?.price>0) p = su.price/100; }
     } else {
-      // US stock — Finnhub is the most reliable, then Yahoo, then Stooq
-      try {
-        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
-        if (r.ok) { const d = await r.json(); if (d?.c > 0) price = d.c; }
-      } catch (_) {}
-      if (!(price > 0)) { const q = await fetchYahooQuote(sym).catch(() => null); price = q?.price || 0; }
-      if (!(price > 0)) { const su = await fetchStooqQuote(sym).catch(() => null); price = su?.price || 0; }
+      try { const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) }); if (r.ok){ const d=await r.json(); if(d?.c>0)p=d.c; } } catch(_){}
+      if (!(p>0)) { const q=await fetchYahooQuote(sym).catch(()=>null); p=q?.price||0; }
+      if (!(p>0)) { const su=await fetchStooqQuote(sym).catch(()=>null); p=su?.price||0; }
     }
-    // only fill if the user hasn't since typed a manual price and qty still set
-    if (price > 0 && priceInp.dataset.manual !== '1' && (parseFloat(qtyInp.value) || 0) > 0) {
-      const q = parseFloat(qtyInp.value) || 0;
-      fillNewPrice(priceInp, price * q);   // show TOTAL = unit price × quantity
-    }
+    if (p > 0 && priceInp.dataset.manual !== '1') fillNewPrice(priceInp, p);
   } finally {
     _newPriceFetching = false;
-    // if the symbol/qty changed during the fetch and price still empty, try once more
-    const p = parseFloat(priceInp.value) || 0;
-    const q2 = parseFloat(qtyInp.value) || 0;
-    if (!(p > 0) && q2 > 0 && priceInp.dataset.manual !== '1' && (symInp.value||'').trim().toUpperCase() !== sym) {
-      onNewQtyInput();
-    }
   }
 }
 function fillNewPrice(priceInp, price) {
   priceInp.value = Math.round(price * 100) / 100;
   priceInp.classList.add('lot-autofilled');
 }
-// Reflect the correct currency symbol on the price label based on the entered symbol.
+// Reflect the asset's market currency symbol on the price label.
 function updateNewPriceCurrency() {
   const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
-  const lbl = document.getElementById('nP')?.closest('.ff')?.querySelector('label');
-  if (!lbl) return;
+  const curEl = document.getElementById('nPCur');
+  if (!curEl) return;
   const iC = edTab === 'crypto';
   let cur = '$';
   if (!iC) {
@@ -10694,7 +10880,10 @@ function updateNewPriceCurrency() {
       TWD:'NT$', THB:'฿', MXN:'$', SAR:'﷼ ' };
     cur = SYM[code] || (code + ' ');
   }
-  lbl.innerHTML = `סה״כ עלות ${cur} <span style="color:var(--t3);font-size:10px">(מחושב אוטומטית)</span>`;
+  curEl.textContent = cur;
+  // Re-fill the price for the (possibly new) symbol unless the user typed manually.
+  const priceInp = document.getElementById('nP');
+  if (priceInp && priceInp.dataset.manual !== '1') fillNewUnitPrice();
 }
 window.updateNewPriceCurrency = updateNewPriceCurrency;
 window.onNewQtyInput = onNewQtyInput;
@@ -10707,11 +10896,11 @@ function addA() {
   const icon  = autoIcon(sym, name, edTab, color);
   if (!sym) { alert('יש להזין סימבול'); return; }
   const qty = parseFloat(document.getElementById('nQ')?.value);
-  const totalCost = parseFloat(document.getElementById('nP')?.value);
+  const unitPrice = parseFloat(document.getElementById('nP')?.value);
   const buyDate = document.getElementById('nD')?.value || new Date().toISOString().slice(0,10);
   if (isNaN(qty) || qty <= 0) { alert(edTab==='crypto' ? 'הזן כמות חיובית' : 'הזן כמות מניות חיובית'); return; }
-  // nP holds the TOTAL cost; store per-unit price = total / qty
-  const entryPrice = (!isNaN(totalCost) && totalCost > 0) ? totalCost / qty : NaN;
+  // nP now holds the PER-UNIT buy price directly.
+  const entryPrice = (!isNaN(unitPrice) && unitPrice > 0) ? unitPrice : NaN;
   // Build initial lot if entry price provided
   const lots = (!isNaN(entryPrice) && entryPrice > 0)
     ? [{qty, price: entryPrice, date: buyDate}]
@@ -10753,7 +10942,11 @@ function addA() {
   }
 }
 
-function saveClose() { saveLS(); S.sparks = {}; S.sChg = {}; S.cChg = {}; closeEd(); doRefresh(); }
+function saveClose() {
+  // User explicitly saved — commit any open lot drafts (don't revert them).
+  S._lotsDirty = {}; S._lotsBackup = {};
+  saveLS(); S.sparks = {}; S.sChg = {}; S.cChg = {}; closeEd(); doRefresh();
+}
 
 // ═══════════════════════════════════════════
 // PERIOD PERFORMANCE SUMMARY — purchase-date aware + persistent cache
