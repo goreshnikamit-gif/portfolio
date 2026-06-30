@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-30-fast-charts-v11">
+<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-30-fast-charts-v11");
+console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -290,6 +290,7 @@ body.light .card-loading::after {
 .an-title { font-family: var(--font-body); font-size: 15px; font-weight: 600; color: var(--t1); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .an-meta { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 11px; color: var(--t3); flex-wrap: wrap; }
 .an-tag { font-family: var(--font-mono); font-weight: 700; font-size: 10px; color: var(--ac); background: color-mix(in srgb, var(--ac) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ac) 25%, transparent); padding: 1px 7px; border-radius: 100px; }
+.an-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .an-dot { opacity: .5; }
 .an-ad { position: sticky; top: 12px; }
 .an-ad-slot { width: 100%; min-height: 600px; border: 1px dashed var(--b2); border-radius: var(--radius); background: color-mix(in srgb, var(--s2) 50%, transparent); display: flex; align-items: center; justify-content: center; color: var(--t3); font-size: 11px; letter-spacing: .5px; }
@@ -382,10 +383,10 @@ body.light .ni { color: rgba(0, 0, 0, 0.55); }
 body.light .ni:hover { color: rgba(0, 0, 0, 0.85); }
 body.light .ni.active {
   color: #000;
-  background: linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(0,0,0,0.11) 0%, rgba(0,0,0,0.04) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 6px rgba(0,0,0,0.08);
 }
-body.light .ni.active { background: transparent; font-weight: 700; }
 .ni-ico { font-size: 22px; line-height: 1; display: block; }
 .ni-lbl { font-size: 10.5px; font-weight: 500; letter-spacing: 0.3px; opacity: 0.95; }
 
@@ -618,6 +619,9 @@ body.light .period-summary-cell.is-primary { background:#fff; border:1px solid c
 .period-summary-value { font-family:var(--font-mono); font-size:15px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .period-summary-pct { font-family:var(--font-mono); font-size:10px; margin-top:3px; }
 .period-summary-note { margin-top:9px; padding-top:8px; border-top:1px solid var(--b1); color:var(--t3); font-size:9px; line-height:1.5; }
+.period-summary-paid { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:9px; padding-top:9px; border-top:1px solid var(--b1); }
+.period-summary-paid-l { font-size:11px; color:var(--t3); font-weight:600; }
+.period-summary-paid-v { font-size:14px; color:var(--t1); font-weight:700; font-family:var(--font-mono); }
 @media (max-width:640px) {
   .period-presets { flex-wrap:wrap; gap:6px; }
   .period-presets .pb2 { flex:1 1 auto; min-width:0; text-align:center; padding:8px 10px; font-size:12px; }
@@ -1232,19 +1236,6 @@ body.light .mkpi-v.ac { color: var(--t1); }
 .rb:hover { color: var(--t1); background: var(--s3); }
 .rb.active { background: var(--s1); color: var(--t1); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6px rgba(11,30,63,0.12); }
-
-/* Fast interactive stock charts */
-.mchb { position: relative; }
-.stock-chart-status {
-  position: absolute; inset: 0; z-index: 3;
-  display: flex; align-items: center; justify-content: center;
-  padding: 20px; text-align: center; pointer-events: none;
-  color: var(--t3); font-size: 11px; font-family: var(--font-body);
-  background: color-mix(in srgb, var(--s1) 68%, transparent);
-  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
-}
-.stock-chart-status.hidden { display: none; }
-.stock-chart-status .spinner { margin-inline-end: 7px; }
 .mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 240px; position: relative; margin-bottom: 16px; overflow: hidden; }
 
 .man { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1299,6 +1290,11 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 
 .aform { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px; }
 .af-t { font-size: 10px; color: var(--t3); font-weight: 700; text-transform: uppercase; margin-bottom: 10px; }
+.af-t-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.af-t-row .af-t { margin-bottom: 0; }
+.af-reset { display: inline-flex; align-items: center; gap: 5px; background: transparent; border: 1px solid var(--b1); border-radius: 100px; padding: 4px 10px; color: var(--t3); font-family: var(--font-body); font-size: 10.5px; font-weight: 600; cursor: pointer; transition: border-color .12s, color .12s; }
+.af-reset:hover { border-color: var(--ac); color: var(--t1); }
+.af-reset i { font-size: 12px; }
 .fg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; min-width: 0; }
 @media(max-width:560px){ .fg { grid-template-columns: 1fr; } }
 .ff { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -1588,7 +1584,6 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="nit" id="navCommodities" data-p="commodities" onclick="goPage('commodities',this)" style="display:none">סחורות</button>
     <button class="nit" id="navBonds" data-p="bonds" onclick="goPage('bonds',this)" style="display:none">אג"ח</button>
     <button class="nit" id="navEtfs" data-p="etfs" onclick="goPage('etfs',this)" style="display:none">תעודות סל</button>
-    <button class="nit" data-p="news" onclick="goPage('news',this)">חדשות</button>
     <button class="nit" data-p="insights" onclick="goPage('insights',this)">תובנות</button>
   </nav>
 <div class="topbar">
@@ -1604,11 +1599,11 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <div class="tb-extras" id="tbExtras">
       <div class="live"><div class="dot"></div>LIVE</div>
       <div style="display:flex;align-items:center;gap:4px;background:var(--s1);border:1px solid var(--b2);border-radius:var(--radius-sm);padding:3px 8px;">
-        <span style="font-size:9px;color:var(--gd);font-weight:700;font-family:var(--font-mono);">ILS</span>
+        <span id="fxPillLabel" style="font-size:9px;color:var(--gd);font-weight:700;font-family:var(--font-mono);">ILS</span>
         <input id="fxInput" type="number" step="0.001" min="2" max="6"
           style="width:42px;background:transparent;border:none;outline:none;color:var(--t1);font-family:var(--font-mono);font-size:11px;font-weight:700;"
-          onchange="S.fx=parseFloat(this.value)||S.fx;updateFxKpi();renderDashCrypto();renderDashStocks();updateKPIs();"
-          title="שער דולר — ניתן לעריכה ידנית">
+          onchange="S.fx=parseFloat(this.value)||S.fx;updateFxKpi();updateTopbarFxPill();renderDashCrypto();renderDashStocks();updateKPIs();"
+          title="שער דולר מול המטבע הנבחר — ניתן לעריכה ידנית עבור שקל">
       </div>
       <button class="ibtn" id="fxConvBtn" onclick="toggleFxConv()" title="מחשבון מט&quot;ח"><i class="fi fi-tr-calculator" style="font-size:15px"></i></button>
       <div class="picker-host" id="currHost">
@@ -2105,6 +2100,31 @@ onAuthStateChanged(auth, async user => {
 });
 </script>
 
+<script>
+// Safety net: the Google sign-in button only becomes visible once Firebase's
+// onAuthStateChanged listener fires (inside the module script above). On some
+// networks (slow connections, ad-blockers, or restrictive firewalls — common
+// when the site is served from GitHub Pages) the Firebase SDK can fail to
+// load or that listener can be delayed indefinitely, leaving the button stuck
+// hidden with no way for the person to know why. If that hasn't resolved
+// within a few seconds, reveal the button anyway whenever the underlying
+// Firebase auth object did load (so the click will actually work); otherwise
+// leave it hidden rather than show a button that would just error out.
+(function () {
+  function revealGoogleButtonIfStuck() {
+    if (window.firebaseReady) return;   // normal path already handled it
+    var btn = document.getElementById('googleBtn');
+    if (btn && window.firebaseAuth) {
+      btn.style.display = 'flex';
+      console.warn('[Auth] Firebase took too long to report ready state — showing Google sign-in anyway.');
+    } else if (btn) {
+      console.warn('[Auth] Firebase SDK failed to load — Google sign-in unavailable. Email/password and local mode still work.');
+    }
+  }
+  setTimeout(revealGoogleButtonIfStuck, 4000);
+})();
+</script>
+
 <div id="lockScreen">
   <div class="lock-card">
     <div class="lock-logo" id="lockMark">V·</div>
@@ -2251,7 +2271,8 @@ onAuthStateChanged(auth, async user => {
     <div class="sec" id="secEtfs"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="dEtfsGrid"></div>
 
-    <div class="sec" style="margin-top:14px"><div class="sec-t"><i class="ph-thin ph-newspaper" style="margin-inline-end:8px"></i>כתבות על הנכסים שלי</div></div>
+    <div class="sec" style="margin-top:14px"><div class="sec-t"><i></i>כתבות על הנכסים שלי</div></div>
+    <div class="an-filter" id="anFilter"></div>
     <div id="assetNews" class="asset-news"></div>
   </div>
 
@@ -2314,19 +2335,6 @@ onAuthStateChanged(auth, async user => {
 
 </div>
 
-  <div class="page" id="page-news">
-    <div class="sec" style="margin-top:2px"><div class="sec-t"><i class="fi fi-tr-newspaper" style="margin-left:8px"></i>חדשות</div></div>
-    <div class="news-subtabs" id="newsSubtabs">
-      <button class="news-subtab active" id="newsTabWorld" onclick="setNewsTab('world')">חדשות מהעולם</button>
-      <button class="news-subtab" id="newsTabMine" onclick="setNewsTab('mine')">נכסים שלי</button>
-    </div>
-    <div class="news-filters" id="newsFilters"></div>
-    <div id="newsContent"><div class="news-list">
-      <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
-      <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
-    </div></div>
-  </div>
-
   <div class="page" id="page-commodities">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>סחורות</div><button class="add-b" onclick="openEditor('commodities')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="commoditiesPageGrid"></div>
@@ -2346,7 +2354,6 @@ onAuthStateChanged(auth, async user => {
   <button class="ni active" data-p="dash" onclick="goPage('dash',this)"><span class="ni-ico"><i class="ph-thin ph-house"></i></span><span class="ni-lbl">דשבורד</span></button>
   <button class="ni" data-p="stocks" onclick="goPage('stocks',this)"><span class="ni-ico"><i class="ph-thin ph-chart-line-up"></i></span><span class="ni-lbl">מניות</span></button>
   <button class="ni" data-p="crypto" onclick="goPage('crypto',this)"><span class="ni-ico"><i class="ph-thin ph-coins"></i></span><span class="ni-lbl">קריפטו</span></button>
-  <button class="ni" data-p="news" onclick="goPage('news',this)"><span class="ni-ico"><i class="fi fi-tr-newspaper" style="font-size:18px"></i></span><span class="ni-lbl">חדשות</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
 </nav>
 
@@ -2562,10 +2569,6 @@ function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
     stocks: S.stocks,
-    commodities: S.commodities || [],
-    bonds: S.bonds || [],
-    etfs: S.etfs || [],
-    view: S.view || null,
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -2639,8 +2642,7 @@ async function getFX() {
     } catch(_) {}
   }
   updateFxKpi();
-  const fxInput = document.getElementById('fxInput');
-  if (fxInput) fxInput.value = S.fx.toFixed(3);
+  updateTopbarFxPill();
 }
 
 async function getCrypto() {
@@ -2653,7 +2655,6 @@ async function getCrypto() {
     S.crypto.forEach(a => {
       const t = m[BN[a.sym]];
       if (t) S.cp[a.id] = {
-        ...(S.cp[a.id] || {}),
         usd: parseFloat(t.lastPrice),
         ch24: parseFloat(t.priceChangePercent),
         quoteTime: Number(t.closeTime) || Date.now(),
@@ -2666,7 +2667,6 @@ async function getCrypto() {
         const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${bs}`);
         const t = await r.json();
         S.cp[a.id] = {
-          ...(S.cp[a.id] || {}),
           usd: parseFloat(t.lastPrice),
           ch24: parseFloat(t.priceChangePercent),
           quoteTime: Number(t.closeTime) || Date.now(),
@@ -2679,11 +2679,7 @@ async function getCrypto() {
   // midnight, so we fetch the exact candle at local-midnight instead.
   const localDayKey = todayLocalDateKey();
   const localDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
-  const cryptoNeedingOpen = S.crypto.filter(a => {
-    const p = S.cp[a.id];
-    return BN[a.sym] && p && !(p.openToday > 0 && p.openTodayDateKey === localDayKey);
-  });
-  await Promise.all(cryptoNeedingOpen.map(async a => {
+  await Promise.all(S.crypto.map(async a => {
     const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
     try {
       const endTime = Math.min(Date.now(), localDayStartMs + 5 * 60 * 1000);
@@ -2700,35 +2696,30 @@ async function getCrypto() {
       }
     } catch(_) {}
   }));
-  // Extended fundamentals from CoinGecko. Cache for 10 minutes: these fields do not
-  // need to be re-downloaded on every live-price refresh.
-  const CG_FUND_TTL = 10 * 60 * 1000;
-  if (!S._cgFundTs || Date.now() - S._cgFundTs >= CG_FUND_TTL) {
-    try {
-      const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
-      if (ids) {
-        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
-        const arr = await r.json();
-        if (Array.isArray(arr)) {
-          arr.forEach(c => {
-            const ent = S.cp[c.id];
-            if (!ent) return;
-            ent.marketCap = c.market_cap;
-            ent.high52w = c.high_24h ?? null;
-            ent.low52w  = c.low_24h ?? null;
-            ent.ath = c.ath ?? null;
-            ent.athPct = c.ath_change_percentage ?? null;
-            ent.atl = c.atl ?? null;
-            ent.totalSupply = c.total_supply;
-            ent.circulatingSupply = c.circulating_supply;
-            ent.rank = c.market_cap_rank;
-            ent.volume24h = c.total_volume;
-          });
-          S._cgFundTs = Date.now();
-        }
+  // Extended fundamentals from CoinGecko — market cap, ATH (all-time-high = 52w-equivalent), ATL.
+  try {
+    const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
+    if (ids) {
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
+      const arr = await r.json();
+      if (Array.isArray(arr)) {
+        arr.forEach(c => {
+          const ent = S.cp[c.id];
+          if (!ent) return;
+          ent.marketCap = c.market_cap;
+          ent.high52w = c.high_24h ?? null;       // Binance gives 24h high, CG gives ath separately
+          ent.low52w  = c.low_24h ?? null;
+          ent.ath = c.ath ?? null;                // all-time-high (better than 52w for crypto)
+          ent.athPct = c.ath_change_percentage ?? null;
+          ent.atl = c.atl ?? null;
+          ent.totalSupply = c.total_supply;
+          ent.circulatingSupply = c.circulating_supply;
+          ent.rank = c.market_cap_rank;
+          ent.volume24h = c.total_volume;
+        });
       }
-    } catch(_) {}
-  }
+    }
+  } catch(_) {}
 }
 
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
@@ -2741,293 +2732,6 @@ const MY_PROXY = '';
 // Get a free key at https://twelvedata.com/ → Sign Up → copy your API key here.
 // This fetches Israeli (.TA) + global stocks DIRECTLY from the browser, no proxy needed.
 const TWELVE_DATA_KEY = '';
-
-// ── Fast chart data layer ───────────────────────────────────────────────────
-// The database stores the user's portfolio. It is deliberately NOT in the hot
-// path for charts. Chart speed comes from the market-data source, request
-// parallelism, cache, prefetch, and rendering.
-const STOCK_CHART_CACHE_VERSION = 3;
-const STOCK_CHART_CACHE_PREFIX = 'vector_stock_chart_v3:';
-const STOCK_CHART_MEM = new Map();
-const STOCK_CHART_PENDING = new Map();
-let _stockChartWarmupScheduled = false;
-
-function stockChartKey(sym, range) {
-  return `${String(sym || '').toUpperCase()}_${range}`;
-}
-function stockChartTTL(range) {
-  if (range === '1d') return 55 * 1000;
-  if (range === '5d') return 20 * 60 * 1000;
-  if (range === '1mo') return 3 * 60 * 60 * 1000;
-  if (range === '3mo') return 8 * 60 * 60 * 1000;
-  return 18 * 60 * 60 * 1000;
-}
-function stockChartMaxStale(range) {
-  return range === '1d' ? 3 * 24 * 60 * 60 * 1000 : 14 * 24 * 60 * 60 * 1000;
-}
-function validStockSeries(data) {
-  return Array.isArray(data) && data.length >= 2 && data.every(x => Number.isFinite(Number(x?.t)) && Number.isFinite(Number(x?.p)));
-}
-function normalizeStockSeries(data) {
-  if (!Array.isArray(data)) return null;
-  const out = data.map(x => ({
-    t: Number(x.t), p: Number(x.p),
-    o: Number.isFinite(Number(x.o)) ? Number(x.o) : Number(x.p),
-    label: typeof x.label === 'string' ? x.label : undefined,
-  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
-  out.sort((a, b) => a.t - b.t);
-  return out.length >= 2 ? out : null;
-}
-function readStockChartCache(sym, range, allowStale = true) {
-  const key = stockChartKey(sym, range);
-  let rec = STOCK_CHART_MEM.get(key) || null;
-  if (!rec && (range === '1d' || range === '1mo')) {
-    try {
-      const raw = localStorage.getItem(STOCK_CHART_CACHE_PREFIX + key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.v === STOCK_CHART_CACHE_VERSION && validStockSeries(parsed.data)) {
-          rec = { ts: Number(parsed.ts) || 0, data: normalizeStockSeries(parsed.data) };
-          STOCK_CHART_MEM.set(key, rec);
-        }
-      }
-    } catch (_) {}
-  }
-  if (!rec || !validStockSeries(rec.data)) return null;
-  const age = Date.now() - rec.ts;
-  if (!allowStale && age > stockChartTTL(range)) return null;
-  if (age > stockChartMaxStale(range)) return null;
-  return { data: rec.data, age, fresh: age <= stockChartTTL(range) };
-}
-function writeStockChartCache(sym, range, data) {
-  const normalized = normalizeStockSeries(data);
-  if (!normalized) return null;
-  const key = stockChartKey(sym, range);
-  const rec = { ts: Date.now(), data: normalized };
-  STOCK_CHART_MEM.set(key, rec);
-  S.sChg[key] = normalized;
-  if (range === '1d' || range === '1mo') {
-    try {
-      localStorage.setItem(STOCK_CHART_CACHE_PREFIX + key, JSON.stringify({ v: STOCK_CHART_CACHE_VERSION, ...rec }));
-    } catch (_) {}
-  }
-  return normalized;
-}
-function peekStockHist(sym, range) {
-  const key = stockChartKey(sym, range);
-  const inState = normalizeStockSeries(S.sChg[key]);
-  if (inState) return inState;
-  return readStockChartCache(sym, range, true)?.data || null;
-}
-function marketTimeZoneForSymbol(sym) {
-  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
-  return cur === 'ILS' ? 'Asia/Jerusalem' : cur === 'EUR' ? 'Europe/Paris'
-    : cur === 'GBP' ? 'Europe/London' : cur === 'JPY' ? 'Asia/Tokyo'
-    : cur === 'HKD' ? 'Asia/Hong_Kong' : cur === 'AUD' ? 'Australia/Sydney'
-    : cur === 'CAD' ? 'America/Toronto' : cur === 'CHF' ? 'Europe/Zurich'
-    : 'America/New_York';
-}
-function latestTradingSessionOnly(data, sym) {
-  const normalized = normalizeStockSeries(data);
-  if (!normalized) return null;
-  const tz = marketTimeZoneForSymbol(sym);
-  const fmt = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:tz });
-  const latestDay = fmt.format(new Date(normalized[normalized.length - 1].t));
-  const sameDay = normalized.filter(x => fmt.format(new Date(x.t)) === latestDay);
-  return sameDay.length >= 2 ? sameDay : normalized;
-}
-async function fetchJsonFast(url, timeoutMs = 4500) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (_) { return null; }
-  finally { clearTimeout(timer); }
-}
-async function fetchTextFast(url, timeoutMs = 4500) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-    if (!r.ok) return null;
-    return await r.text();
-  } catch (_) { return null; }
-  finally { clearTimeout(timer); }
-}
-function firstValidResult(tasks, validator = validStockSeries) {
-  return new Promise(resolve => {
-    if (!tasks.length) return resolve(null);
-    let left = tasks.length, done = false;
-    tasks.forEach(task => Promise.resolve(task).then(value => {
-      if (!done && validator(value)) { done = true; resolve(value); return; }
-      if (--left === 0 && !done) resolve(null);
-    }).catch(() => { if (--left === 0 && !done) resolve(null); }));
-  });
-}
-function delayedTask(ms, fn) {
-  return new Promise(resolve => setTimeout(() => Promise.resolve(fn()).then(resolve).catch(() => resolve(null)), ms));
-}
-function chartRangeLookbackDays(range) {
-  return ({ '1d':7, '5d':12, '1mo':45, '3mo':130, '6mo':220, '1y':400, '5y':1900, 'ytd':400 })[range] || 45;
-}
-
-async function fetchFinnhubSeries(sym, range) {
-  if (!FINNHUB_KEY || String(sym).includes('.')) return null;
-  const now = Math.floor(Date.now() / 1000);
-  const from = now - chartRangeLookbackDays(range) * 86400;
-  const resolution = range === '1d' ? '5' : 'D';
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
-  const d = await fetchJsonFast(url, 1800);
-  if (d?.s !== 'ok' || !Array.isArray(d.t) || !Array.isArray(d.c)) return null;
-  let data = d.t.map((t, i) => ({ t:Number(t) * 1000, p:Number(d.c[i]), o:Number(d.o?.[i] ?? d.c[i]) }))
-    .filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
-  if (range === '1d') data = latestTradingSessionOnly(data, sym) || [];
-  return validStockSeries(data) ? data : null;
-}
-
-async function fetchTwelveDataSeries(sym, range) {
-  if (!TWELVE_DATA_KEY) return null;
-  const cfg = range === '1d'
-    ? { interval:'5min', outputsize:160 }
-    : { interval:'1day', outputsize:({ '5d':10, '1mo':40, '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 40 };
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange&apikey=${TWELVE_DATA_KEY}`;
-  const d = await fetchJsonFast(url, 3500);
-  if (d?.status === 'error' || !Array.isArray(d?.values)) return null;
-  let values = d.values.slice();
-  if (range === '1d' && values.length) {
-    const day = String(values[values.length - 1].datetime || '').slice(0, 10);
-    values = values.filter(v => String(v.datetime || '').startsWith(day));
-  }
-  const data = values.map((v, i) => {
-    const dt = String(v.datetime || '');
-    const parsed = Date.parse(dt.replace(' ', 'T'));
-    return { t:Number.isFinite(parsed) ? parsed : Date.now() + i, p:Number(v.close), o:Number(v.open ?? v.close), label:dt.slice(11,16) || undefined };
-  }).filter(x => Number.isFinite(x.p));
-  return validStockSeries(data) ? data : null;
-}
-
-function parseYahooChartPayload(payload, sym, intraday) {
-  let json = payload;
-  if (typeof payload === 'string') {
-    try { json = JSON.parse(payload); } catch (_) { return null; }
-  }
-  if (typeof json?.contents === 'string') {
-    try { json = JSON.parse(json.contents); } catch (_) { return null; }
-  }
-  const result = json?.chart?.result?.[0];
-  const t = result?.timestamp;
-  const q = result?.indicators?.quote?.[0];
-  const c = q?.close;
-  if (!Array.isArray(t) || !Array.isArray(c)) return null;
-  const divisor = chartSubunitDivisor(sym, result?.meta?.currency);
-  let data = t.map((ts, i) => ({
-    t:Number(ts) * 1000,
-    p:Number(c[i]) / divisor,
-    o:Number(q?.open?.[i] ?? c[i]) / divisor,
-  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
-  if (intraday) data = latestTradingSessionOnly(data, sym) || [];
-  return validStockSeries(data) ? data : null;
-}
-
-async function fetchYahooSeries(sym, range) {
-  const intraday = range === '1d';
-  const interval = intraday ? '5m' : '1d';
-  const yahooRange = range;
-  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${yahooRange}&includePrePost=false&events=div%2Csplits`;
-  const candidates = [];
-  const worker = String(MY_PROXY || '').replace(/\/$/, '');
-  if (worker) {
-    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
-  }
-  // Public fallbacks are raced rather than attempted sequentially. This changes a
-  // possible 20–60 second wait into a bounded ~5 second first-load fallback.
-  candidates.push(delayedTask(worker ? 250 : 0, async () => {
-    const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
-  }));
-  candidates.push(delayedTask(worker ? 350 : 100, async () => {
-    const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
-  }));
-  candidates.push(delayedTask(worker ? 500 : 200, async () => {
-    const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
-    return parseYahooChartPayload(json, sym, intraday);
-  }));
-  return firstValidResult(candidates);
-}
-
-function trimStockSeriesToRange(data, range, sym) {
-  const normalized = normalizeStockSeries(data);
-  if (!normalized) return null;
-  if (range === '1d') return latestTradingSessionOnly(normalized, sym);
-  const now = Date.now();
-  let cutoff = null;
-  if (range === 'ytd') cutoff = new Date(new Date().getFullYear(), 0, 1).getTime();
-  else {
-    const days = ({ '5d':8, '1mo':32, '3mo':95, '6mo':190, '1y':370, '5y':1850 })[range];
-    if (days) cutoff = now - days * 86400000;
-  }
-  if (!cutoff) return normalized;
-  const filtered = normalized.filter(x => x.t >= cutoff);
-  return filtered.length >= 2 ? filtered : normalized;
-}
-
-async function fetchBestStockSeries(sym, range) {
-  // Start the direct provider immediately and launch Yahoo shortly afterwards.
-  // This avoids both the old sequential 10-second waits and an unnecessary proxy
-  // storm when Finnhub answers quickly.
-  const isUS = !String(sym).includes('.');
-  const tasks = [];
-  if (isUS && FINNHUB_KEY) tasks.push(fetchFinnhubSeries(sym, range));
-  if (TWELVE_DATA_KEY) tasks.push(fetchTwelveDataSeries(sym, range));
-  const yahooDelay = MY_PROXY ? 0 : (isUS ? 650 : 0);
-  tasks.push(delayedTask(yahooDelay, () => fetchYahooSeries(sym, range)));
-  const data = await firstValidResult(tasks);
-  return trimStockSeriesToRange(data, range, sym);
-}
-
-async function getStockHist(sym, range, { force = false } = {}) {
-  const key = stockChartKey(sym, range);
-  const cached = readStockChartCache(sym, range, true);
-  if (!force && cached?.fresh) {
-    S.sChg[key] = cached.data;
-    return cached.data;
-  }
-  if (!force && STOCK_CHART_PENDING.has(key)) return STOCK_CHART_PENDING.get(key);
-  const promise = (async () => {
-    const fresh = await fetchBestStockSeries(sym, range);
-    if (fresh) return writeStockChartCache(sym, range, fresh);
-    return cached?.data || normalizeStockSeries(S.sChg[key]) || null;
-  })();
-  STOCK_CHART_PENDING.set(key, promise);
-  try { return await promise; }
-  finally { if (STOCK_CHART_PENDING.get(key) === promise) STOCK_CHART_PENDING.delete(key); }
-}
-
-function prefetchStockChart(sym) {
-  if (!sym) return;
-  getStockHist(sym, '1d').catch(() => {});
-  getStockHist(sym, '1mo').catch(() => {});
-}
-function scheduleStockChartWarmup() {
-  if (_stockChartWarmupScheduled || !Array.isArray(S.stocks) || !S.stocks.length) return;
-  _stockChartWarmupScheduled = true;
-  const queue = S.stocks.map(s => s.sym).filter(sym => !readStockChartCache(sym, '1d', false));
-  let index = 0, active = 0;
-  const pump = () => {
-    while (active < 2 && index < queue.length) {
-      active++;
-      getStockHist(queue[index++], '1d').catch(() => {}).finally(() => { active--; pump(); });
-    }
-    if (index >= queue.length && active === 0) _stockChartWarmupScheduled = false;
-  };
-  const start = () => pump();
-  if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout:1200 });
-  else setTimeout(start, 700);
-}
-
 
 // Fetch a quote from Google Finance (best for TASE .TA stocks)
 // Returns { price, prevClose, change, currency } or null
@@ -3455,11 +3159,14 @@ async function getStocks() {
         q = valid[0];
       }
     } else {
-      q = await fetchFinnhubQuote(s.sym);
-      if (!q) {
-        q = await fetchYahooQuote(s.sym);
-        if (q) q._source = 'yahoo';
-      }
+      const [fhResult, yhResult] = await Promise.allSettled([
+        fetchFinnhubQuote(s.sym),
+        fetchYahooQuote(s.sym),
+      ]);
+      const fh = fhResult.status === 'fulfilled' ? fhResult.value : null;
+      const yh = yhResult.status === 'fulfilled' ? yhResult.value : null;
+      if (yh) yh._source = 'yahoo';
+      q = fresherQuote(fh, yh);
     }
 
     if (q && q.price > 0) {
@@ -3512,15 +3219,107 @@ async function getStocks() {
 }
 
 async function fetchYahooIntraday(sym) {
-  return getStockHist(sym, '1d');
+  // 5-min candles for the most recent trading day — gives ~78 real data points
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=5m&range=1d`;
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  ];
+  for (const proxy of proxies) {
+    try {
+      const r = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) continue;
+      let json = await r.json();
+      if (json.contents) json = JSON.parse(json.contents);
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const t = result.timestamp;
+      const c = result.indicators?.quote?.[0]?.close;
+      if (!t?.length || !c?.length) continue;
+      const data = t.map((ts, i) => ({ t: ts * 1000, p: c[i] })).filter(x => x.p != null);
+      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
+      const meta = result?.meta;
+      const divisor = chartSubunitDivisor(sym, meta?.currency);
+      if (divisor !== 1) data.forEach(d => { d.p = d.p / divisor; });
+      if (data.length >= 2) return data;
+    } catch (_) {}
+  }
+  return null;
 }
 
 async function fetchYahooCandles(sym, range) {
-  return fetchBestStockSeries(sym, range);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
+  const url2 = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
+  const proxies = [
+    ...(MY_PROXY ? [`${MY_PROXY}/?url=${encodeURIComponent(url)}`] : []),
+    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url2)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
+  ];
+  for (const proxy of proxies) {
+    try {
+      const r = await fetch(proxy, {signal: AbortSignal.timeout(10000)});
+      if (!r.ok) continue;
+      const text = await r.text();
+      let body = text;
+      try { const j = JSON.parse(text); if (j && typeof j.contents === 'string') body = j.contents; } catch (_) {}
+      let json;
+      try { json = JSON.parse(body); } catch (_) { continue; }
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const t  = result.timestamp;
+      const o  = result.indicators?.quote?.[0]?.open;
+      const c  = result.indicators?.quote?.[0]?.close;
+      if (!t?.length || !c?.length) continue;
+      const data = t.map((ts, i) => ({
+        t: ts * 1000,
+        p: c[i],
+        o: o?.[i] ?? c[i]
+      })).filter(x => x.p != null);
+      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
+      const cdiv = chartSubunitDivisor(sym, result?.meta?.currency);
+      if (cdiv !== 1) data.forEach(d => { d.p /= cdiv; d.o /= cdiv; });
+      if (data.length >= 2) return data;
+    } catch(_) {}
+  }
+  // Last-resort fallback: Stooq (no CORS issues, free, daily candles for US stocks)
+  try {
+    const today = new Date();
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    const rangeDays = { '5d': 5, '1mo': 31, '3mo': 93, '6mo': 186, '1y': 366, '5y': 1830, 'ytd': Math.ceil((today - yearStart) / 86400000) + 1 };
+    const days = rangeDays[range] || 31;
+    const d1 = new Date(today.getTime() - days * 86400000);
+    const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const stooqUrl = `https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&d1=${fmt(d1)}&d2=${fmt(today)}&i=d`;
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(stooqUrl)}`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return null;
+    const csv = await r.text();
+    const lines = csv.trim().split('\n').slice(1);     // drop header
+    const data = lines.map(line => {
+      const cols = line.split(',');
+      const ts = new Date(cols[0]).getTime();
+      const close = parseFloat(cols[4]);
+      const open = parseFloat(cols[1]);
+      return { t: ts, p: close, o: isNaN(open) ? close : open };
+    }).filter(x => !isNaN(x.t) && !isNaN(x.p));
+    if (data.length >= 2) return data;
+  } catch (_) {}
+  return null;
 }
 
 async function fetchFinnhubCandles(sym, range) {
-  return fetchBestStockSeries(sym, range);
+  return fetchYahooCandles(sym, range);
+}
+
+async function getStockHist(sym, range) {
+  const key = sym + '_' + range;
+  if (S.sChg[key]) return S.sChg[key];
+  const data = await fetchFinnhubCandles(sym, range);
+  if (data && data.length >= 2) S.sChg[key] = data;
+  return data;
 }
 
 async function getCryptoHist(sym, days) {
@@ -3666,6 +3465,30 @@ const cryptoTotalPnl = a => {
 
 const cv = (a) => { const p = S.cp[a.id]; return p ? p.usd * S.fx * cQty(a) : 0; };
 const cc = (a) => S.cp[a.id]?.ch24 ?? null;
+// Total amount actually paid (cost basis) for everything currently held, in ILS.
+// Stocks are converted from their own native listing currency; crypto from USD.
+// Only counts categories that are currently shown (consistent with tots()).
+function totalCostBasisILS() {
+  let total = 0;
+  if (catInTotal('crypto')) {
+    S.crypto.forEach(a => {
+      const entry = avgEntry(a);     // USD per unit
+      const qty = cQty(a);
+      if (entry != null && qty) total += entry * qty * S.fx;
+    });
+  }
+  if (catInTotal('stocks')) {
+    S.stocks.forEach(s => {
+      const entry = avgEntry(s);     // native currency per unit
+      const sh = getShares(s);
+      if (entry != null && sh) {
+        const nativeCur = (S.sp?.[s.sym]?.currency || 'USD').toUpperCase();
+        total += nativeToILS(entry * sh, nativeCur);
+      }
+    });
+  }
+  return total;
+}
 // Hebrew calendar-day label like "15 ביוני" — used to title daily P&L widgets
 const HE_MONTHS = ['בינואר','בפברואר','במרץ','באפריל','במאי','ביוני','ביולי','באוגוסט','בספטמבר','באוקטובר','בנובמבר','בדצמבר'];
 
@@ -3954,22 +3777,48 @@ function convertFromILS(n, cur) {
 }
 // Update the "שער דולר" KPI to reflect the active currency:
 // shows how much 1 USD costs in the chosen display currency.
+// Returns the live "USD priced in X" rate, where X is the active display
+// currency. If the active currency IS USD, falls back to EUR (USD/USD is
+// always 1 and tells the user nothing) so the indicator stays meaningful.
+function dollarRateInfo() {
+  let cur = (S.currency || 'ils').toUpperCase();
+  if (cur === 'USD') cur = 'EUR';
+  const def = CURRENCIES[cur] || CURRENCIES.ILS;
+  let rate;     // how much 1 USD costs in `cur`
+  if (cur === 'ILS') rate = S.fx;
+  else {
+    const r = (typeof fxConvRates !== 'undefined') ? fxConvRates[cur] : null;
+    rate = (r && r > 0) ? (1 / r) : null;
+  }
+  return { code: cur, sym: def.sym, rate };
+}
 function updateFxKpi() {
   const el = document.getElementById('fxKpi');
   const sub = document.getElementById('fxKpiSub');
   if (!el) return;
-  const cur = (S.currency || 'ils').toUpperCase();
-  const def = CURRENCIES[cur] || CURRENCIES.ILS;
-  let rate;     // how much 1 USD costs in the chosen currency
-  if (cur === 'USD') rate = 1;
-  else if (cur === 'ILS') rate = S.fx;
-  else {
-    // fxConvRates[X] = USD value of 1 unit of X → rate(X per USD) = 1/fxConvRates[X]
-    const r = (typeof fxConvRates !== 'undefined') ? fxConvRates[cur] : null;
-    rate = (r && r > 0) ? (1 / r) : null;
+  const { code, sym, rate } = dollarRateInfo();
+  el.textContent = rate != null ? sym + rate.toFixed(rate < 10 ? 3 : 2) : '---';
+  if (sub) sub.textContent = `USD/${code} רציף`;
+}
+// Topbar pill: shows the live USD rate against the active display currency
+// (EUR instead when the active currency IS USD). Stays editable only for ILS,
+// since S.fx is the app's core USD→ILS bridge rate; other currencies are
+// shown read-only (editing them isn't wired into the conversion model).
+function updateTopbarFxPill() {
+  const label = document.getElementById('fxPillLabel');
+  const input = document.getElementById('fxInput');
+  if (!label || !input) return;
+  const { code, rate } = dollarRateInfo();
+  label.textContent = code;
+  if (code === 'ILS') {
+    input.value = S.fx.toFixed(3);
+    input.readOnly = false;
+    input.style.opacity = '';
+  } else {
+    input.value = rate != null ? rate.toFixed(rate < 10 ? 3 : 2) : '---';
+    input.readOnly = true;
+    input.style.opacity = '0.75';
   }
-  el.textContent = rate != null ? def.sym + rate.toFixed(rate < 10 ? 3 : 2) : '---';
-  if (sub) sub.textContent = `USD/${cur} רציף`;
 }
 
 // Format a price in the asset's native exchange currency (USD for NASDAQ, ILS for TASE, etc.)
@@ -4104,6 +3953,7 @@ function setCurrency(cur, fromLang = false) {
   // Make sure rates are fresh, then re-render
   (typeof fxConvLoadRates === 'function' ? fxConvLoadRates() : Promise.resolve()).then(() => {
     updateFxKpi();
+    updateTopbarFxPill();
     renderDashCrypto(); renderDashStocks(); updateKPIs();
     // Re-render the dashboard period summary so its P&L values follow the new currency.
     if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
@@ -4473,6 +4323,16 @@ const I18N = {
   // ── Unsaved-changes prompt ──
   'יש שינויים שלא נשמרו — לשמור אותם?':'You have unsaved changes — save them?',
 
+  // ── Asset-news filter strings ──
+  'אין כתבות זמינות עבור הסינון הנוכחי.':'No articles available for this filter.',
+
+  // ── Add-asset form reset strings ──
+  'איפוס':'Reset',
+  'איפוס שדות':'Reset fields',
+
+  // ── Total paid summary line ──
+  'סה״כ שולם על הנכסים המוחזקים':'Total paid for held assets',
+
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
 const HEB_RE = /[\u0590-\u05FF]/;
@@ -4485,10 +4345,10 @@ function detectBrowserLang() {
     : [navigator.language || navigator.userLanguage || 'en'];
   for (const pref of prefs) {
     const base = String(pref).toLowerCase().split('-')[0];   // 'it-IT' → 'it'
-    if (['he','en','ru','es','fr','ar','de','zh','nl'].includes(base)) return base;
+    if (LANGS[base]) return base;
     // Map a few common variants whose base code differs from our keys
     if (base === 'iw') return 'he';   // legacy Hebrew code
-    if (base === 'in') return 'en';   // legacy Indonesian code; Indonesian UI is not bundled
+    if (base === 'in') return 'nl';   // (no-op safety; rare)
   }
   return 'en';   // default for unsupported browser languages
 }
@@ -5108,6 +4968,13 @@ const LANG_DICTS = {
     'שמור וסגור':'Сохранить и закрыть',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'Есть несохранённые изменения — сохранить?',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'Нет статей по этому фильтру.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'Сброс',
+    'איפוס שדות':'Сбросить поля',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'Всего уплачено за удерживаемые активы',
   },
   es: {
     'שוק אמריקאי':'Mercado de EE. UU.',
@@ -5570,6 +5437,13 @@ const LANG_DICTS = {
     'שמור וסגור':'Guardar y cerrar',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'Tienes cambios sin guardar, ¿guardarlos?',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'No hay artículos disponibles para este filtro.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'Restablecer',
+    'איפוס שדות':'Restablecer campos',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'Total pagado por los activos en cartera',
   },
   fr: {
     'שוק אמריקאי':'Marché américain',
@@ -6032,6 +5906,13 @@ const LANG_DICTS = {
     'שמור וסגור':'Enregistrer et fermer',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'Des modifications non enregistrées — les enregistrer ?',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'Aucun article disponible pour ce filtre.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'Réinitialiser',
+    'איפוס שדות':'Réinitialiser les champs',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'Total payé pour les actifs détenus',
   },
   ar: {
     'שוק אמריקאי':'السوق الأمريكي',
@@ -6494,6 +6375,13 @@ const LANG_DICTS = {
     'שמור וסגור':'حفظ وإغلاق',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'لديك تغييرات غير محفوظة — هل تحفظها؟',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'لا توجد مقالات متاحة لهذا الفلتر.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'إعادة تعيين',
+    'איפוס שדות':'إعادة تعيين الحقول',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'إجمالي المبلغ المدفوع مقابل الأصول المملوكة',
   },
   de: {
     'שוק אמריקאי':'US-Markt',
@@ -6956,6 +6844,13 @@ const LANG_DICTS = {
     'שמור וסגור':'Speichern & schließen',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'Ungespeicherte Änderungen — speichern?',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'Keine Artikel für diesen Filter verfügbar.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'Zurücksetzen',
+    'איפוס שדות':'Felder zurücksetzen',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'Gesamt gezahlt für gehaltene Vermögenswerte',
   },
   zh: {
     'שוק אמריקאי':'美国市场',
@@ -7418,6 +7313,13 @@ const LANG_DICTS = {
     'שמור וסגור':'保存并关闭',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'有未保存的更改——要保存吗？',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'没有符合此筛选条件的文章。',
+      // ── Add-asset form reset strings ──
+    'איפוס':'重置',
+    'איפוס שדות':'重置字段',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'持有资产的总支付金额',
   },
   nl: {
     'שוק אמריקאי':'Amerikaanse markt',
@@ -7880,6 +7782,13 @@ const LANG_DICTS = {
     'שמור וסגור':'Opslaan & sluiten',
       // ── Unsaved-changes prompt ──
     'יש שינויים שלא נשמרו — לשמור אותם?':'Niet-opgeslagen wijzigingen — opslaan?',
+      // ── Asset-news filter strings ──
+    'אין כתבות זמינות עבור הסינון הנוכחי.':'Geen artikelen beschikbaar voor dit filter.',
+      // ── Add-asset form reset strings ──
+    'איפוס':'Reset',
+    'איפוס שדות':'Velden resetten',
+      // ── Total paid summary line ──
+    'סה״כ שולם על הנכסים המוחזקים':'Totaal betaald voor activa in bezit',
   },
 };
 
@@ -8303,7 +8212,7 @@ function tkStart() {
   clearInterval(tkTimer);
   tkTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && S.curPage === 'dash') tkFetch();
-  }, 300000);
+  }, 30000);
 }
 
 // ═══════════════════════════════════════════
@@ -8323,7 +8232,6 @@ function goPage(id, btn) {
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); }
-  if (id === 'news') { renderNews(); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
 }
 
@@ -8340,28 +8248,44 @@ async function drawSpark(cid, key, isCrypto, isUp) {
     await new Promise(r => requestAnimationFrame(r));
     if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 50));
   }
-  let prices = isCrypto ? S.sparks[key] : null;
+  let prices = S.sparks[key];
   if (!prices) {
     if (isCrypto) {
       // 30-day crypto history → ~30 points for a naturally curvy line
       const h = await getCryptoHist(key, 30);
       prices = h.map(([, p]) => p);
     } else {
-      // Paint cached data immediately, then refresh in the background. If a monthly
-      // series is unavailable, an actual intraday series is still a truthful fallback.
-      const cached = peekStockHist(key, '1mo') || peekStockHist(key, '1d');
-      if (cached?.length >= 2) prices = cached.map(d => d.p).filter(Number.isFinite);
-      const fresh = await getStockHist(key, '1mo');
-      if (fresh?.length >= 2) prices = fresh.map(d => d.p).filter(Number.isFinite);
+      // 1-month stock history (Yahoo daily candles) → ~22 trading-day points
+      try {
+        const data = await getStockHist(key, '1mo');
+        if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
+      } catch (_) {}
+      // fallback if Yahoo blocks: still better than 3 points — interpolate intraday-style noise
       if (!prices?.length) {
-        const day = await getStockHist(key, '1d');
-        if (day?.length >= 2) prices = day.map(d => d.p).filter(Number.isFinite);
-      }
-      if (!prices?.length) {
-        containers.forEach(c => {
-          c.innerHTML = '<div style="height:56px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:9px">אין נתוני גרף</div>';
+        const p = S.sp[key];
+        // Use known prices if we have them, otherwise a generic sine wave so the area isn't empty
+        const open  = p?.prevClose ?? 100;
+        const close = p?.price ?? (open * (isUp ? 1.05 : 0.95));
+        // Hash the symbol to a stable per-symbol seed so each ticker gets a unique fake curve
+        let seed = 0;
+        for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
+        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;             // 0.7–1.7
+        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;        // 1.2–2.5
+        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;        // 0.3–1.1
+        const phase = (Math.abs(seed >> 3) % 628) / 100;           // 0–2π
+        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;       // 0.22–0.4
+        const n = 30;
+        prices = Array.from({ length: n }, (_, i) => {
+          const t = i / (n - 1);
+          const trend = open + (close - open) * t;
+          const wave = (
+            Math.sin(i * f1 + phase) +
+            Math.sin(i * f2 + phase * 1.7) * 0.6 +
+            Math.sin(i * f3 + phase * 0.4) * 0.4
+          );
+          const noise = wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
+          return trend + noise;
         });
-        return;
       }
     }
     if (prices?.length) S.sparks[key] = prices;
@@ -8417,7 +8341,7 @@ function cardHTML(o) {
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
-  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')" onpointerenter="${type==='stock'?`prefetchStockChart('${sym}')`:''}" onpointerdown="${type==='stock'?`prefetchStockChart('${sym}')`:''}">
+  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')">
     <div class="cg" style="background:${color}"></div>
     <div class="ct" style="direction:ltr;">
       <div class="cid"><div class="ico">${icon}</div>
@@ -8469,7 +8393,7 @@ function renderDashCrypto() {
     const html = cardHTML({sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), animate ? 40 : 0));
+  if (animate) sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 40));
 }
 
 function renderDashStocks() {
@@ -8485,14 +8409,7 @@ function renderDashStocks() {
     const html = cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ / Equity',priceStr:pu?`<span>${fPriceNative(pu, S.sp[s.sym]?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s),pnlTotal:stockTotalPnl(s)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  // Always draw after every data refresh. Previously this ran only when the
-  // portfolio signature changed; the first render happened before prices arrived,
-  // so the second render skipped every dashboard sparkline.
-  S.stocks.forEach(s => {
-    const p = S.sp[s.sym];
-    setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, (p?.change ?? 0) >= 0), animate ? 40 : 0);
-  });
-  scheduleStockChartWarmup();
+  if (animate) S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 40); });
 }
 
 // Render the placeholder categories (commodities / bonds / etfs). They have no data
@@ -8980,57 +8897,8 @@ async function renderCryptoPage() {
 // ═══════════════════════════════════════════
 // NEWS — resilient RSS headlines + portfolio-specific news
 // ═══════════════════════════════════════════
-let newsTab = 'world';
-let newsCategory = 'all';                 // selected world category
-let newsAssetFilter = null;               // selected symbol in 'mine' view
-let newsPage = 1;                         // 1-indexed
-const NEWS_PAGE_SIZE = 12;
 const newsCache = { world: null, mine: null, worldByCat: {}, _displayed: [] };
 let newsLastFetch = { world: 0, mine: 0 };
-
-// Yahoo Finance-style categories — each maps to Google News RSS queries
-const NEWS_CATEGORIES = [
-  { key: 'all',      label: 'הכל',        icon: 'newspaper',     queries: null },     // null = use existing NEWS_WORLD_FEEDS
-  { key: 'markets',  label: 'שווקים',     icon: 'chart-line-up', queries: ['stock market today when:5d', 'S&P 500 when:5d', 'Dow Jones Nasdaq when:5d'] },
-  { key: 'crypto',   label: 'קריפטו',     icon: 'coins',         queries: ['cryptocurrency news when:5d', 'Bitcoin price when:5d', 'Ethereum crypto when:5d'] },
-  { key: 'earnings', label: 'דוחות',      icon: 'calendar-days', queries: ['earnings report when:5d', 'quarterly earnings when:5d', 'company earnings beat when:5d'] },
-  { key: 'tech',     label: 'טכנולוגיה',  icon: 'microchip',     queries: ['tech stocks when:5d', 'Apple Microsoft Google stock when:5d', 'semiconductor when:5d'] },
-  { key: 'economy',  label: 'כלכלה',      icon: 'bank',          queries: ['Federal Reserve when:5d', 'inflation rate when:5d', 'economy GDP when:5d'] },
-  { key: 'ai',       label: 'AI',         icon: 'brain-circuit', queries: ['artificial intelligence stocks when:5d', 'AI Nvidia when:5d', 'OpenAI when:5d'] },
-];
-
-window.setNewsCategory = (key) => {
-  newsCategory = key;
-  newsPage = 1;
-  renderNewsFilters();
-  renderNews();
-};
-window.setNewsAssetFilter = (sym) => {
-  newsAssetFilter = sym;
-  newsPage = 1;
-  renderNewsFilters();
-  renderNews();
-};
-
-function renderNewsFilters() {
-  const el = document.getElementById('newsFilters');
-  if (!el) return;
-  if (newsTab === 'world') {
-    el.innerHTML = NEWS_CATEGORIES.map(c =>
-      `<button class="news-chip ${c.key === newsCategory ? 'active' : ''}" onclick="setNewsCategory('${c.key}')">
-        <i class="fi fi-tr-${c.icon}"></i>${c.label}
-      </button>`).join('');
-  } else {
-    const assets = [
-      ...(S.stocks || []).map(s => ({ sym: s.sym })),
-      ...(S.crypto || []).map(c => ({ sym: c.sym })),
-    ];
-    if (!assets.length) { el.innerHTML = ''; return; }
-    el.innerHTML =
-      `<button class="news-chip ${!newsAssetFilter ? 'active' : ''}" onclick="setNewsAssetFilter(null)">הכל</button>` +
-      assets.map(a => `<button class="news-chip ${newsAssetFilter === a.sym ? 'active' : ''}" onclick="setNewsAssetFilter('${a.sym}')">${a.sym}</button>`).join('');
-  }
-}
 const NEWS_TTL = 15 * 60 * 1000;       // avoid hammering free RSS gateways
 const NEWS_STALE_TTL = 6 * 60 * 60 * 1000;
 const NEWS_MAX_MINE_ASSETS = 12;
@@ -9044,21 +8912,6 @@ const NEWS_FETCHERS = [
   url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
   url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
 ];
-
-const NEWS_WORLD_FEEDS = [
-  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets) when:5d') + '&hl=en-US&gl=US&ceid=US:en' },
-  { src: 'Google News · Business', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(business OR economy OR interest rates) when:5d') + '&hl=en-US&gl=US&ceid=US:en' },
-  { src: 'CNBC Markets', url: 'https://www.cnbc.com/id/20409666/device/rss/rss.html' },
-  { src: 'MarketWatch', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories' },
-];
-
-window.setNewsTab = (t) => {
-  newsTab = t;
-  newsPage = 1;
-  document.getElementById('newsTabWorld')?.classList.toggle('active', t === 'world');
-  document.getElementById('newsTabMine')?.classList.toggle('active', t === 'mine');
-  renderNews();
-};
 
 function newsEscape(value = '') {
   return String(value).replace(/[&<>"']/g, ch => ({
@@ -9227,37 +9080,6 @@ function newsStore(type, items) {
 }
 newsLoadStored();
 
-async function newsLoadWorld(catKey) {
-  const cat = catKey || newsCategory || 'all';
-  // "All" uses the original curated feed mix; specific categories build feeds dynamically
-  let feeds;
-  if (cat === 'all') {
-    feeds = NEWS_WORLD_FEEDS;
-  } else {
-    const def = NEWS_CATEGORIES.find(c => c.key === cat) || NEWS_CATEGORIES[0];
-    feeds = (def.queries || []).map(q => ({
-      src: 'Google News · ' + def.label,
-      url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-US&gl=US&ceid=US:en'
-    }));
-  }
-  const cached = newsCache.worldByCat[cat];
-  if (cached && Date.now() - cached.fetchedAt < NEWS_TTL) return cached.items;
-
-  const results = await newsMapLimit(feeds, 3, feed => newsFetchRss(feed.url, feed.src));
-  const fresh = newsDedupe(results.flat())
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
-
-  if (fresh.length) {
-    newsCache.worldByCat[cat] = { items: fresh, fetchedAt: Date.now() };
-    if (cat === 'all') { newsCache.world = fresh; newsLastFetch.world = Date.now(); newsStore('world', fresh); }
-    return fresh;
-  }
-  if (cached && Date.now() - cached.fetchedAt < NEWS_STALE_TTL) return cached.items;
-  if (cat === 'all' && newsCache.world && Date.now() - newsLastFetch.world < NEWS_STALE_TTL) return newsCache.world;
-  return [];
-}
-
 async function newsLoadMine() {
   if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) return newsCache.mine;
 
@@ -9270,24 +9092,79 @@ async function newsLoadMine() {
     return [];
   }
 
-  const feeds = assets.map(asset => {
-    const q = asset.kind === 'crypto'
-      ? `"${asset.name}" cryptocurrency when:5d`
-      : `("${asset.sym}" stock OR "${asset.name}") when:5d`;
-    return {
-      ...asset,
-      url: `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`
-    };
+  // One combined query PER KIND (crypto / stock) instead of one request per
+  // asset. Firing up to 12 separate RSS requests through the free public CORS
+  // proxies easily triggers rate limits, silently failing most of them and
+  // leaving only whichever single feed happened to succeed — which is exactly
+  // why only one symbol (e.g. AVAX) could end up showing. Two requests are far
+  // more reliable.
+  const cryptoAssets = assets.filter(a => a.kind === 'crypto');
+  const stockAssets  = assets.filter(a => a.kind === 'stock');
+  const queries = [];
+  if (cryptoAssets.length) {
+    const terms = cryptoAssets.map(a => `"${a.name}"`).join(' OR ');
+    queries.push({ kind: 'crypto', assets: cryptoAssets,
+      url: `https://news.google.com/rss/search?q=${encodeURIComponent(`(${terms}) cryptocurrency when:5d`)}&hl=en-US&gl=US&ceid=US:en` });
+  }
+  if (stockAssets.length) {
+    const terms = stockAssets.map(a => `"${a.sym}"`).join(' OR ');
+    queries.push({ kind: 'stock', assets: stockAssets,
+      url: `https://news.google.com/rss/search?q=${encodeURIComponent(`(${terms}) stock when:5d`)}&hl=en-US&gl=US&ceid=US:en` });
+  }
+
+  const results = await newsMapLimit(queries, 2, async q => {
+    const items = await newsFetchRss(q.url, 'Google News');
+    return items.map(item => {
+      // Tag with whichever held asset's symbol/name appears in the headline or
+      // summary (best-effort match — used for the per-symbol filter chips and
+      // tag pill). Checks the full company name AND its first word, since
+      // headlines often say "SanDisk" rather than the full legal name.
+      const hay = `${item.title} ${item.desc || ''}`.toLowerCase();
+      const hit = q.assets.find(a => {
+        const symRe = new RegExp(`\\b${a.sym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (symRe.test(item.title)) return true;
+        const nameFull = (a.name || '').toLowerCase().trim();
+        if (nameFull && hay.includes(nameFull)) return true;
+        const nameFirst = nameFull.split(/\s+/)[0];
+        return !!(nameFirst && nameFirst.length > 2 && hay.includes(nameFirst));
+      });
+      return { ...item, tagSym: hit?.sym || null, tagName: hit?.name || null, tagKind: q.kind };
+    });
   });
 
-  const results = await newsMapLimit(feeds, 3, async feed => {
-    const items = await newsFetchRss(feed.url, 'Google News');
-    return items.slice(0, 6).map(item => ({ ...item, tagSym: feed.sym, tagName: feed.name }));
-  });
+  // Per-asset fallback for any asset that got NO hits from the combined query
+  // (e.g. its name doesn't appear verbatim in headlines, like "SanDisk" vs
+  // "SNDK"). This runs for EVERY uncovered asset — not just a handful — so no
+  // held asset is silently left with zero coverage. Since most assets are
+  // already matched by the 1-2 combined queries above, this is normally only
+  // a small top-up, not a return to one-request-per-asset for everything.
+  const coveredSyms = new Set(results.flat().map(it => it.tagSym).filter(Boolean));
+  const uncovered = assets.filter(a => !coveredSyms.has(a.sym));
+  if (uncovered.length) {
+    const fallback = await newsMapLimit(uncovered, 2, async asset => {
+      const q = asset.kind === 'crypto'
+        ? `"${asset.name}" cryptocurrency when:5d`
+        : `("${asset.sym}" stock OR "${asset.name}") when:5d`;
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
+      const items = await newsFetchRss(url, 'Google News');
+      return items.slice(0, 5).map(item => ({ ...item, tagSym: asset.sym, tagName: asset.name, tagKind: asset.kind }));
+    });
+    results.push(...fallback);
+  }
 
-  const fresh = newsDedupe(results.flat())
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
+  let fresh = newsDedupe(results.flat())
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  // Guarantee diversity: no single symbol may contribute more than a small
+  // share of the pool, so one very-active asset can never crowd out the rest
+  // of the portfolio in the dashboard's top-8 view.
+  const PER_SYMBOL_CAP = 6;
+  const perSymCount = {};
+  fresh = fresh.filter(it => {
+    const key = it.tagSym || '_untagged';
+    perSymCount[key] = (perSymCount[key] || 0) + 1;
+    return perSymCount[key] <= PER_SYMBOL_CAP;
+  }).slice(0, 60);
 
   if (fresh.length) {
     newsCache.mine = fresh;
@@ -9300,18 +9177,69 @@ async function newsLoadMine() {
 }
 
 // Dashboard "כתבות על הנכסים שלי" — Yahoo-style long rows (image + headline + tag)
-// with an empty square reserved on the side for a future ad slot.
-async function renderAssetNews() {
+// with an empty square reserved on the side for a future ad slot. Filterable
+// per individual asset symbol (one chip per holding + an "הכל" chip), the
+// underlying items are tagged with tagSym in newsLoadMine().
+let assetNewsFilter = null;   // null = all, or an exact symbol like 'AVAX'
+let _assetNewsItems = [];     // cached raw items so the filter doesn't re-fetch
+function renderAssetNewsFilter() {
+  const el = document.getElementById('anFilter');
+  if (!el) return;
+  // One chip per asset currently in the portfolio (crypto first, then stocks —
+  // matches the order newsLoadMine() builds feeds in), plus "הכל" at the end.
+  const syms = [
+    ...(S.crypto || []).map(a => a.sym),
+    ...(S.stocks || []).map(s => s.sym),
+  ];
+  if (syms.length < 2) { el.innerHTML = ''; return; }   // nothing meaningful to filter
+  const allChip = `<button class="news-chip ${!assetNewsFilter ? 'active' : ''}" onclick="setAssetNewsFilter(null)">${i18nGetText('הכל')}</button>`;
+  const symChips = syms.map(sym =>
+    `<button class="news-chip ${assetNewsFilter === sym ? 'active' : ''}" onclick="setAssetNewsFilter('${sym}')">${sym}</button>`
+  ).join('');
+  el.innerHTML = allChip + symChips;
+}
+window.setAssetNewsFilter = (sym) => {
+  assetNewsFilter = sym;
+  renderAssetNewsFilter();
+  renderAssetNewsList();
+};
+// Round-robin pick across symbols from an already newest-first sorted list, so
+// the result is a balanced mix rather than dominated by whichever symbol has
+// the most recent articles.
+function pickBalanced(items, n) {
+  const bySym = new Map();
+  const order = [];
+  items.forEach(it => {
+    const key = it.tagSym || '_untagged';
+    if (!bySym.has(key)) { bySym.set(key, []); order.push(key); }
+    bySym.get(key).push(it);
+  });
+  const picked = [];
+  let round = 0;
+  while (picked.length < n && order.some(key => bySym.get(key)[round])) {
+    for (const key of order) {
+      const it = bySym.get(key)[round];
+      if (it) picked.push(it);
+      if (picked.length >= n) break;
+    }
+    round++;
+  }
+  return picked;
+}
+
+function renderAssetNewsList() {
   const host = document.getElementById('assetNews');
   if (!host) return;
-  host.innerHTML = `<div class="asset-news-loading"><div class="spinner"></div> טוען כתבות על הנכסים שלך...</div>`;
-  let items = [];
-  try { items = await newsLoadMine(); } catch (_) {}
-  if (!items || !items.length) {
-    host.innerHTML = `<div class="asset-news-empty">אין כרגע כתבות זמינות על הנכסים שלך. ${navigator.onLine ? 'נסה שוב מאוחר יותר.' : ''}</div>`;
+  let items = _assetNewsItems;
+  if (assetNewsFilter) items = items.filter(n => n.tagSym === assetNewsFilter);
+  if (!items.length) {
+    host.innerHTML = `<div class="asset-news-empty">${i18nGetText('אין כתבות זמינות עבור הסינון הנוכחי.')}</div>`;
     return;
   }
-  const list = items.slice(0, 8);
+  // Pick the 8 shown articles round-robin across symbols (each already sorted
+  // newest-first) so the dashboard always shows a healthy mix instead of one
+  // very-active asset filling every slot.
+  const list = assetNewsFilter ? items.slice(0, 8) : pickBalanced(items, 8);
   const rows = list.map(n => {
     const ago = newsTimeAgo(n.pubDate);
     const tag = n.tagSym ? `<span class="an-tag">${newsEscape(n.tagSym)}</span>` : '';
@@ -9335,114 +9263,21 @@ async function renderAssetNews() {
       </aside>
     </div>`;
 }
-window.renderAssetNews = renderAssetNews;
-
-function buildNewsPager(page, totalPages) {
-  if (totalPages <= 1) return '';
-  const isRtl = document.documentElement.dir !== 'ltr';
-  const labelPrev = isRtl ? 'הקודם' : 'Previous';
-  const labelNext = isRtl ? 'הבא' : 'Next';
-  // window of pages around current (max 7 visible) with ellipses
-  const pages = [];
-  const push = p => pages.push(p);
-  const lo = Math.max(2, page - 2), hi = Math.min(totalPages - 1, page + 2);
-  push(1);
-  if (lo > 2) push('…');
-  for (let p = lo; p <= hi; p++) push(p);
-  if (hi < totalPages - 1) push('…');
-  if (totalPages > 1) push(totalPages);
-  const btns = pages.map(p => p === '…'
-    ? `<span style="color:var(--t3);padding:0 4px">…</span>`
-    : `<button class="${p === page ? 'active' : ''}" onclick="goNewsPage(${p})">${p}</button>`
-  ).join('');
-  return `<div class="news-pager">
-    <button class="news-pager-step" onclick="goNewsPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>${labelPrev}</button>
-    ${btns}
-    <button class="news-pager-step" onclick="goNewsPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>${labelNext}</button>
-  </div>`;
-}
-window.goNewsPage = (p) => {
-  newsPage = Math.max(1, p);
-  renderNews();
-  document.getElementById('app')?.scrollTo?.({ top: 0, behavior: 'smooth' });
-  window.scrollTo?.({ top: 0, behavior: 'smooth' });
-};
-
-async function renderNews() {
-  const el = document.getElementById('newsContent');
-  if (!el) return;
-  const subtabs = document.getElementById('newsSubtabs');
-  if (subtabs) subtabs.style.display = '';
-  const filters = document.getElementById('newsFilters');
-  if (filters) filters.style.display = '';
-  renderNewsFilters();
-
-  el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
-  try {
-    let items = newsTab === 'world' ? await newsLoadWorld(newsCategory) : await newsLoadMine();
-    // hard cap: only items from the last 5 days
-    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-    const cutoff = Date.now() - FIVE_DAYS_MS;
-    items = items.filter(it => {
-      const d = new Date(it.pubDate).getTime();
-      return !isNaN(d) && d >= cutoff;
-    });
-    if (newsTab === 'mine' && newsAssetFilter) {
-      items = items.filter(it => it.tagSym === newsAssetFilter);
-    }
-    if (!items.length) {
-      if (newsTab === 'mine' && !((S.stocks || []).length + (S.crypto || []).length)) {
-        el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
-      } else {
-        el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
-      }
-      return;
-    }
-
-    newsCache._displayed = items;
-    el.innerHTML = '<div class="news-list">' + items.map((item, index) => {
-      const sym = item.tagSym
-        ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
-        : '';
-      return `<div class="news-item" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
-        <div class="news-item-head">
-          <span class="news-item-src">${newsEscape(item.src)}</span>
-          <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
-        </div>
-        <div class="news-item-title">${newsEscape(item.title)}</div>
-        ${item.desc ? `<div class="news-item-desc">${newsEscape(item.desc)}</div>` : ''}
-        ${sym}
-      </div>`;
-    }).join('') + '</div>';
-  } catch (error) {
-    console.error('[News] Render failed:', error);
-    el.innerHTML = '<div class="news-empty">שגיאה בטעינת חדשות.<br>בדקי חיבור לאינטרנט ונסי שוב.</div>';
+async function renderAssetNews() {
+  const host = document.getElementById('assetNews');
+  if (!host) return;
+  host.innerHTML = `<div class="asset-news-loading"><div class="spinner"></div> טוען כתבות על הנכסים שלך...</div>`;
+  let items = [];
+  try { items = await newsLoadMine(); } catch (_) {}
+  _assetNewsItems = items || [];
+  renderAssetNewsFilter();
+  if (!_assetNewsItems.length) {
+    host.innerHTML = `<div class="asset-news-empty">אין כרגע כתבות זמינות על הנכסים שלך. ${navigator.onLine ? 'נסה שוב מאוחר יותר.' : ''}</div>`;
+    return;
   }
+  renderAssetNewsList();
 }
-
-window.openNewsArticle = function(index) {
-  const item = newsCache._displayed?.[index];
-  if (!item?.link) return;
-  const el = document.getElementById('newsContent');
-  const subtabs = document.getElementById('newsSubtabs');
-  const filtersEl = document.getElementById('newsFilters');
-  if (filtersEl) filtersEl.style.display = 'none';
-  if (subtabs) subtabs.style.display = 'none';
-
-  const safeLink = newsEscape(item.link);
-  el.innerHTML = `<div class="news-reader">
-    <div class="news-reader-head">
-      <button class="news-reader-back" onclick="renderNews()"><i class="ph-thin ph-arrow-right"></i> חזרה לחדשות</button>
-      <div class="news-reader-meta"><span>${newsEscape(item.src)}</span><span>${newsEscape(newsTimeAgo(item.pubDate))}</span></div>
-    </div>
-    ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
-    <div class="news-reader-title">${newsEscape(item.title)}</div>
-    <div class="news-reader-body">
-      ${item.desc ? `<p>${newsEscape(item.desc)}</p>` : '<p>המקור לא סיפק תקציר לכתבה זו.</p>'}
-      <p style="margin-top:22px"><a href="${safeLink}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:7px;background:var(--ac);color:#fff;text-decoration:none;padding:10px 16px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:13px;font-weight:700">לכתבה המלאה באתר המקור <i class="ph-thin ph-arrow-square-out"></i></a></p>
-    </div>
-  </div>`;
-};
+window.renderAssetNews = renderAssetNews;
 
 function renderInsights() {
   const {c, st, g} = tots();
@@ -9521,24 +9356,17 @@ async function buildHistoryTable() {
     const ms = Date.parse(raw);
     return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
   };
-  // Split the position into units held before the day and lots bought during the day.
-  // This prevents attributing price movement from before the purchase to the user.
-  const positionOnDate = (asset, dateKey, type) => {
+  const qtyOnDate = (asset, dateKey, type) => {
     if (Array.isArray(asset.lots) && asset.lots.length) {
-      let existingQty = 0;
-      const boughtToday = [];
+      let qty = 0;
       for (const lot of asset.lots) {
-        const qty = parseFloat(lot.qty) || 0;
-        if (!(qty > 0)) continue;
+        const q = parseFloat(lot.qty) || 0;
         const lk = lotDateKey(lot.date);
-        if (!lk || lk < dateKey) existingQty += qty;
-        else if (lk === dateKey) boughtToday.push({ qty, price: parseFloat(lot.price) || 0 });
+        if (!lk || lk <= dateKey) qty += q;
       }
-      const boughtQty = boughtToday.reduce((sum, lot) => sum + lot.qty, 0);
-      return { qty: existingQty + boughtQty, existingQty, boughtToday };
+      return qty;
     }
-    const qty = type === 'stock' ? getShares(asset) : cQty(asset);
-    return { qty, existingQty: qty, boughtToday: [] };
+    return type === 'stock' ? getShares(asset) : cQty(asset);
   };
   const stockUsesIls = s => {
     const currency = String(S.sp[s.sym]?.currency || '').toUpperCase();
@@ -9585,8 +9413,7 @@ async function buildHistoryTable() {
         });
       }
     } catch (_) {}
-    const priorFxKeys = Object.keys(fxByDay).filter(k => k < boundaryKeys[0]).sort();
-    let lastFx = priorFxKeys.length ? fxByDay[priorFxKeys[priorFxKeys.length - 1]] : S.fx;
+    let lastFx = S.fx;
     for (const dk of boundaryKeys) {
       if (fxByDay[dk] > 0) lastFx = fxByDay[dk];
       else fxByDay[dk] = lastFx;
@@ -9710,8 +9537,8 @@ async function buildHistoryTable() {
       let cryptoStart = 0, cryptoEnd = 0, cryptoPnl = 0, cryptoHasData = false;
 
       for (const s of S.stocks) {
-        const pos = positionOnDate(s, dateKey, 'stock');
-        if (!(pos.qty > 0)) continue;
+        const qty = qtyOnDate(s, dateKey, 'stock');
+        if (!(qty > 0)) continue;
         const map = stockHist[s.sym] || {};
         const keys = Object.keys(map).sort();
         let previousClose = null;
@@ -9728,6 +9555,7 @@ async function buildHistoryTable() {
         if (isLatestDay && live?.price > 0) {
           let lp = live.prevClose;
           if (!(lp > 0) && Number.isFinite(live.change) && live.change !== 0) {
+            // price = prev * (1 + change/100)  →  prev = price / (1 + change/100)
             lp = live.price / (1 + live.change / 100);
           }
           if (lp > 0) {
@@ -9735,52 +9563,38 @@ async function buildHistoryTable() {
             previousClose = lp;
           }
         }
-        const isIls = stockUsesIls(s);
-        const startFx = isIls ? 1 : fx;
-        const endFx = isIls ? 1 : (dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx));
-        const endPrice = sessionClose > 0 ? sessionClose : (previousClose > 0 ? previousClose : (live?.price || 0));
-        if (!(endPrice > 0)) continue;
-
-        let assetStart = 0;
-        if (pos.existingQty > 0) {
-          const basePrice = previousClose > 0 ? previousClose : endPrice;
-          assetStart += basePrice * pos.existingQty * startFx;
+        // Fallback: if no historical close is available at all, value the position
+        // at the current live price so the stock still counts toward the base total.
+        if (!(previousClose > 0)) {
+          const livePx = live?.price > 0 ? live.price : 0;
+          if (livePx > 0) {
+            const factor0 = stockUsesIls(s) ? 1 : fx;
+            stockStart += livePx * qty * factor0;
+            stockEnd   += livePx * qty * factor0;
+          }
+          continue;
         }
-        for (const lot of pos.boughtToday) {
-          const entryPrice = lot.price > 0 ? lot.price : (previousClose > 0 ? previousClose : endPrice);
-          assetStart += entryPrice * lot.qty * startFx;
+        const factor = stockUsesIls(s) ? 1 : fx;
+        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
+        stockStart += previousClose * qty * factor;
+        stockEnd += endPrice * qty * factor;
+        if (sessionClose > 0) {
+          stockPnl += (sessionClose - previousClose) * qty * factor;
+          stockHasData = true;
         }
-        const assetEnd = endPrice * pos.qty * endFx;
-        stockStart += assetStart;
-        stockEnd += assetEnd;
-        stockPnl += assetEnd - assetStart;
-        if (sessionClose > 0 || endFx !== startFx || pos.boughtToday.length) stockHasData = true;
       }
 
       for (const a of S.crypto) {
-        const pos = positionOnDate(a, dateKey, 'crypto');
-        if (!(pos.qty > 0)) continue;
+        const qty = qtyOnDate(a, dateKey, 'crypto');
+        if (!(qty > 0)) continue;
         const map = cryptoBoundary[a.sym] || {};
-        const marketStartPrice = Number(map[dateKey]);
+        const startPrice = Number(map[dateKey]);
         let endPrice = Number(map[tomorrowKey]);
         if (dateKey === todayKey && S.cp[a.id]?.usd > 0) endPrice = Number(S.cp[a.id].usd);
-        if (!(endPrice > 0)) continue;
-        const startFx = fx;
-        const endFx = dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx);
-        let assetStart = 0;
-        if (pos.existingQty > 0) {
-          if (!(marketStartPrice > 0)) continue;
-          assetStart += marketStartPrice * pos.existingQty * startFx;
-        }
-        for (const lot of pos.boughtToday) {
-          const entryPrice = lot.price > 0 ? lot.price : marketStartPrice;
-          if (!(entryPrice > 0)) continue;
-          assetStart += entryPrice * lot.qty * startFx;
-        }
-        const assetEnd = endPrice * pos.qty * endFx;
-        cryptoStart += assetStart;
-        cryptoEnd += assetEnd;
-        cryptoPnl += assetEnd - assetStart;
+        if (!(startPrice > 0) || !(endPrice > 0)) continue;
+        cryptoStart += startPrice * qty * fx;
+        cryptoEnd += endPrice * qty * fx;
+        cryptoPnl += (endPrice - startPrice) * qty * fx;
         cryptoHasData = true;
       }
 
@@ -9886,7 +9700,6 @@ async function buildHistoryTable() {
 // ASSET MODALS
 // ═══════════════════════════════════════════
 async function openDet(sym, type) {
-  if (type === 'stock') prefetchStockChart(sym);
   S.sel = sym;
   document.getElementById('detOv').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -10051,157 +9864,288 @@ function renderStockModal(s, el) {
   loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
 
-function setStockChartStatus(text = '', loading = false) {
-  const box = document.getElementById('mchBox');
-  if (!box) return;
-  let el = box.querySelector('.stock-chart-status');
-  if (!el) {
-    el = document.createElement('div');
-    el.className = 'stock-chart-status hidden';
-    box.appendChild(el);
-  }
-  if (!text) { el.classList.add('hidden'); el.innerHTML = ''; return; }
-  el.classList.remove('hidden');
-  el.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
-}
-function stockChartLabels(data, sym, range) {
-  if (range !== '1d') return data.map(d => {
-    const dt = new Date(d.t);
-    if (range === '5d') return dt.toLocaleDateString(_dateLocale(), { weekday:'short' });
-    if (range === '1mo' || range === '3mo') return fDateShort(dt);
-    return dt.toLocaleDateString(_dateLocale(), { month:'2-digit', year:'2-digit' });
-  });
-  const tz = marketTimeZoneForSymbol(sym);
-  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
-  const label = cur === 'ILS' ? 'TLV' : cur === 'EUR' ? 'EU' : cur === 'GBP' ? 'LON'
-    : cur === 'JPY' ? 'TYO' : cur === 'HKD' ? 'HKG' : cur === 'AUD' ? 'SYD'
-    : cur === 'CAD' ? 'TOR' : cur === 'CHF' ? 'ZRH' : 'NY';
-  const fmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz });
-  return data.map((d, i) => {
-    const time = d.label || fmt.format(new Date(d.t));
-    return i === 0 ? `${label} ${time}` : time;
-  });
-}
 async function loadSC(sym, range, btn, silent) {
   if (!silent) {
-    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active');
+    // Start/stop live refresh based on selected range
     if (range === '1d') startLiveChart(sym, 'stock'); else stopLiveChart();
   }
   const box = document.getElementById('mchBox');
-  const cached = peekStockHist(sym, range);
-
-  // Instant paint from memory/local cache. This is what makes a click feel immediate.
-  if (cached?.length >= 2) {
-    drawSChart(cached.map(d => d.p), stockChartLabels(cached, sym, range), sym);
-    setStockChartStatus('');
-    updateChartDate(range);
-  } else if (!silent) {
-    if (box) box.classList.add('chart-loading');
-    setStockChartStatus('טוען גרף שוק...', true);
-  }
-
-  const data = await getStockHist(sym, range, { force: Boolean(silent && range === '1d') });
-  if (box) box.classList.remove('chart-loading');
-  if (!data?.length) {
-    if (!cached?.length) {
-      if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
-      setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.');
+  if (box && !silent) { box.classList.add('chart-loading'); box.style.opacity = '1'; }
+  let prices = [], labels = [];
+  if (range === '1d') {
+    const intraday = await fetchYahooIntraday(sym);
+    // Determine exchange timezone + label from the stock's native currency
+    const nc = (S.sp[sym]?.currency || 'USD').toUpperCase();
+    const mktTz  = nc==='ILS'?'Asia/Jerusalem':nc==='EUR'?'Europe/Paris':nc==='GBP'?'Europe/London'
+                 : nc==='JPY'?'Asia/Tokyo':nc==='HKD'?'Asia/Hong_Kong':nc==='AUD'?'Australia/Sydney'
+                 : nc==='CAD'?'America/Toronto':nc==='CHF'?'Europe/Zurich':'America/New_York';
+    const mktLbl = nc==='ILS'?'TLV':nc==='EUR'?'EU':nc==='GBP'?'LON':nc==='JPY'?'TYO'
+                 : nc==='HKD'?'HKG':nc==='AUD'?'SYD':nc==='CAD'?'TOR':nc==='CHF'?'ZRH':'NY';
+    const mktOpenH  = nc==='ILS'?9:nc==='GBP'?8:nc==='JPY'?9:9;
+    const mktOpenM  = nc==='ILS'?59:nc==='USD'?30:0;
+    const mktCloseH = nc==='ILS'?17:nc==='GBP'?16:nc==='JPY'?15:16;
+    const mktCloseM = nc==='ILS'?25:0;
+    const mktTotalMins = (mktCloseH*60+mktCloseM) - (mktOpenH*60+mktOpenM);
+    const tzFmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:mktTz });
+    if (intraday?.length) {
+      prices = intraday.map(d => d.p);
+      labels = intraday.map((d, i) => {
+        const t = tzFmt.format(new Date(d.t));
+        return i === 0 ? `${mktLbl} ${t}` : t;
+      });
+    } else {
+      // Synthetic fallback using correct market timezone
+      const p = S.sp[sym];
+      if (p?.price && p?.prevClose) {
+        const open = p.prevClose, close = p.price;
+        const mktNow = new Date(new Date().toLocaleString('en-US', { timeZone: mktTz }));
+        const dow = mktNow.getDay();
+        const isClosed = (nc==='ILS' && dow===6) || (nc!=='ILS' && (dow===0||dow===6));
+        let minsFromOpen;
+        if (isClosed) {
+          minsFromOpen = mktTotalMins;
+        } else {
+          const todayOpen  = new Date(mktNow); todayOpen.setHours(mktOpenH, mktOpenM, 0, 0);
+          const todayClose = new Date(mktNow); todayClose.setHours(mktCloseH, mktCloseM, 0, 0);
+          if (mktNow < todayOpen) minsFromOpen = 0;
+          else if (mktNow > todayClose) minsFromOpen = mktTotalMins;
+          else minsFromOpen = Math.floor((mktNow - todayOpen) / 60000);
+        }
+        if (minsFromOpen <= 0) {
+          prices = [open];
+          labels = [`${mktLbl} ${String(mktOpenH).padStart(2,'0')}:${String(mktOpenM).padStart(2,'0')}`];
+        } else {
+          const n = Math.max(2, Math.min(78, Math.floor(minsFromOpen / 5) + 1));
+          prices = Array.from({ length: n }, (_, i) => {
+            const t = i / (n - 1);
+            const trend = open + (close - open) * t;
+            const noise = (Math.sin(i * 1.1) + Math.sin(i * 0.6)) * Math.abs(close - open) * 0.22;
+            return trend + noise;
+          });
+          labels = prices.map((_, i) => {
+            const m = (i / (prices.length - 1)) * minsFromOpen;
+            const totalMin = mktOpenH * 60 + mktOpenM + m;
+            const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+            const mm = String(Math.floor(totalMin % 60)).padStart(2, '0');
+            return i === 0 ? `${mktLbl} ${hh}:${mm}` : `${hh}:${mm}`;
+          });
+        }
+      }
     }
+    if (box) box.classList.remove('chart-loading');
+    drawSChart(prices, labels, sym);
+    updateChartDate(range);
     return;
   }
-  if (S.sel !== sym || !document.getElementById('detOv')?.classList.contains('open')) return;
-  drawSChart(data.map(d => d.p), stockChartLabels(data, sym, range), sym);
-  setStockChartStatus('');
+  const data = await getStockHist(sym, range);
+  if (box) box.classList.remove('chart-loading');
+  if (!data || !data.length) { const c = document.getElementById('dCanvas'); if (c) c.getContext('2d').clearRect(0,0,c.width,c.height); return; }
+  prices = data.map(d => d.p);
+  labels = data.map(d => {
+    const dt = new Date(d.t);
+    if (range==='5d') return dt.toLocaleDateString(_dateLocale(),{weekday:'short'});
+    if (range==='1mo'||range==='3mo') return fDateShort(dt);
+    return dt.toLocaleDateString(_dateLocale(),{month:'2-digit',year:'2-digit'});
+  });
+  drawSChart(prices, labels, sym);
   updateChartDate(range);
 }
 
 function drawSChart(prices, labels, sym) {
-  const canvas = document.getElementById('dCanvas');
-  if (!canvas || !Array.isArray(prices) || prices.length < 2) return;
+  const canvas = document.getElementById('dCanvas'); if (!canvas || !prices.length) return;
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
-  const up = prices[prices.length - 1] >= prices[0];
+  const up  = prices[prices.length-1] >= prices[0];
   const col = up ? upColor() : downColor();
   const isLight = document.body.classList.contains('light');
-  const base = prices[0];
-
+  // selection state lives on the canvas — survives redraws inside the same chart instance
+  const sel = { active: false, startIdx: null, endIdx: null, dragging: false };
   S.dChart = new Chart(canvas, {
     type:'line',
-    data:{ labels, datasets:[{
-      label:sym,
-      data:prices,
-      borderColor:col,
-      borderWidth:2,
-      pointRadius:0,
-      pointHitRadius:14,
-      pointHoverRadius:5,
-      pointHoverBackgroundColor:col,
-      pointHoverBorderColor:isLight ? '#F4EFE5' : '#0A0F1F',
-      pointHoverBorderWidth:2,
-      tension:.16,
-      spanGaps:true,
-      fill:false,
+    data:{labels,datasets:[{
+      label:'$',data:prices,borderColor:col,borderWidth:2,
+      pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:col,pointHoverBorderColor:isLight?'#F4EFE5':'#0A0F1F',pointHoverBorderWidth:2,
+      tension:.2,fill:false
     }]},
     options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      animation:false,
-      normalized:true,
-      resizeDelay:0,
-      interaction:{ mode:'index', intersect:false, axis:'x' },
-      hover:{ mode:'index', intersect:false },
-      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      responsive:true,maintainAspectRatio:false,layout:{padding:0},
+      interaction:{mode:'index',intersect:false,axis:'x'},
+      hover:{mode:'index',intersect:false},
       plugins:{
         legend:{display:false},
         tooltip:{
-          enabled:true,
-          mode:'index', intersect:false,
-          animation:false,
-          backgroundColor:isLight ? 'rgba(11,30,63,0.97)' : 'rgba(17,26,51,0.97)',
-          titleColor:'#F1F4FB', bodyColor:'#F1F4FB',
-          borderColor:col, borderWidth:1, padding:10, cornerRadius:8,
-          displayColors:false,
-          titleFont:{ family:"'Newsreader', serif", size:12, weight:'400' },
-          bodyFont:{ family:"'Geist Mono', monospace", size:13, weight:'700' },
-          callbacks:{
-            title:items => items[0]?.label || '',
-            label:ctx => {
-              const v = Number(ctx.parsed.y);
-              const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
-              const def = CURRENCIES[cur] || { sym:cur + ' ' };
-              const pct = base ? ((v - base) / base) * 100 : 0;
-              return `${def.sym}${v.toFixed(v >= 1 ? 2 : 4)}   ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+          enabled: !sel.active,        // hide normal tooltip while selecting
+          mode:'index',intersect:false,
+          backgroundColor: isLight ? 'rgba(11,30,63,0.96)' : 'rgba(17,26,51,0.96)',
+          titleColor: isLight ? '#F4EFE5' : '#F1F4FB',
+          bodyColor: isLight ? '#F4EFE5' : '#F1F4FB',
+          borderColor: col, borderWidth: 1,
+          padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+          titleFont: { family:"'Newsreader', serif", size: 12, weight: '400' },
+          bodyFont:  { family:"'Geist Mono', monospace", size: 13, weight: '700' },
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: ctx => {
+              const v = ctx.parsed.y;
+              const nc = (S.sp[S.sel]?.currency || 'USD').toUpperCase();
+              const def = CURRENCIES[nc] || { sym: nc + ' ' };
+              return `${def.sym}: ${v.toFixed(2)}`;
             },
           },
         },
       },
       scales:{
-        x:{ ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-        y:{ ticks:{color:axisColor(),font:{size:9},callback:v=>{
-          const cur=(S.sp[sym]?.currency||'USD').toUpperCase();
-          const def=CURRENCIES[cur]||{sym:cur+' '};
-          return def.sym+(v>=1?Number(v).toFixed(2):Number(v).toFixed(4));
-        }},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left'}
+        x:{ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6},grid:{display:false},border:{display:false}},
+        y:{ticks:{color:axisColor(),font:{size:9},callback:function(v){const nc=(S.sp[S.sel]?.currency||'USD').toUpperCase();const def=CURRENCIES[nc]||{sym:nc+' '};return def.sym+(v>=1?v.toFixed(0):v.toFixed(4));}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left'}
       }
     },
-    plugins:[{
-      id:'verticalCrosshair',
-      afterDraw(chart) {
+    plugins: [{
+      id: 'verticalCrosshair',
+      afterDraw: (chart) => {
         const active = chart.tooltip?.getActiveElements?.();
-        if (!active?.length) return;
-        const x = active[0].element.x;
-        const {top,bottom} = chart.chartArea;
-        const ctx = chart.ctx;
-        ctx.save();
-        ctx.beginPath();
-        ctx.setLineDash([4,4]);
-        ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.38)' : 'rgba(241,244,251,0.34)';
-        ctx.lineWidth = 1;
-        ctx.moveTo(x,top); ctx.lineTo(x,bottom); ctx.stroke();
-        ctx.restore();
+        if (!sel.active && active?.length) {
+          const ctx = chart.ctx;
+          const x = active[0].element.x;
+          const top = chart.chartArea.top, bottom = chart.chartArea.bottom;
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.35)' : 'rgba(241,244,251,0.30)';
+          ctx.lineWidth = 1;
+          ctx.moveTo(x, top); ctx.lineTo(x, bottom);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // selection overlay: shaded band + edge guides + delta label
+        if (sel.active && sel.startIdx != null && sel.endIdx != null && sel.startIdx !== sel.endIdx) {
+          const ctx = chart.ctx;
+          const ca = chart.chartArea;
+          const meta = chart.getDatasetMeta(0);
+          const lo = Math.min(sel.startIdx, sel.endIdx);
+          const hi = Math.max(sel.startIdx, sel.endIdx);
+          const x1 = meta.data[lo].x, x2 = meta.data[hi].x;
+          const p1 = prices[lo], p2 = prices[hi];
+          const diff = p2 - p1;
+          const pct = p1 ? (diff / p1) * 100 : 0;
+          const rising = diff >= 0;
+          const bandCol = rising ? upColor() : downColor();
+
+          // shaded band
+          ctx.save();
+          ctx.fillStyle = (isLight ? 'rgba(11,30,63,' : 'rgba(241,244,251,') + '0.08)';
+          ctx.fillRect(Math.min(x1, x2), ca.top, Math.abs(x2 - x1), ca.bottom - ca.top);
+
+          // edge dashed lines
+          ctx.beginPath();
+          ctx.setLineDash([3, 4]);
+          ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.45)' : 'rgba(241,244,251,0.40)';
+          ctx.lineWidth = 1;
+          ctx.moveTo(x1, ca.top); ctx.lineTo(x1, ca.bottom);
+          ctx.moveTo(x2, ca.top); ctx.lineTo(x2, ca.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // dots at both ends
+          [{ x: x1, y: meta.data[lo].y }, { x: x2, y: meta.data[hi].y }].forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = bandCol;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = isLight ? '#F4EFE5' : '#0A0F1F';
+            ctx.stroke();
+          });
+
+          // delta label centered above the band
+          const sign = rising ? '+' : '−';
+          const txtVal = `${sign}$${Math.abs(diff).toFixed(2)}`;
+          const txtPct = `${sign}${Math.abs(pct).toFixed(2)}%`;
+          const labelText = `${txtVal}  (${txtPct})`;
+          ctx.font = "700 12px 'Geist Mono', monospace";
+          const w = ctx.measureText(labelText).width + 18;
+          const h = 26;
+          const cx = (x1 + x2) / 2;
+          const lx = Math.max(ca.left + 4, Math.min(ca.right - w - 4, cx - w / 2));
+          const ly = ca.top + 6;
+          ctx.fillStyle = isLight ? 'rgba(11,30,63,0.96)' : 'rgba(17,26,51,0.96)';
+          ctx.strokeStyle = bandCol;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(lx, ly, w, h, 6);
+          else ctx.rect(lx, ly, w, h);
+          ctx.fill(); ctx.stroke();
+          ctx.fillStyle = bandCol;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+          ctx.fillText(labelText, lx + w / 2, ly + h / 2 + 1);
+          ctx.restore();
+        }
       }
     }]
   });
+
+  // ── click & drag range selection ──
+  const getIdxFromEvent = (evt) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (evt.touches?.[0]?.clientX ?? evt.clientX) - rect.left;
+    const ca = S.dChart.chartArea;
+    const meta = S.dChart.getDatasetMeta(0);
+    if (!meta?.data?.length) return null;
+    // clamp inside chart area
+    const xc = Math.max(ca.left, Math.min(ca.right, x));
+    // find nearest point by x
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < meta.data.length; i++) {
+      const d = Math.abs(meta.data[i].x - xc);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  };
+
+  const onDown = (e) => {
+    const idx = getIdxFromEvent(e);
+    if (idx == null) return;
+    sel.active = true; sel.dragging = true; sel.startIdx = idx; sel.endIdx = idx;
+    // suppress hover tooltip while selecting
+    S.dChart.options.plugins.tooltip.enabled = false;
+    S.dChart.update('none');
+    e.preventDefault();
+  };
+  const onMove = (e) => {
+    if (!sel.dragging) return;
+    const idx = getIdxFromEvent(e);
+    if (idx == null) return;
+    sel.endIdx = idx;
+    S.dChart.update('none');
+  };
+  const onUp = () => {
+    if (!sel.dragging) return;
+    sel.dragging = false;
+    // if user just clicked without dragging (start === end), clear the selection
+    if (sel.startIdx === sel.endIdx) {
+      sel.active = false; sel.startIdx = sel.endIdx = null;
+      S.dChart.options.plugins.tooltip.enabled = true;
+      S.dChart.update('none');
+    }
+  };
+
+  // remove old listeners if redrawing — store on canvas
+  if (canvas._selListeners) {
+    canvas.removeEventListener('mousedown', canvas._selListeners.down);
+    canvas.removeEventListener('mousemove', canvas._selListeners.move);
+    window.removeEventListener('mouseup', canvas._selListeners.up);
+    canvas.removeEventListener('touchstart', canvas._selListeners.down);
+    canvas.removeEventListener('touchmove', canvas._selListeners.move);
+    window.removeEventListener('touchend', canvas._selListeners.up);
+  }
+  canvas._selListeners = { down: onDown, move: onMove, up: onUp };
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  canvas.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('touchend', onUp);
   canvas.style.cursor = 'crosshair';
 }
 
@@ -10231,7 +10175,6 @@ function openEditor(tab) {
   const enabled = edEnabledTabs();
   if (!enabled.includes(edTab)) edTab = enabled[0] || 'stock';
   document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd();
-  setTimeout(() => { if (typeof syncStatusRefresh === 'function') syncStatusRefresh(); }, 0);
 }
 
 // From the asset detail modal: jump straight to the editor for this asset.
@@ -10362,10 +10305,10 @@ function renderEd() {
       ${list.length === 0 ? `<div class="ed-empty-list"><i class="ph-thin ${cat.icon}"></i> אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה</div>` : ''}
     </div>
     <div class="aform">
-      <div class="af-t">+ הוספת נכס חדש</div>
+      <div class="af-t-row"><div class="af-t">+ הוספת נכס חדש</div><button class="af-reset" onclick="resetNewAssetForm()" title="${i18nGetText('איפוס שדות')}"><i class="ph-thin ph-arrow-counter-clockwise ph-sm"></i> איפוס</button></div>
       <div class="fg">
         <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency()" ${cat.live?'onfocus="edAC(this.value)"':''}><div class="ac-box" id="acBox"></div></div>
-        <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}"></div>
+        <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}" autocomplete="off" oninput="${cat.live?'edAC(this.value, \'acBoxName\');':''}" ${cat.live?'onfocus="edAC(this.value, \'acBoxName\')"':''}><div class="ac-box" id="acBoxName"></div></div>
         <div class="ff"><label>${cat.unit==='מניות'?'כמות מניות':'כמות החזקה'}</label><input id="nQ" type="number" placeholder="${iC?'0.5':'10.5'}" step="any" oninput="onNewQtyInput()"></div>
         <div class="ff"><label>שער קנייה <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label>
           <div class="cur-input-wrap">
@@ -10564,22 +10507,23 @@ function moveAsset(i, dir) {
 
 // ── Symbol autocomplete: Finnhub (stocks) / CoinGecko (crypto), 5 results ──
 let edPickedId = null;
-let acTimer = null, acSeq = 0;
+const acTimers = {};   // per-box debounce timers, keyed by box id
+const acSeqs = {};     // per-box request sequence counters, keyed by box id
 
-function edAC(q) {
-  clearTimeout(acTimer);
-  const box = document.getElementById('acBox');
+function edAC(q, boxId = 'acBox') {
+  clearTimeout(acTimers[boxId]);
+  const box = document.getElementById(boxId);
   if (!box) return;
   q = (q || '').trim();
   if (q.length < 1) { box.classList.remove('show'); box.innerHTML = ''; return; }
   box.innerHTML = '<div class="ac-load">מחפש...</div>';
   box.classList.add('show');
-  acTimer = setTimeout(() => acFetch(q), 220);
+  acTimers[boxId] = setTimeout(() => acFetch(q, boxId), 300);
 }
 
-async function acFetch(q) {
-  const seq = ++acSeq;
-  const box = document.getElementById('acBox');
+async function acFetch(q, boxId = 'acBox') {
+  const seq = (acSeqs[boxId] = (acSeqs[boxId] || 0) + 1);
+  const box = document.getElementById(boxId);
   try {
     let items = [];
     if (edTab === 'crypto') {
@@ -10613,42 +10557,27 @@ async function acFetch(q) {
           return { sym: x.symbol, name: x.description, id: null, thumb: null, exch };
         });
     }
-    if (seq !== acSeq || !box) return;            // a newer search already ran
+    if (seq !== acSeqs[boxId] || !box) return;     // a newer search already ran
     if (!items.length) { box.innerHTML = '<div class="ac-load">לא נמצאו תוצאות</div>'; return; }
-    // Build autocomplete results with DOM APIs. API-provided symbols/names must never
-    // be interpolated into executable HTML or inline event attributes.
-    box.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    items.forEach(it => {
-      const row = document.createElement('div');
-      row.className = 'ac-item';
-      row.addEventListener('mousedown', event => {
-        event.preventDefault();
-        edPick(String(it.sym || ''), String(it.name || ''), it.id || null);
-      });
-      if (it.thumb) {
-        const img = document.createElement('img');
-        img.className = 'ac-thumb'; img.alt = ''; img.referrerPolicy = 'no-referrer';
-        try { const u = new URL(it.thumb, location.href); if (u.protocol === 'https:') img.src = u.href; } catch (_) {}
-        row.appendChild(img);
-      }
-      const sym = document.createElement('span'); sym.className = 'ac-sym'; sym.textContent = String(it.sym || ''); row.appendChild(sym);
-      const name = document.createElement('span'); name.className = 'ac-name'; name.textContent = String(it.name || ''); row.appendChild(name);
-      if (it.exch) { const exch = document.createElement('span'); exch.className = 'ac-exch'; exch.textContent = String(it.exch); row.appendChild(exch); }
-      frag.appendChild(row);
-    });
-    box.appendChild(frag);
+    box.innerHTML = items.map(it =>
+      `<div class="ac-item" onmousedown="event.preventDefault();edPick('${it.sym}',\`${(it.name || '').replace(/`/g, '')}\`,${it.id ? `'${it.id}'` : 'null'},'${boxId}')">` +
+      (it.thumb ? `<img class="ac-thumb" src="${it.thumb}" alt="">` : '') +
+      `<span class="ac-sym">${it.sym}</span><span class="ac-name">${it.name || ''}</span>` +
+      (it.exch ? `<span class="ac-exch">${it.exch}</span>` : '') +
+      `</div>`
+    ).join('');
   } catch (_) {
     if (seq === acSeq && box) box.innerHTML = '<div class="ac-load">שגיאה בחיפוש</div>';
   }
 }
 
-function edPick(sym, name, id) {
+function edPick(sym, name, id, boxId = 'acBox') {
   edPickedId = id;
   const nS = document.getElementById('nS'), nN = document.getElementById('nN');
   if (nS) nS.value = sym;
   if (nN && name) nN.value = name.replace(/\b\w+/g, w => w.length > 3 ? w[0] + w.slice(1).toLowerCase() : w);
-  const box = document.getElementById('acBox');
+  // Close whichever box triggered this pick (symbol or name search).
+  const box = document.getElementById(boxId);
   if (box) { box.classList.remove('show'); box.innerHTML = ''; }
   // Reset the price field and currency lock, update the currency to the new
   // market, and re-fill the per-unit price for the picked symbol.
@@ -10660,8 +10589,11 @@ function edPick(sym, name, id) {
   document.getElementById('nQ')?.focus();
 }
 document.addEventListener('click', e => {
-  const box = document.getElementById('acBox');
-  if (box && !e.target.closest('#acBox') && e.target.id !== 'nS') box.classList.remove('show');
+  ['acBox', 'acBoxName'].forEach(id => {
+    const box = document.getElementById(id);
+    const inputId = id === 'acBox' ? 'nS' : 'nN';
+    if (box && !e.target.closest(`#${id}`) && e.target.id !== inputId) box.classList.remove('show');
+  });
 });
 
 // ── Lots history block for the detail modal (read-only, with per-lot P&L) ──
@@ -11076,6 +11008,31 @@ function updateNewPriceCurrency() {
 window.updateNewPriceCurrency = updateNewPriceCurrency;
 window.onNewQtyInput = onNewQtyInput;
 
+// Reset button (✕): clear every field in "+ הוספת נכס חדש" back to its blank
+// defaults — symbol, name, quantity, price (and currency lock), and the date
+// back to today. Does not touch the existing asset list above the form.
+function resetNewAssetForm() {
+  const nS = document.getElementById('nS');
+  const nN = document.getElementById('nN');
+  const nQ = document.getElementById('nQ');
+  const nP = document.getElementById('nP');
+  const nD = document.getElementById('nD');
+  const nPCur = document.getElementById('nPCur');
+  if (nS) nS.value = '';
+  if (nN) nN.value = '';
+  if (nQ) nQ.value = '';
+  if (nP) { nP.value = ''; nP.dataset.manual = ''; nP.classList.remove('lot-autofilled'); }
+  if (nD) nD.value = new Date().toISOString().slice(0, 10);
+  if (nPCur) { nPCur.value = 'USD'; nPCur.dataset.manualCur = ''; }
+  edPickedId = null;
+  ['acBox', 'acBoxName'].forEach(id => {
+    const box = document.getElementById(id);
+    if (box) { box.classList.remove('show'); box.innerHTML = ''; }
+  });
+  nS?.focus();
+}
+window.resetNewAssetForm = resetNewAssetForm;
+
 function addA() {
   const sym   = (document.getElementById('nS')?.value || '').trim().toUpperCase();
   const name  = (document.getElementById('nN')?.value || '').trim() || sym;
@@ -11375,8 +11332,7 @@ async function dashGetFxMap(range,lotDates=[]) {
     const d=await r.json(); Object.entries(d?.rates||{}).forEach(([k,v])=>{const n=Number(v?.ILS);if(n>0)map[k]=n;});
   }catch(_){}
   if(!Object.keys(map).length && stale) return stale;
-  const fetchedKeys=Object.keys(map).sort();
-  let last=fetchedKeys.length ? map[fetchedKeys[0]] : S.fx;
+  let last=S.fx;
   for(let k=from;k<=to;k=dashAddDays(k,1)){ if(map[k]>0)last=map[k]; else map[k]=last; }
   if(range.includesToday) map[todayLocalDateKey()]=S.fx;
   dashCachePut(key,map); return map;
@@ -11462,7 +11418,9 @@ function dashRenderPeriodData(data,{cached=false}={}){
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const totalPaid = totalCostBasisILS();
+  const paidLine = `<div class="period-summary-paid"><span class="period-summary-paid-l">${i18nGetText('סה״כ שולם על הנכסים המוחזקים')}</span><span class="period-summary-paid-v">${fILS(totalPaid)}</span></div>`;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div>${paidLine}<div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
   const cardsBlock = cards
     ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
     : '';
@@ -11534,7 +11492,6 @@ async function doRefresh() {
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
-      S._lastRefreshAt = Date.now();
       if (btn) btn.classList.remove('spin');
       if (overlay) overlay.classList.remove('show');
     }
@@ -11562,7 +11519,7 @@ function startAutoRefresh() {
 let _catchupCount = 0;
 const _catchupTimer = setInterval(() => {
   _catchupCount++;
-  if (_catchupCount > 3) { clearInterval(_catchupTimer); return; }
+  if (_catchupCount > 8) { clearInterval(_catchupTimer); return; }
   if (document.visibilityState !== 'visible' || refreshInFlight) return;
   const stillMissing = (S.stocks || []).some(s => !(S.sp[s.sym]?.price > 0));
   if (stillMissing && typeof getStocks === 'function') {
@@ -11570,13 +11527,12 @@ const _catchupTimer = setInterval(() => {
   } else if (!stillMissing) {
     clearInterval(_catchupTimer);
   }
-}, 20000);
+}, 10000);
 // Refresh immediately when the user returns to the tab (data may be stale).
 document.addEventListener('visibilitychange', () => {
-  const stale = !S._lastRefreshAt || Date.now() - S._lastRefreshAt > 60 * 1000;
-  if (document.visibilityState === 'visible' && !refreshInFlight && stale) doRefresh();
+  if (document.visibilityState === 'visible' && !refreshInFlight) doRefresh();
 });
-// The app-level adaptive scheduler below is the single refresh loop.
+startAutoRefresh();
 
 
 // ── Dual clock (user's local time + New York), updates every 30s ──
@@ -11606,7 +11562,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260630-fast-charts-v11');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -11633,17 +11589,6 @@ function applyCloudPortfolio(data, { force = false } = {}) {
   }
   if (Array.isArray(data.stocks)) {
     S.stocks = normalizeStocks(data.stocks);
-    changed = true;
-  }
-  if (Array.isArray(data.commodities)) { S.commodities = data.commodities; changed = true; }
-  if (Array.isArray(data.bonds))       { S.bonds = data.bonds; changed = true; }
-  if (Array.isArray(data.etfs))        { S.etfs = data.etfs; changed = true; }
-  if (data.view && typeof data.view === 'object') {
-    S.view = {
-      show: { ...VIEW_DEFAULT.show, ...(data.view.show || {}) },
-      widgets: { ...VIEW_DEFAULT.widgets, ...(data.view.widgets || {}) },
-    };
-    saveView();
     changed = true;
   }
   if (data.preferences && typeof data.preferences === 'object') {
@@ -11769,7 +11714,7 @@ window.proceedToApp = async function() {
   setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
   const scheduleRefresh = () => {
-    const delay = isUsRegularMarketOpenNow() ? 60000 : 180000;
+    const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
     appRefreshTimer = setTimeout(async () => {
       if (document.visibilityState === 'visible') await doRefresh();
       scheduleRefresh();
@@ -11873,10 +11818,6 @@ function exportPortfolio() {
     portfolio: {
       crypto: S.crypto,
       stocks: S.stocks,
-      commodities: S.commodities || [],
-      bonds: S.bonds || [],
-      etfs: S.etfs || [],
-      view: S.view || null,
       currency: S.currency,
       fx: S.fx,
     },
@@ -11900,34 +11841,18 @@ async function importPortfolio(event) {
     const text = await file.text();
     const data = JSON.parse(text);
     const p = data.portfolio || data;
-    if (!p.crypto && !p.stocks && !p.commodities && !p.bonds && !p.etfs) {
+    if (!p.crypto && !p.stocks) {
       alert('הקובץ לא מכיל נתוני תיק תקינים.');
       return;
     }
-    if (!confirm(`לטעון גיבוי?
-
-• ${p.crypto?.length || 0} מטבעות
-• ${p.stocks?.length || 0} מניות
-• ${(p.commodities?.length || 0) + (p.bonds?.length || 0) + (p.etfs?.length || 0)} נכסים נוספים
-
-הנתונים הקיימים יוחלפו.`)) return;
-    if (Array.isArray(p.crypto)) S.crypto = p.crypto;
-    if (Array.isArray(p.stocks)) S.stocks = normalizeStocks(p.stocks);
-    if (Array.isArray(p.commodities)) S.commodities = p.commodities;
-    if (Array.isArray(p.bonds)) S.bonds = p.bonds;
-    if (Array.isArray(p.etfs)) S.etfs = p.etfs;
-    if (p.view && typeof p.view === 'object') {
-      S.view = {
-        show: { ...VIEW_DEFAULT.show, ...(p.view.show || {}) },
-        widgets: { ...VIEW_DEFAULT.widgets, ...(p.view.widgets || {}) },
-      };
-      saveView();
-    }
+    if (!confirm(`לטעון גיבוי?\n\n• ${p.crypto?.length || 0} מטבעות\n• ${p.stocks?.length || 0} מניות\n\nהנתונים הקיימים יוחלפו.`)) return;
+    if (p.crypto?.length) S.crypto = p.crypto;
+    if (p.stocks?.length) S.stocks = normalizeStocks(p.stocks);
     if (p.currency) S.currency = p.currency;
     if (p.fx)       S.fx = p.fx;
     fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
     saveLS();
-    if (window.fbSave) window.fbSave(currentCloudPortfolioPayload());
+    if (window.fbSave) window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
     alert('הגיבוי נטען בהצלחה!');
     location.reload();
   } catch (e) {
@@ -11935,6 +11860,16 @@ async function importPortfolio(event) {
   } finally {
     event.target.value = '';   // allow re-importing the same file
   }
+}
+
+// Refresh the sync status whenever the editor opens
+const _origOpenEd = window.openEd;
+if (_origOpenEd) {
+  window.openEd = function(...args) {
+    const r = _origOpenEd.apply(this, args);
+    setTimeout(syncStatusRefresh, 50);
+    return r;
+  };
 }
 
 // ═══════════════════════════════════════════
