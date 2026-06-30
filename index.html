@@ -2646,24 +2646,24 @@ async function getCrypto() {
       } catch(_) {}
     }));
   }
-  // Pull the first 1-minute candle at 00:00 Israel time for each asset.
-  // Binance's native 1d candle resets at 00:00 UTC (02:00/03:00 in Israel),
-  // so using it would make the first hours of the Israeli day incorrect.
-  const israelDayKey = todayIsraelDateKey();
-  const israelDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
+  // Pull the first 1-minute candle at 00:00 in the USER'S local timezone for each asset.
+  // Binance's native 1d candle resets at 00:00 UTC, which rarely matches the user's local
+  // midnight, so we fetch the exact candle at local-midnight instead.
+  const localDayKey = todayLocalDateKey();
+  const localDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
   await Promise.all(S.crypto.map(async a => {
     const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
     try {
-      const endTime = Math.min(Date.now(), israelDayStartMs + 5 * 60 * 1000);
-      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${israelDayStartMs}&endTime=${endTime}&limit=1`, { signal: AbortSignal.timeout(8000) });
+      const endTime = Math.min(Date.now(), localDayStartMs + 5 * 60 * 1000);
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${localDayStartMs}&endTime=${endTime}&limit=1`, { signal: AbortSignal.timeout(8000) });
       const kl = await r.json();
       if (Array.isArray(kl) && kl[0]) {
         const openTime = Number(kl[0][0]);
         const openPrice = parseFloat(kl[0][1]);
-        if (openPrice > 0 && dateKeyInTimeZone(openTime, APP_TIME_ZONE) === israelDayKey) {
+        if (openPrice > 0 && dateKeyInTimeZone(openTime, APP_TIME_ZONE) === localDayKey) {
           S.cp[a.id].openToday = openPrice;
           S.cp[a.id].openTodayTs = openTime;
-          S.cp[a.id].openTodayDateKey = israelDayKey;
+          S.cp[a.id].openTodayDateKey = localDayKey;
         }
       }
     } catch(_) {}
@@ -3478,7 +3478,29 @@ function todayEnLabel() {
 // Every "daily" number in the app is anchored to the civil day in Israel,
 // regardless of the device timezone. This prevents yesterday's US session
 // from appearing as today's P&L before Wall Street opens.
-const APP_TIME_ZONE = 'Asia/Jerusalem';
+// The calendar day boundary for crypto (24/7) P&L follows the USER'S local timezone,
+// detected automatically from the browser — no permission prompt needed. This makes the
+// app truly international: a user in Sydney, Madrid or Tel Aviv each sees "today's" crypto
+// P&L measured from midnight in THEIR own timezone.
+// (Stock daily P&L is unaffected — it always uses the market's prevClose, so a stock that
+//  rose 3% shows +3% everywhere regardless of where the user is.)
+function detectAppTimeZone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && typeof tz === 'string') return tz;
+  } catch(_) {}
+  return 'Asia/Jerusalem';   // safe fallback
+}
+const APP_TIME_ZONE = detectAppTimeZone();
+// Friendly city label from the IANA timezone, e.g. "Asia/Jerusalem" → "Jerusalem",
+// "Australia/Sydney" → "Sydney", "America/New_York" → "New York". Used in UI so the
+// calendar-day boundary is shown relative to the user's actual location.
+function tzCityLabel(tz = APP_TIME_ZONE) {
+  try {
+    const city = String(tz).split('/').pop() || tz;
+    return city.replace(/_/g, ' ');
+  } catch(_) { return tz; }
+}
 
 function normalizeEpochMs(value) {
   const n = Number(value);
@@ -3512,7 +3534,7 @@ function dateKeyInTimeZone(value = Date.now(), timeZone = APP_TIME_ZONE) {
   return `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
-function todayIsraelDateKey() {
+function todayLocalDateKey() {
   return dateKeyInTimeZone(Date.now(), APP_TIME_ZONE);
 }
 
@@ -3536,9 +3558,9 @@ function startOfTodayInTimeZoneMs(timeZone = APP_TIME_ZONE) {
   return guess;
 }
 
-function timestampIsTodayInIsrael(value) {
+function timestampIsTodayLocal(value) {
   const ms = normalizeEpochMs(value);
-  return !!ms && dateKeyInTimeZone(ms, APP_TIME_ZONE) === todayIsraelDateKey();
+  return !!ms && dateKeyInTimeZone(ms, APP_TIME_ZONE) === todayLocalDateKey();
 }
 
 function isUsRegularMarketOpenNow(value = Date.now()) {
@@ -3551,11 +3573,11 @@ function isUsRegularMarketOpenNow(value = Date.now()) {
 }
 
 const cpnl = (a) => {
-  // Crypto trades continuously. Daily P&L is measured from 00:00 Israel time,
-  // not from Binance's rolling 24h change and not from 00:00 UTC.
+  // Crypto trades continuously. Daily P&L is measured from 00:00 in the user's local
+  // timezone, not from Binance's rolling 24h change and not from 00:00 UTC.
   const p = S.cp[a.id];
   if (!p?.usd || !cQty(a)) return null;
-  if (p.openToday && p.openTodayDateKey === todayIsraelDateKey()) {
+  if (p.openToday && p.openTodayDateKey === todayLocalDateKey()) {
     return (p.usd - p.openToday) * cQty(a) * S.fx;
   }
   // Never substitute a rolling 24h figure for a calendar-day figure.
@@ -3578,7 +3600,7 @@ const spnl = (s) => {
   // a quote whose timestamp belongs to today's calendar date in Israel.
   // Before the US market opens, Yahoo/Finnhub still report the previous session;
   // that quote is intentionally treated as 0 for the new Israeli day.
-  if (!timestampIsTodayInIsrael(p.quoteTime)) return 0;
+  if (!timestampIsTodayLocal(p.quoteTime)) return 0;
 
   const sh = getShares(s);
   if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
@@ -4166,6 +4188,9 @@ const I18N = {
   'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'No assets in this category yet — add the first one below',
   'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'No assets yet — tap "Add asset" to start',
   'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'This category is managed manually — no live prices yet. Enter symbol, quantity and cost.',
+
+  // ── Timezone-aware calendar label ──
+  'יום קלנדרי':'calendar day',
 
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
@@ -4793,6 +4818,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'В этой категории пока нет активов — добавьте первый ниже',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'Активов пока нет — нажмите «Добавить актив»',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Эта категория управляется вручную — без живых цен. Введите символ, количество и стоимость.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'календарный день',
   },
   es: {
     'שוק אמריקאי':'Mercado de EE. UU.',
@@ -5246,6 +5273,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'Aún no hay activos en esta categoría — añade el primero abajo',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'Aún no hay activos — pulsa "Añadir activo" para empezar',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Esta categoría se gestiona manualmente — sin precios en vivo. Introduce símbolo, cantidad y coste.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'día natural',
   },
   fr: {
     'שוק אמריקאי':'Marché américain',
@@ -5699,6 +5728,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'Aucun actif dans cette catégorie — ajoutez le premier ci-dessous',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'Aucun actif — appuyez sur « Ajouter un actif » pour commencer',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Cette catégorie est gérée manuellement — pas de prix en direct. Saisissez symbole, quantité et coût.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'jour calendaire',
   },
   ar: {
     'שוק אמריקאי':'السوق الأمريكي',
@@ -6152,6 +6183,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'لا توجد أصول في هذه الفئة بعد — أضف الأول أدناه',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'لا توجد أصول بعد — اضغط "إضافة أصل" للبدء',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'تُدار هذه الفئة يدويًا — لا أسعار حية بعد. أدخل الرمز والكمية والتكلفة.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'يوم تقويمي',
   },
   de: {
     'שוק אמריקאי':'US-Markt',
@@ -6605,6 +6638,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'Noch keine Vermögenswerte in dieser Kategorie — füge unten den ersten hinzu',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'Noch keine Vermögenswerte — tippe auf „Asset hinzufügen"',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Diese Kategorie wird manuell verwaltet — noch keine Live-Preise. Symbol, Menge und Kosten eingeben.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'Kalendertag',
   },
   zh: {
     'שוק אמריקאי':'美国市场',
@@ -7058,6 +7093,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'此类别暂无资产——在下方添加第一个',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'暂无资产——点击"添加资产"开始',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'此类别为手动管理——暂无实时价格。请输入代码、数量和成本。',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'日历日',
   },
   nl: {
     'שוק אמריקאי':'Amerikaanse markt',
@@ -7511,6 +7548,8 @@ const LANG_DICTS = {
     'אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה':'Nog geen activa in deze categorie — voeg hieronder de eerste toe',
     'אין עדיין נכסים — לחץ על הוסף נכס כדי להתחיל':'Nog geen activa — tik op "Activum toevoegen"',
     'קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.':'Deze categorie wordt handmatig beheerd — nog geen live prijzen. Voer symbool, aantal en kosten in.',
+      // ── Timezone-aware calendar label ──
+    'יום קלנדרי':'kalenderdag',
   },
 };
 
@@ -8416,7 +8455,7 @@ function updateKPIs() {
   pnlEl.innerHTML = `${pnlAbsStr} <span style="opacity:.75;font-size:.78em">(${pnlPctStr})</span>`;
   pnlEl.style.color = pnlTotal >= 0 ? 'var(--gr)' : 'var(--rd)';
   // The label is based on quote freshness, not on the numeric stock P&L being exactly zero.
-  const freshStockQuotes = S.stocks.filter(s => timestampIsTodayInIsrael(S.sp[s.sym]?.quoteTime)).length;
+  const freshStockQuotes = S.stocks.filter(s => timestampIsTodayLocal(S.sp[s.sym]?.quoteTime)).length;
   const hintEl = document.getElementById('cryptoOnlyHint');
   if (hintEl) {
     if (S.stocks.length && !freshStockQuotes && S.crypto.length) {
@@ -9146,7 +9185,7 @@ async function buildHistoryTable() {
     const dt = new Date(Date.UTC(y, m - 1, d + amount, 12, 0, 0));
     return dt.toISOString().slice(0, 10);
   };
-  const keyToIsraelMidnightMs = key => {
+  const keyToLocalMidnightMs = key => {
     const [y, m, d] = key.split('-').map(Number);
     const localMidnightAsUtc = Date.UTC(y, m - 1, d, 0, 0, 0, 0);
     let guess = localMidnightAsUtc;
@@ -9186,7 +9225,7 @@ async function buildHistoryTable() {
     return bestDist <= maxDistanceMs ? best : null;
   };
 
-  const todayKey = todayIsraelDateKey();
+  const todayKey = todayLocalDateKey();
   const allDays = [];
   for (let i = days - 1; i >= 0; i--) allDays.push(addDaysKey(todayKey, -i));
   const nextDayKey = addDaysKey(allDays[allDays.length - 1], 1);
@@ -9282,14 +9321,14 @@ async function buildHistoryTable() {
     window.__stockHistLoadedAny = stockHistLoadedAny;
     setLoadMsg('טוען נתוני קריפטו...');
 
-    // Crypto: hourly candles are sampled exactly at 00:00 Israel. This avoids
-    // Binance's UTC daily candle shifting the result into the wrong calendar day.
+    // Crypto: hourly candles are sampled exactly at 00:00 in the user's local timezone.
+    // This avoids Binance's UTC daily candle shifting the result into the wrong calendar day.
     const cryptoBoundary = {};
     await Promise.all(S.crypto.map(async a => {
       const map = {};
       const samples = [];
-      const startMs = keyToIsraelMidnightMs(boundaryKeys[0]) - 60 * 60 * 1000;
-      const endMs = keyToIsraelMidnightMs(nextDayKey) + 2 * 60 * 60 * 1000;
+      const startMs = keyToLocalMidnightMs(boundaryKeys[0]) - 60 * 60 * 1000;
+      const endMs = keyToLocalMidnightMs(nextDayKey) + 2 * 60 * 60 * 1000;
       const bs = BN[a.sym];
 
       if (bs) {
@@ -9325,7 +9364,7 @@ async function buildHistoryTable() {
       }
 
       for (const key of boundaryKeys) {
-        const price = nearestSamplePrice(samples, keyToIsraelMidnightMs(key));
+        const price = nearestSamplePrice(samples, keyToLocalMidnightMs(key));
         if (price > 0) map[key] = price;
       }
       const live = S.cp[a.id]?.usd;
@@ -9442,7 +9481,7 @@ async function buildHistoryTable() {
 
     let html = `
       <canvas id="histChart" style="width:100%;height:150px;margin-bottom:10px"></canvas>
-      <div style="font-size:10.5px;color:var(--t3);margin-bottom:12px;text-align:center">מניות + קריפטו = P&L יומי · יום קלנדרי בישראל 00:00–00:00</div>
+      <div style="font-size:10.5px;color:var(--t3);margin-bottom:12px;text-align:center">${i18nGetText('מניות')} + ${i18nGetText('קריפטו')} = P&L ${i18nGetText('יומי')} · ${i18nGetText('יום קלנדרי')} (${tzCityLabel()}) 00:00–00:00</div>
       <div style="overflow-x:auto">
       <table style="width:100%;min-width:760px">
         <thead><tr style="color:var(--t3);text-align:right;">
@@ -10783,7 +10822,7 @@ function dashSetStatus(text = '', state = '') {
   el.textContent = text;
 }
 function dashAddDays(key, amount) {
-  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
+  if (!key || typeof key !== 'string') key = todayLocalDateKey();
   const [y,m,d] = key.split('-').map(Number);
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
     return new Date(Date.now() + amount*86400000).toISOString().slice(0,10);
@@ -10791,10 +10830,10 @@ function dashAddDays(key, amount) {
   return new Date(Date.UTC(y,m-1,d+amount,12)).toISOString().slice(0,10);
 }
 function dashAddMonths(key, amount) {
-  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
+  if (!key || typeof key !== 'string') key = todayLocalDateKey();
   const [y,m,d] = key.split('-').map(Number);
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
-    key = todayIsraelDateKey();
+    key = todayLocalDateKey();
     const [yy,mm,dd] = key.split('-').map(Number);
     const dt0 = new Date(Date.UTC(yy,mm-1+amount,1,12));
     return dt0.toISOString().slice(0,10);
@@ -10805,7 +10844,7 @@ function dashAddMonths(key, amount) {
   return dt.toISOString().slice(0,10);
 }
 function dashFirstOfMonth(key) {
-  if (!key || typeof key !== 'string' || key.length < 7) key = todayIsraelDateKey();
+  if (!key || typeof key !== 'string' || key.length < 7) key = todayLocalDateKey();
   return key.slice(0,7) + '-01';
 }
 function dashLastOfMonth(key) {
@@ -10813,7 +10852,7 @@ function dashLastOfMonth(key) {
   return dashAddDays(firstNext,-1);
 }
 function dashKeyToIsraelMidnightMs(key) {
-  if (!key || typeof key !== 'string') key = todayIsraelDateKey();
+  if (!key || typeof key !== 'string') key = todayLocalDateKey();
   const [y,m,d] = key.split('-').map(Number);
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return Date.now();
   const localAsUtc = Date.UTC(y,m-1,d,0,0,0,0);
@@ -10830,7 +10869,7 @@ function dashLotDateKey(value) {
   return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
 }
 function dashResolveRange(period, customFrom, customTo) {
-  const today = todayIsraelDateKey();
+  const today = todayLocalDateKey();
   let fromKey = today, endKey = today, label = 'היום';
   if (period === 'week') { fromKey = dashAddDays(today,-6); label = '7 ימים אחרונים'; }
   else if (period === 'month') { fromKey = dashFirstOfMonth(today); label = 'החודש'; }
@@ -10911,7 +10950,7 @@ function dashNearestSample(samples,target,maxDist=3*60*60*1000) {
   return dist<=maxDist && price>0 ? price : null;
 }
 async function dashGetCryptoBoundary(asset,dateKey) {
-  if (dateKey===todayIsraelDateKey() && S.cp[asset.id]?.openToday>0 && S.cp[asset.id]?.openTodayDateKey===dateKey) return Number(S.cp[asset.id].openToday);
+  if (dateKey===todayLocalDateKey() && S.cp[asset.id]?.openToday>0 && S.cp[asset.id]?.openTodayDateKey===dateKey) return Number(S.cp[asset.id].openToday);
   const key=`crypto-boundary:${asset.sym}:${dateKey}`;
   const cached=dashCacheGet(key,30*24*60*60*1000);
   if (cached>0) return Number(cached);
@@ -10950,7 +10989,7 @@ async function dashGetFxMap(range,lotDates=[]) {
   if(!Object.keys(map).length && stale) return stale;
   let last=S.fx;
   for(let k=from;k<=to;k=dashAddDays(k,1)){ if(map[k]>0)last=map[k]; else map[k]=last; }
-  if(range.includesToday) map[todayIsraelDateKey()]=S.fx;
+  if(range.includesToday) map[todayLocalDateKey()]=S.fx;
   dashCachePut(key,map); return map;
 }
 function dashFxAt(map,key){ return Number(map?.[key])||S.fx; }
@@ -10976,7 +11015,7 @@ async function dashComputeStock(asset,range,fxMap){
     const effective=boughtInside?lot.dateKey:range.fromKey;
     let startPrice;
     if((boughtInside||useEntryFallback)&&lot.price>0) startPrice=lot.price;
-    else if(!boughtInside&&range.fromKey===todayIsraelDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
+    else if(!boughtInside&&range.fromKey===todayLocalDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
     else startPrice=dashPickPrice(series,effective,{strictBefore:!boughtInside});
     if(!(startPrice>0))continue;
     const startFx=isIls?1:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
@@ -11149,11 +11188,12 @@ document.addEventListener('visibilitychange', () => {
 startAutoRefresh();
 
 
-// ── Dual clock (Israel + New York), updates every 30s ──
+// ── Dual clock (user's local time + New York), updates every 30s ──
 function updateClocks() {
   const il = document.getElementById('tsIl');
   const us = document.getElementById('tsUs');
-  if (il) il.textContent = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' });
+  // Local clock follows the user's own timezone (APP_TIME_ZONE), making the app international.
+  if (il) il.textContent = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: APP_TIME_ZONE });
   if (us) us.textContent = 'NY ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' });
 }
 updateClocks();
@@ -11542,7 +11582,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const today    = new Date();
 const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
-const todayStr    = todayIsraelDateKey();
+const todayStr    = todayLocalDateKey();
 const monthAgoStr = monthAgo.toISOString().split('T')[0];
 const monthStartStr = todayStr.slice(0,7) + '-01';
 document.getElementById('dateTo').value       = todayStr;
