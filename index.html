@@ -841,7 +841,7 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
   .card .cid > div:last-child { flex-direction: column !important; align-items: flex-start !important; gap: 0 !important; min-width: 0; text-align: left; }
   .card .tic { font-size: 16px; line-height: 1.1; }
   .card .nam { font-size: 11px; line-height: 1.2; max-width: 100%; text-align: left; }
-  /* col 3: spark in the middle — fixed width, padded so it never touches the text on either side */
+  /* col 3: spark in the middle */
   .card .spk { grid-column: 3; grid-row: 1 / span 2; height: 44px; width: 100%; max-width: 108px; margin: 0; padding: 0 6px; box-sizing: border-box; align-self: center; justify-self: center; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .card .spk svg { width: 100% !important; height: 100% !important; display: block; }
   /* col 4: value (top right) + % change (bottom right) */
@@ -2522,24 +2522,14 @@ function autoIcon(sym, name, type, color) {
     else if (/soft|tech|cloud|data/.test(n)) ic = 'laptop';
     else ic = type === 'crypto' ? 'coins' : 'chart-line-up';
   }
-  // Give every icon a distinct, stable color instead of all defaulting to the (red) accent.
+  // Give every icon a distinct, stable color instead of all defaulting to the accent.
   const iconColor = color || autoIconColor(s || n || ic);
   return `<i class="fi fi-tr-${ic}" style="color:${iconColor}"></i>`;
 }
 // A varied palette; each symbol maps deterministically to one color (same symbol → same color always).
 const ICON_PALETTE = [
-  '#3B6BFF', // blue
-  '#2BD17E', // green
-  '#B89150', // gold
-  '#9945FF', // purple
-  '#00A3E0', // sky
-  '#FF7A45', // orange
-  '#E056A8', // pink
-  '#14B8A6', // teal
-  '#F2C744', // yellow
-  '#6C7BFF', // indigo
-  '#4ECD6B', // lime-green
-  '#FF5E8A', // rose
+  '#3B6BFF', '#2BD17E', '#B89150', '#9945FF', '#00A3E0', '#FF7A45',
+  '#E056A8', '#14B8A6', '#F2C744', '#6C7BFF', '#4ECD6B', '#FF5E8A',
 ];
 function autoIconColor(seed) {
   const str = String(seed || '');
@@ -2551,7 +2541,7 @@ function autoIconColor(seed) {
 function fixIcons(arr, type) {
   // Old builds defaulted many icons to a single red/accent tone. Detect those and the
   // uncolored ones, and give them a distinct palette color keyed to the symbol.
-  const STALE_COLORS = new Set(['', 'var(--ac)', '#ff4d5e', '#FF4D5E', '#e8503a', '#E8503A', '#ff5e8a'].map(c => c.toLowerCase()));
+  const STALE_COLORS = new Set(['', 'var(--ac)', '#ff4d5e', '#e8503a', '#ff5e8a'].map(c => c.toLowerCase()));
   (arr || []).forEach(a => {
     const cur = String(a.color || '').toLowerCase();
     if (!a.color || STALE_COLORS.has(cur)) {
@@ -2699,6 +2689,9 @@ async function getFX() {
   updateFxKpi();
   const fxInput = document.getElementById('fxInput');
   if (fxInput) fxInput.value = S.fx.toFixed(3);
+  // ⚡ Ensure multi-currency rates (EUR, GBP, JPY...) are loaded so non-US stock
+  // values convert correctly. Runs in the background — doesn't block the FX update.
+  if (typeof fxConvLoadRates === 'function') fxConvLoadRates().catch(() => {});
 }
 
 async function getCrypto() {
@@ -3712,14 +3705,15 @@ const cQty = a => {
   }
   return a.qty || 0;
 };
-// Cumulative P&L since entry (₪) — stocks: (price − avgEntry) × shares × FX
+// Cumulative P&L since entry (₪) — converted from the stock's native trading currency.
 const stockTotalPnl = s => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
   const entry = avgEntry(s);
   const sh = getShares(s);
   if (entry == null || !sh) return null;
-  return (p.price - entry) * sh * S.fx;
+  // ⚡ FIX: (price − entry) is in the stock's native currency; convert that to ILS.
+  return nativeToILS((p.price - entry) * sh, p.currency || 'USD');
 };
 // Cumulative P&L for crypto since entry
 const cryptoTotalPnl = a => {
@@ -3883,7 +3877,9 @@ const cpnl = (a) => {
 const sv = (s) => {
   const p = S.sp[s.sym];
   const sh = getShares(s);
-  if (p?.price && sh) return sh * p.price * S.fx;
+  // ⚡ FIX: convert using the stock's ACTUAL trading currency, not a blanket USD→ILS.
+  // BAYN.DE trades in EUR, ELAL.TA in ILS, AAPL in USD — each needs its own rate.
+  if (p?.price && sh) return nativeToILS(sh * p.price, p.currency || 'USD');
   if (p?.price && s.baseILS && p.prevClose) return s.baseILS * (p.price / p.prevClose);
   if (s.baseILS) return s.baseILS;
   return 0;
@@ -3899,7 +3895,8 @@ const spnl = (s) => {
   if (!timestampIsTodayLocal(p.quoteTime)) return 0;
 
   const sh = getShares(s);
-  if (sh && p.prevClose) return sh * (p.price - p.prevClose) * S.fx;
+  // ⚡ FIX: convert the per-share gain in the stock's native currency to ILS.
+  if (sh && p.prevClose) return nativeToILS(sh * (p.price - p.prevClose), p.currency || 'USD');
   if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
   return null;
 };
@@ -11582,7 +11579,9 @@ function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'v
 function dashSummaryCell(label,g,primary){const up=g.pnl>=0;return `<div class="period-summary-cell${primary?' is-primary':''}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
 function dashRenderPeriodData(data,{cached=false}={}){
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
-  const cards=data.items.map(x=>{
+  // מיון פירוט הנכסים לפי רווח/הפסד בכסף (₪) — מהרווח הגבוה לנמוך
+  const sortedItems=[...(data.items||[])].sort((a,b)=>(b.pnl||0)-(a.pnl||0));
+  const cards=sortedItems.map(x=>{
     const up=x.pnl>=0,from=x.basis==='entry'?'מחושב ממחיר הקנייה':(x.activeFrom?`מחושב מ־${fDateShort(new Date(x.activeFrom+'T12:00:00Z'))}`:'');
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
@@ -11656,6 +11655,10 @@ async function doRefresh() {
         getCrypto().then(() => { try { renderDashCrypto?.(); if (S.curPage==='crypto') renderCryptoPage?.(); updateKPIs?.(); } catch(_){} }),
         getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); updateKPIs?.(); } catch(_){} }),
       ]);
+      // ⚡ Make sure EUR/GBP/JPY rates are in before the final render, so non-US
+      // stock values (BAYN.DE €, etc.) convert to ILS correctly instead of falling
+      // back to the USD rate.
+      if (typeof fxConvLoadRates === 'function') { try { await fxConvLoadRates(); } catch(_){} }
       // Final consistent render after everything has settled
       renderDashCrypto(); renderDashStocks(); updateKPIs();
       if (S.curPage === 'dash') scheduleDashPeriodRefresh();
