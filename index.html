@@ -3467,7 +3467,10 @@ async function getStocks() {
       const taBase = s.sym.replace(/\.TA$/i, '').toLowerCase();
       const sources = [
         fetchTwelveDataQuote(s.sym).catch(() => null),
-        fetchYahooQuote(s.sym).catch(() => null),
+        Promise.race([
+          fetchYahooQuote(s.sym).catch(() => null),
+          new Promise(resolve => setTimeout(() => resolve(null), 5000)),
+        ]),
         fetchGoogleFinanceQuote(s.sym).catch(() => null),
         isTA ? fetchStooqQuote(taBase + '.il').then(su => {
           if (su) { su.price /= 100; su.prevClose /= 100; if (su.high) su.high /= 100; if (su.low) su.low /= 100; su.currency = 'ILS'; }
@@ -3482,9 +3485,21 @@ async function getStocks() {
         q = valid[0];
       }
     } else {
+      // Race Finnhub against Yahoo, but cap how long we'll wait on Yahoo. Yahoo's
+      // fallback goes through up to 7 CORS proxies tried one after another (each
+      // with its own timeout) — in the worst case that chain alone can take 30+
+      // seconds. Promise.allSettled waits for the SLOWEST of the two, so a single
+      // congested/rate-limited proxy run could block this stock's price update
+      // for that whole time even though Finnhub already had a perfectly good
+      // answer in under a second. A bounded wait keeps the freshness comparison
+      // when Yahoo is fast, without letting it hold up everything when it isn't.
+      const yahooWithCap = Promise.race([
+        fetchYahooQuote(s.sym),
+        new Promise(resolve => setTimeout(() => resolve(null), 5000)),
+      ]);
       const [fhResult, yhResult] = await Promise.allSettled([
         fetchFinnhubQuote(s.sym),
-        fetchYahooQuote(s.sym),
+        yahooWithCap,
       ]);
       const fh = fhResult.status === 'fulfilled' ? fhResult.value : null;
       const yh = yhResult.status === 'fulfilled' ? yhResult.value : null;
@@ -8630,7 +8645,13 @@ function renderDashStocks() {
     const p = S.sp[s.sym];
     setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, (p?.change ?? 0) >= 0), animate ? 40 : 0);
   });
-  scheduleStockChartWarmup();
+  // NOTE: no automatic chart warmup here. It used to fire ~2 chart requests per
+  // stock on every render, hitting the SAME shared free CORS proxies (corsproxy.io,
+  // allorigins, codetabs) that the actual price quotes depend on — saturating them
+  // and making prices/totals crawl while only the charts sped up. The per-card
+  // hover/press prefetch (see cardHTML) already makes the chart instant for
+  // whichever stock the user is about to open, without competing for bandwidth
+  // on every single portfolio refresh.
 }
 
 // Render the placeholder categories (commodities / bonds / etfs). They have no data
