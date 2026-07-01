@@ -824,7 +824,7 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
 /* ── MOBILE COMPACT CARD (single-row watchlist style) ── */
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; gap: 8px; }
-  .card { padding: 12px 14px; display: grid; grid-template-columns: 40px 1fr 140px 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px; align-items: center;
+  .card { padding: 12px 14px; display: grid; grid-template-columns: 40px minmax(0,1fr) 108px minmax(0,1fr); grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px; align-items: center;
           direction: ltr; }   /* force LTR so layout is identical in Hebrew and English */
   /* hide bits that don't fit a row layout */
   .card .cg { display: none; }
@@ -841,8 +841,8 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
   .card .cid > div:last-child { flex-direction: column !important; align-items: flex-start !important; gap: 0 !important; min-width: 0; text-align: left; }
   .card .tic { font-size: 16px; line-height: 1.1; }
   .card .nam { font-size: 11px; line-height: 1.2; max-width: 100%; text-align: left; }
-  /* col 3: spark in the middle */
-  .card .spk { grid-column: 3; grid-row: 1 / span 2; height: 48px; width: 140px; margin: 0; align-self: center; justify-self: center; display: flex; align-items: center; justify-content: center; }
+  /* col 3: spark in the middle — fixed width, padded so it never touches the text on either side */
+  .card .spk { grid-column: 3; grid-row: 1 / span 2; height: 44px; width: 100%; max-width: 108px; margin: 0; padding: 0 6px; box-sizing: border-box; align-self: center; justify-self: center; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .card .spk svg { width: 100% !important; height: 100% !important; display: block; }
   /* col 4: value (top right) + % change (bottom right) */
   .card .cb { display: contents; }
@@ -2522,11 +2522,43 @@ function autoIcon(sym, name, type, color) {
     else if (/soft|tech|cloud|data/.test(n)) ic = 'laptop';
     else ic = type === 'crypto' ? 'coins' : 'chart-line-up';
   }
-  return `<i class="fi fi-tr-${ic}" style="color:${color || 'var(--ac)'}"></i>`;
+  // Give every icon a distinct, stable color instead of all defaulting to the (red) accent.
+  const iconColor = color || autoIconColor(s || n || ic);
+  return `<i class="fi fi-tr-${ic}" style="color:${iconColor}"></i>`;
+}
+// A varied palette; each symbol maps deterministically to one color (same symbol → same color always).
+const ICON_PALETTE = [
+  '#3B6BFF', // blue
+  '#2BD17E', // green
+  '#B89150', // gold
+  '#9945FF', // purple
+  '#00A3E0', // sky
+  '#FF7A45', // orange
+  '#E056A8', // pink
+  '#14B8A6', // teal
+  '#F2C744', // yellow
+  '#6C7BFF', // indigo
+  '#4ECD6B', // lime-green
+  '#FF5E8A', // rose
+];
+function autoIconColor(seed) {
+  const str = String(seed || '');
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return ICON_PALETTE[h % ICON_PALETTE.length];
 }
 // regenerate every icon from the verified Flaticon set (deterministic — safe to run on each load)
 function fixIcons(arr, type) {
-  (arr || []).forEach(a => { a.icon = autoIcon(a.sym, a.name, type, a.color); });
+  // Old builds defaulted many icons to a single red/accent tone. Detect those and the
+  // uncolored ones, and give them a distinct palette color keyed to the symbol.
+  const STALE_COLORS = new Set(['', 'var(--ac)', '#ff4d5e', '#FF4D5E', '#e8503a', '#E8503A', '#ff5e8a'].map(c => c.toLowerCase()));
+  (arr || []).forEach(a => {
+    const cur = String(a.color || '').toLowerCase();
+    if (!a.color || STALE_COLORS.has(cur)) {
+      a.color = autoIconColor(a.sym || a.name || type);
+    }
+    a.icon = autoIcon(a.sym, a.name, type, a.color);
+  });
 }
 
 function normalizeStocks(arr) {
@@ -2977,24 +3009,22 @@ async function fetchYahooSeries(sym, range) {
   const candidates = [];
   const worker = String(MY_PROXY || '').replace(/\/$/, '');
   if (worker) {
-    // ⚡ Worker only — fast & reliable, no public-proxy noise.
-    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3000), sym, intraday))());
-    candidates.push(delayedTask(400, async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3500), sym, intraday)));
-  } else {
-    // No Worker — race public proxies.
-    candidates.push(delayedTask(0, async () => {
-      const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
-      return parseYahooChartPayload(text, sym, intraday);
-    }));
-    candidates.push(delayedTask(100, async () => {
-      const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
-      return parseYahooChartPayload(text, sym, intraday);
-    }));
-    candidates.push(delayedTask(200, async () => {
-      const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
-      return parseYahooChartPayload(json, sym, intraday);
-    }));
+    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
   }
+  // Public fallbacks are raced rather than attempted sequentially. This changes a
+  // possible 20–60 second wait into a bounded ~5 second first-load fallback.
+  candidates.push(delayedTask(worker ? 250 : 0, async () => {
+    const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 350 : 100, async () => {
+    const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 500 : 200, async () => {
+    const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
+    return parseYahooChartPayload(json, sym, intraday);
+  }));
   return firstValidResult(candidates);
 }
 
@@ -3210,15 +3240,12 @@ async function fetchGoogleFinanceQuote(sym) {
   const googleSym = `${ticker}:${mapping.ex}`;
   const nativeCur = mapping.cur;
   const url = `https://www.google.com/finance/quote/${encodeURIComponent(googleSym)}`;
-  // ⚡ Prefer the private Worker; only use public proxies if no Worker is configured.
-  const worker = String(MY_PROXY || '').replace(/\/$/, '');
-  const proxyUrls = worker
-    ? [`${worker}/?url=${encodeURIComponent(url)}`]
-    : [
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      ];
+  // ⚡ SPEED: race proxies in parallel with short timeouts (was 4 sequential @ 10s = 40s worst case)
+  const proxyUrls = [
+    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
   const parseGoogle = (text) => {
     try {
       let body = text;
@@ -3319,10 +3346,7 @@ async function fetchStooqQuote(sym) {
   for (const code of candidates) {
     try {
       const stooqUrl = `https://stooq.com/q/l/?s=${code}&f=sd2t2ohlcv&h&e=csv`;
-      const worker = String(MY_PROXY || '').replace(/\/$/, '');
-      const proxied = worker
-        ? `${worker}/?url=${encodeURIComponent(stooqUrl)}`
-        : `https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`;
+      const proxied = `https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`;
       const r = await fetch(proxied, { signal: AbortSignal.timeout(6000) });
       if (!r.ok) continue;
       const csv = (await r.text()).trim();
@@ -3394,27 +3418,22 @@ async function fetchYahooQuote(sym) {
     };
   };
 
-  // ⚡ When a private Worker is configured, use ONLY it — it's fast (~20ms) and reliable.
-  // The public proxies (corsproxy/allorigins/codetabs) only slow things down and throw
-  // 429/CORS noise, so we skip them entirely unless there's no Worker.
+  // ⚡ SPEED: race ALL proxies in parallel (same technique the fast charts use),
+  // not one-after-another. First valid quote wins. Short timeouts so a slow/blocked
+  // proxy can't stall the whole thing. This is the difference between 1s and 40s.
   const worker = String(MY_PROXY || '').replace(/\/$/, '');
   const tasks = [];
   if (worker) {
-    // Two quick attempts at the Worker (covers a rare cold-start), nothing else needed.
-    tasks.push((async () => parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 3000)))());
-    tasks.push(delayedTask(400, async () =>
-      parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 3500))));
-  } else {
-    // No Worker — fall back to the public proxies raced in parallel.
-    tasks.push(delayedTask(0, async () =>
-      parseQuote(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 3500))));
-    tasks.push(delayedTask(100, async () =>
-      parseQuote(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, 3500))));
-    tasks.push(delayedTask(200, async () =>
-      parseQuote(await fetchTextFast(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 4000))));
-    tasks.push(delayedTask(300, async () =>
-      parseQuote(await fetchTextFast(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 4500))));
+    tasks.push((async () => parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 2800)))());
   }
+  tasks.push(delayedTask(worker ? 250 : 0, async () =>
+    parseQuote(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 3500))));
+  tasks.push(delayedTask(worker ? 350 : 100, async () =>
+    parseQuote(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, 3500))));
+  tasks.push(delayedTask(worker ? 450 : 200, async () =>
+    parseQuote(await fetchTextFast(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 4000))));
+  tasks.push(delayedTask(worker ? 600 : 300, async () =>
+    parseQuote(await fetchTextFast(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 4500))));
 
   return firstValidResult(tasks, v => v && v.price > 0);
 }
@@ -8439,7 +8458,7 @@ async function drawSpark(cid, key, isCrypto, isUp) {
   const fillD = d + ` L ${W},${H} L 0,${H} Z`;
 
   const svgHTML = `
-    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
       <defs>
         <linearGradient id="sg_${cid}_${Math.random().toString(36).slice(2,8)}" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stop-color="${col}" stop-opacity="0.18"/>
