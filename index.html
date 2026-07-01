@@ -516,9 +516,9 @@ body.light .tk-opt.sel { color: #F4EFE5; }
 .mk-strip { flex: 1; overflow: hidden; position: relative; direction: ltr; mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
 .mk-track { display: inline-flex; align-items: center; height: 28px; white-space: nowrap; will-change: transform; animation: tkScroll var(--mk-dur, 40s) linear infinite; }
 .mk-strip:hover .mk-track, .mk-strip:active .mk-track { animation-play-state: paused; }
-.mk-item { display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; font-family: var(--font-mono); font-size: 11px; }
+.mk-item { display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; font-family: var(--font-body); font-size: 11px; }
 .mk-flag { font-size: 12px; line-height: 1; }
-.mk-name { color: var(--t2); font-family: 'Newsreader', serif; font-style: italic; font-size: 12.5px; font-weight: 400; letter-spacing: .3px; }
+.mk-name { color: var(--t2); font-family: var(--font-body); font-weight: 600; font-size: 12px; letter-spacing: .2px; }
 .mk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .mk-dot.open { background: var(--gr); box-shadow: 0 0 6px color-mix(in srgb, var(--gr) 70%, transparent); }
 .mk-dot.closed { background: var(--rd); }
@@ -1075,6 +1075,13 @@ body.light .pb2.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6
 
 /* ── INSIGHTS TABLES ── */
 .ins-card { border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+/* Paired insight cards sit side-by-side on desktop, stacked on mobile. */
+.ins-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: start; }
+/* History & P&L table — larger, more readable font (bumped ~4px). */
+#pnlHistory table { font-size: 15px; }
+#pnlHistory table th { font-size: 14px; }
+.ins-row > .ins-card { margin-bottom: 0; }
+@media (max-width: 720px) { .ins-row { grid-template-columns: 1fr; gap: 12px; } }
 .ins-title { font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 20px; font-weight: 400; color: var(--t1); letter-spacing: -0.2px; margin-bottom: 12px; border-bottom: 1px solid var(--b1); padding-bottom: 6px; }
 .ir { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--b1); }
 .ir:last-child { border-bottom: none; }
@@ -2332,22 +2339,35 @@ onAuthStateChanged(auth, async user => {
 
   <div class="page" id="page-insights">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מנוע תובנות אנליטי</div></div>
-    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary"></div></div>
     <div class="ins-card">
-      <div class="ins-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span><i class="ph-thin ph-calendar-blank ph-sm"></i> היסטוריית ביצועים ו-P&L</span>
-        <select id="histDays" onchange="buildHistoryTable()" style="background:var(--s2);color:var(--t1);border:1px solid var(--b1);border-radius:var(--radius-sm);padding:4px 8px;font-size:11px;font-family:var(--font-body)">
-          <option value="7">7 ימים</option>
-          <option value="30" selected>30 ימים</option>
-          <option value="90">3 חודשים</option>
-        </select>
+      <div class="ins-title"><i class="ph-thin ph-calendar-blank ph-sm"></i> היסטוריית ביצועים ו-P&L</div>
+      <div class="period-presets" id="histPresetRow" style="margin-bottom:12px">
+        <button class="pb2" onclick="setHistPeriod(7,this)">7 ימים</button>
+        <button class="pb2 active" onclick="setHistPeriod(30,this)">30 ימים</button>
+        <button class="pb2" onclick="setHistPeriod(90,this)">3 חודשים</button>
+        <button class="pb2" onclick="setHistPeriod(180,this)">6 חודשים</button>
+        <button class="pb2" onclick="setHistPeriod(365,this)">שנה</button>
+        <button class="pb2" onclick="toggleHistCustom(this)">טווח מותאם</button>
       </div>
+      <div id="histDateRow" class="date-row period-date-row" style="display:none;margin-bottom:12px;">
+        <label>מ:</label>
+        <input type="date" id="histDateFrom">
+        <label>עד:</label>
+        <input type="date" id="histDateTo">
+        <button class="date-go" onclick="applyHistCustom()">חשב</button>
+      </div>
+      <input type="hidden" id="histDays" value="30">
       <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:8px;text-align:center"><i class="fi fi-tr-hourglass fi-spin" style="vertical-align:-2px;margin-left:6px"></i>טוען היסטוריית שוק ומחירי סגירה...</div></div>
     </div>
-    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trophy ph-sm"></i> הנכסים המניבים ביותר היום</div><div id="insTop"></div></div>
-    <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trend-down ph-sm"></i> המפסידים ביותר היום</div><div id="insBot"></div></div>
-    <div class="ins-card"><div class="ins-title">התפלגות ומשקלים בתיק</div><div id="insDist"></div></div>
     <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-warning ph-sm"></i> התראות מערכת וחריגות אלוקציה</div><div id="insTips"></div></div>
+    <div class="ins-row">
+      <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trophy ph-sm"></i> הנכסים המניבים ביותר היום</div><div id="insTop"></div></div>
+      <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trend-down ph-sm"></i> המפסידים ביותר היום</div><div id="insBot"></div></div>
+    </div>
+    <div class="ins-row">
+      <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-chart-pie ph-sm"></i> ריכוז וסיכום נתונים</div><div id="insSummary"></div></div>
+      <div class="ins-card"><div class="ins-title">התפלגות ומשקלים בתיק</div><div id="insDist"></div></div>
+    </div>
   </div>
 
 </div>
@@ -4274,21 +4294,39 @@ function positionPickerToBody(pop, btn) {
   const r = btn.getBoundingClientRect();
   const isMobile = window.matchMedia('(max-width: 640px)').matches;
   pop.style.position = 'fixed';
-  pop.style.top = (r.bottom + 6) + 'px';
-  // Align the popup's right edge with the button (RTL-friendly), clamped to viewport.
-  const width = isMobile ? Math.min(260, window.innerWidth - 20) : 240;
-  let left = r.right - width;
-  if (left < 10) left = 10;
-  if (left + width > window.innerWidth - 10) left = window.innerWidth - 10 - width;
-  pop.style.left = left + 'px';
-  pop.style.right = 'auto';
-  pop.style.width = width + 'px';
-  pop.style.zIndex = '100000';
-  pop.style.maxHeight = '72vh';
+  pop.style.transform = 'none';   // override the base translateY so it can't sit off-anchor
+  if (isMobile) {
+    // On mobile, anchor just under the button and clamp firmly inside the viewport.
+    const width = Math.min(280, window.innerWidth - 20);
+    let left = r.left + r.width / 2 - width / 2;      // center under the button
+    if (left < 10) left = 10;
+    if (left + width > window.innerWidth - 10) left = window.innerWidth - 10 - width;
+    pop.style.top = Math.max(r.bottom + 6, 56) + 'px';
+    pop.style.left = left + 'px';
+    pop.style.right = 'auto';
+    pop.style.width = width + 'px';
+  } else {
+    const width = 240;
+    let left = r.right - width;
+    if (left < 10) left = 10;
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.style.left = left + 'px';
+    pop.style.right = 'auto';
+    pop.style.width = width + 'px';
+  }
+  pop.style.zIndex = '2147483647';   // max — above absolutely everything
+  pop.style.maxHeight = '70vh';
+  pop.style.opacity = '1';
+  pop.style.pointerEvents = 'all';
 }
 function closeAllPickers() {
-  document.getElementById('currPop')?.classList.remove('open');
-  document.getElementById('langPop')?.classList.remove('open');
+  ['currPop', 'langPop'].forEach(id => {
+    const pop = document.getElementById(id);
+    if (!pop) return;
+    pop.classList.remove('open');
+    pop.style.opacity = '0';
+    pop.style.pointerEvents = 'none';
+  });
 }
 document.addEventListener('click', e => {
   if (e.target.closest('.picker-host')) return;
@@ -4324,7 +4362,7 @@ const I18N = {
   '(אופציונלי)':'(optional)','ניהול קניות':'Manage buys','מחק קנייה':'Delete buy',
 
   'התפלגות תיק הנכסים':'Portfolio Allocation','פילוח קטגוריות':'Category Breakdown','תשואה תקופתית — מניות':'Periodic Return — Stocks',
-  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L',
+  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
   'התראות מערכת וחריגות אלוקציה':'System alerts & allocation anomalies','הנכסים המניבים ביותר היום':'Top performing assets today',
   'המפסידים ביותר היום':'Biggest losers today','התפלגות ומשקלים בתיק':'Portfolio distribution & weights',
   'ריכוז וסיכום נתונים':'Data summary','ביצועי שוק':'Market Performance','מאזן כמותי':'Quantitative Balance',
@@ -4382,6 +4420,9 @@ const I18N = {
   'אלוקציית התיק מאוזנת, לא זוהו חריגות קיצוניות במדדי הסיכון.':'Portfolio allocation is balanced; no extreme risk anomalies detected.',
   // ticker
   'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
+  // market status bar
+  'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
+  'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
   // lock screen + auth
   'כניסה מאובטחת לנתונים':'Secure data access','התחבר באמצעות Google':'Sign in with Google','התחבר עם Google':'Sign in with Google',
   'זיהוי פנים / טביעת אצבע':'Face ID / Fingerprint','טביעת אצבע / זיהוי פנים':'Fingerprint / Face ID',
@@ -4781,6 +4822,9 @@ const LANG_TO_CURRENCY = {
 // Per-language overrides — FULL coverage of every UI term (267 keys each).
 const LANG_DICTS = {
   ru: {
+
+    // market status bar
+    'ת"א':'ТА','לונדון':'Лондон','שוק פתוח':'Открыт','שוק סגור':'Закрыт','נפתח בקרוב':'Скоро откр.','נסגר בעוד':'Закр. через','נפתח בעוד':'Откр. через','דק׳':'мин','ש׳':'ч',
     'שוק אמריקאי':'Рынок США',
     'אירופה':'Европа',
     'אסיה':'Азия',
@@ -5250,6 +5294,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'Есть несохранённые изменения — сохранить?',
   },
   es: {
+
+    // market status bar
+    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Abierto','שוק סגור':'Cerrado','נפתח בקרוב':'Abre pronto','נסגר בעוד':'Cierra en','נפתח בעוד':'Abre en','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Mercado de EE. UU.',
     'אירופה':'Europa',
     'אסיה':'Asia',
@@ -5712,6 +5759,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'Tienes cambios sin guardar, ¿guardarlos?',
   },
   fr: {
+
+    // market status bar
+    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Ouvert','שוק סגור':'Fermé','נפתח בקרוב':'Ouvre bientôt','נסגר בעוד':'Ferme dans','נפתח בעוד':'Ouvre dans','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Marché américain',
     'אירופה':'Europe',
     'אסיה':'Asie',
@@ -6174,6 +6224,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'Des modifications non enregistrées — les enregistrer ?',
   },
   ar: {
+
+    // market status bar
+    'ת"א':'تل أبيب','לונדון':'لندن','שוק פתוח':'مفتوح','שוק סגור':'مغلق','נפתח בקרוב':'يفتح قريباً','נסגר בעוד':'يغلق خلال','נפתח בעוד':'يفتح خلال','דק׳':'د','ש׳':'س',
     'שוק אמריקאי':'السوق الأمريكي',
     'אירופה':'أوروبا',
     'אסיה':'آسيا',
@@ -6636,6 +6689,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'لديك تغييرات غير محفوظة — هل تحفظها؟',
   },
   de: {
+
+    // market status bar
+    'ת"א':'TLV','לונדון':'London','שוק פתוח':'Offen','שוק סגור':'Geschlossen','נפתח בקרוב':'Öffnet bald','נסגר בעוד':'Schließt in','נפתח בעוד':'Öffnet in','דק׳':'Min','ש׳':'Std',
     'שוק אמריקאי':'US-Markt',
     'אירופה':'Europa',
     'אסיה':'Asien',
@@ -7098,6 +7154,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'Ungespeicherte Änderungen — speichern?',
   },
   zh: {
+
+    // market status bar
+    'ת"א':'特拉维夫','לונדון':'伦敦','שוק פתוח':'开市','שוק סגור':'休市','נפתח בקרוב':'即将开市','נסגר בעוד':'距收市','נפתח בעוד':'距开市','דק׳':'分','ש׳':'时',
     'שוק אמריקאי':'美国市场',
     'אירופה':'欧洲',
     'אסיה':'亚洲',
@@ -7560,6 +7619,9 @@ const LANG_DICTS = {
     'יש שינויים שלא נשמרו — לשמור אותם?':'有未保存的更改——要保存吗？',
   },
   nl: {
+
+    // market status bar
+    'ת"א':'TLV','לונדון':'Londen','שוק פתוח':'Open','שוק סגור':'Gesloten','נפתח בקרוב':'Opent snel','נסגר בעוד':'Sluit over','נפתח בעוד':'Opent over','דק׳':'min','ש׳':'u',
     'שוק אמריקאי':'Amerikaanse markt',
     'אירופה':'Europa',
     'אסיה':'Azië',
@@ -8050,6 +8112,8 @@ function setLang(code) {
   localStorage.setItem('lang', curLang);
   closeAllPickers();
   applyLang();
+  // Re-render the market status bar so its names/status follow the new language.
+  try { _mkLastHTML = ''; if (typeof mkRender === 'function') mkRender(); } catch(_) {}
   // Auto-match the display currency to the chosen language's country, UNLESS the
   // user has explicitly picked a currency before (we respect their manual choice).
   const matchCur = LANG_TO_CURRENCY[code];
@@ -8470,27 +8534,29 @@ function mkLocalNow(tz) {
   } catch (_) { return null; }
 }
 function mkFmtCountdown(mins) {
-  if (mins < 60) return `${mins} דק'`;
+  const T = (s) => (typeof i18nGetText === 'function' ? i18nGetText(s) : s);
+  const mLbl = T('דק׳'), hLbl = T('ש׳');
+  if (mins < 60) return `${mins} ${mLbl}`;
   const h = Math.floor(mins / 60), m = mins % 60;
-  return m ? `${h}ש' ${m}דק'` : `${h}ש'`;
+  return m ? `${h}${hLbl} ${m}${mLbl}` : `${h}${hLbl}`;
 }
 // Returns { state:'open'|'closed'|'pre', label, countdownMins }
 function mkMarketState(mkt) {
   try {
     const now = mkLocalNow(mkt.tz);
-    if (!now) return { state: 'closed', label: 'סגור', countdownMins: null };
+    if (!now) return { state: 'closed', label: 'שוק סגור', countdownMins: null };
     const openMin = mkt.open[0] * 60 + mkt.open[1];
     const closeMin = mkt.close[0] * 60 + mkt.close[1];
     const isTradingDay = mkt.days.includes(now.weekday);
     if (isTradingDay && now.minutes >= openMin && now.minutes < closeMin) {
-      return { state: 'open', label: 'פתוח', countdownMins: closeMin - now.minutes };  // time until close
+      return { state: 'open', label: 'שוק פתוח', countdownMins: closeMin - now.minutes };  // time until close
     }
     if (isTradingDay && now.minutes < openMin) {
       return { state: 'pre', label: 'נפתח בקרוב', countdownMins: openMin - now.minutes };
     }
-    return { state: 'closed', label: 'סגור', countdownMins: null };
+    return { state: 'closed', label: 'שוק סגור', countdownMins: null };
   } catch (_) {
-    return { state: 'closed', label: 'סגור', countdownMins: null };
+    return { state: 'closed', label: 'שוק סגור', countdownMins: null };
   }
 }
 // Which markets does the user actually hold stocks in?
@@ -8506,32 +8572,48 @@ function mkHeldMarkets() {
   });
   return held;
 }
+let _mkLastHTML = '';
 function mkRender() {
   try {
     const track = document.getElementById('mkTrack');
     if (!track) return;
+    const T = (s) => (typeof i18nGetText === 'function' ? i18nGetText(s) : s);
     const held = mkHeldMarkets();
     // Show all major markets, but put the ones the user holds first (with a subtle marker).
     const ordered = [...MK_MARKETS].sort((a, b) => (held.has(b.key) ? 1 : 0) - (held.has(a.key) ? 1 : 0));
-    const items = ordered.map(mkt => {
+    const oneSet = ordered.map(mkt => {
       const st = mkMarketState(mkt);
       let countTxt = '';
-      if (st.state === 'open')      countTxt = `<span class="mk-count">· נסגר בעוד ${mkFmtCountdown(st.countdownMins)}</span>`;
-      else if (st.state === 'pre')  countTxt = `<span class="mk-count">· נפתח בעוד ${mkFmtCountdown(st.countdownMins)}</span>`;
+      if (st.state === 'open')      countTxt = `<span class="mk-count">· ${T('נסגר בעוד')} ${mkFmtCountdown(st.countdownMins)}</span>`;
+      else if (st.state === 'pre')  countTxt = `<span class="mk-count">· ${T('נפתח בעוד')} ${mkFmtCountdown(st.countdownMins)}</span>`;
       const holdMark = held.has(mkt.key) ? '<span class="mk-count" style="color:var(--gd)">●</span>' : '';
       return `<span class="mk-item">
         <span class="mk-flag">${mkt.flag}</span>
-        <span class="mk-name">${mkt.name}</span>
+        <span class="mk-name">${T(mkt.name)}</span>
         <span class="mk-dot ${st.state}"></span>
-        <span class="mk-status ${st.state}">${st.label}</span>
+        <span class="mk-status ${st.state}">${T(st.label)}</span>
         ${countTxt}
         ${holdMark}
       </span><span class="mk-sep"></span>`;
     }).join('');
-    track.innerHTML = items + items;   // duplicated for a seamless loop
+
+    // If content is identical to last render, leave the DOM alone so the scroll
+    // animation keeps flowing instead of jumping back to the start.
+    if (oneSet === _mkLastHTML && track.innerHTML) return;
+    _mkLastHTML = oneSet;
+
+    const stripW = track.parentElement?.clientWidth || window.innerWidth || 360;
+    let half = oneSet;
+    track.innerHTML = half + half;
     requestAnimationFrame(() => {
+      let guard = 0;
+      while (track.scrollWidth / 2 < stripW * 1.5 && guard < 6) {
+        half += oneSet;
+        track.innerHTML = half + half;
+        guard++;
+      }
       const w = track.scrollWidth / 2;
-      track.style.setProperty('--mk-dur', Math.max(20, Math.round(w / 45)) + 's');
+      track.style.setProperty('--mk-dur', Math.max(24, Math.round(w / 40)) + 's');
     });
   } catch (e) {
     console.warn('[MarketBar] render skipped:', e?.message);
@@ -9794,6 +9876,33 @@ function renderInsights() {
 // ═══════════════════════════════════════════
 // HISTORY TABLE
 // ═══════════════════════════════════════════
+let histCustomFrom = null, histCustomTo = null;
+function setHistPeriod(days, btn) {
+  histCustomFrom = null; histCustomTo = null;                 // preset clears any custom range
+  const input = document.getElementById('histDays');
+  if (input) input.value = String(days);
+  document.querySelectorAll('#histPresetRow .pb2').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const dr = document.getElementById('histDateRow'); if (dr) dr.style.display = 'none';
+  buildHistoryTable();
+}
+function toggleHistCustom(btn) {
+  document.querySelectorAll('#histPresetRow .pb2').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const dr = document.getElementById('histDateRow');
+  if (dr) dr.style.display = (dr.style.display === 'none' || !dr.style.display) ? 'flex' : 'none';
+}
+function applyHistCustom() {
+  const from = document.getElementById('histDateFrom')?.value;
+  const to   = document.getElementById('histDateTo')?.value;
+  if (!from || !to) { alert('בחר תאריך התחלה וסיום'); return; }
+  if (from > to)  { alert('תאריך ההתחלה חייב להיות לפני תאריך הסיום'); return; }
+  // Cap "to" at yesterday so today (a partial day) is never shown.
+  const yKey = (function(){ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
+  histCustomFrom = from;
+  histCustomTo   = to > yKey ? yKey : to;
+  buildHistoryTable();
+}
 async function buildHistoryTable() {
   const el = document.getElementById('pnlHistory');
   if (!el) return;
@@ -9856,8 +9965,16 @@ async function buildHistoryTable() {
   };
 
   const todayKey = todayLocalDateKey();
+  const yesterdayKey = addDaysKey(todayKey, -1);
   const allDays = [];
-  for (let i = days - 1; i >= 0; i--) allDays.push(addDaysKey(todayKey, -i));
+  // Custom date range takes priority if set; otherwise presets end at YESTERDAY (never today).
+  if (histCustomFrom && histCustomTo) {
+    let cur = histCustomFrom;
+    let guard = 0;
+    while (cur <= histCustomTo && guard < 1500) { allDays.push(cur); cur = addDaysKey(cur, 1); guard++; }
+  } else {
+    for (let i = days; i >= 1; i--) allDays.push(addDaysKey(todayKey, -i));  // ...→ yesterday
+  }
   const nextDayKey = addDaysKey(allDays[allDays.length - 1], 1);
   const boundaryKeys = [...allDays, nextDayKey];
 
@@ -10086,12 +10203,19 @@ async function buildHistoryTable() {
         cryptoHasData = true;
       }
 
-      const prevTotal = stockStart + cryptoStart;
+      // Manual categories (commodities / bonds / ETFs) have no daily price feed, so they
+      // contribute a fixed value to the portfolio base each day with 0 daily P&L — but only
+      // when the user has enabled them in the dashboard "view settings".
+      let manualVal = 0;
+      const manualCats = ['commodities','bonds','etfs'].filter(k => typeof catInTotal === 'function' && catInTotal(k));
+      manualCats.forEach(k => { try { manualVal += manualCatValueILS(k) || 0; } catch(_){} });
+
+      const prevTotal = stockStart + cryptoStart + manualVal;
       const pnl = stockPnl + cryptoPnl;
       const total = prevTotal + pnl;
       if (prevTotal > 0 || total > 0) {
         rows.push({
-          dateKey, prevTotal, total, stockPnl, cryptoPnl, pnl,
+          dateKey, prevTotal, total, stockPnl, cryptoPnl, pnl, manualVal, manualCats,
           hasTrading: stockHasData || cryptoHasData,
           stockHasData, cryptoHasData,
         });
@@ -10123,17 +10247,27 @@ async function buildHistoryTable() {
       return `<span style="font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;
     };
 
+    // Are any manual categories enabled? If so, show an extra column for them.
+    const anyManual = ['commodities','bonds','etfs'].some(k => typeof catInTotal === 'function' && catInTotal(k));
+    const manualLabel = ['commodities','bonds','etfs']
+      .filter(k => typeof catInTotal === 'function' && catInTotal(k))
+      .map(k => i18nGetText(k === 'commodities' ? 'סחורות' : k === 'bonds' ? 'אג"ח' : 'תעודות סל'))
+      .join(' + ');
+
     let html = `
-      <canvas id="histChart" style="width:100%;height:150px;margin-bottom:10px"></canvas>
-      <div style="font-size:10.5px;color:var(--t3);margin-bottom:12px;text-align:center">${i18nGetText('מניות')} + ${i18nGetText('קריפטו')} = P&L ${i18nGetText('יומי')} · ${i18nGetText('יום קלנדרי')} (${tzCityLabel()}) 00:00–00:00</div>
+      <div class="mchb" style="height:240px;margin-bottom:12px">
+        <canvas id="histChart"></canvas>
+      </div>
+      <div style="font-size:14.5px;color:var(--t3);margin-bottom:12px;text-align:center">${i18nGetText('מניות')} + ${i18nGetText('קריפטו')}${anyManual?' + '+manualLabel:''} = P&L ${i18nGetText('יומי')} · ${i18nGetText('יום קלנדרי')} (${tzCityLabel()}) 00:00–00:00</div>
       <div style="overflow-x:auto">
-      <table style="width:100%;min-width:760px">
+      <table style="width:100%;min-width:${anyManual?'860':'760'}px">
         <thead><tr style="color:var(--t3);text-align:right;">
           <th style="padding:6px 4px">תאריך</th>
           <th style="padding:6px 4px;text-align:left">ערך בסיס קודם</th>
           <th style="padding:6px 4px;text-align:left">ערך נוכחי</th>
           <th style="padding:6px 4px;text-align:left">מניות</th>
           <th style="padding:6px 4px;text-align:left">קריפטו</th>
+          ${anyManual?`<th style="padding:6px 4px;text-align:left">${manualLabel}</th>`:''}
           <th style="padding:6px 4px;text-align:left">P&L יומי</th>
         </tr></thead><tbody>`;
 
@@ -10152,6 +10286,7 @@ async function buildHistoryTable() {
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>
+        ${anyManual?`<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${row.manualVal>0?`<span style="color:var(--t2)">${fILS(row.manualVal)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`:''}
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
@@ -10161,22 +10296,96 @@ async function buildHistoryTable() {
     const ctx = document.getElementById('histChart')?.getContext('2d');
     if (ctx && window.Chart) {
       if (S.histChart) { try { S.histChart.destroy(); } catch (_) {} }
-      const activeColor = accentCol();
+      const isLight = document.body.classList.contains('light');
+      // Color by overall direction over the visible window, like the asset chart.
+      const up = chartData[chartData.length - 1] >= chartData[0];
+      const col = up ? upColor() : downColor();
+      const curCode = (S.currency || 'ils').toUpperCase();
+      const curDef = CURRENCIES[curCode] || CURRENCIES.ILS;
       S.histChart = new Chart(ctx, {
         type: 'line',
         data: { labels: chartLabels, datasets: [{
-          data: chartData, borderColor: activeColor, backgroundColor: 'transparent',
-          borderWidth: 2, pointRadius: 0, tension: .15, fill: false
+          label: 'P&L',
+          data: chartData,
+          borderColor: col,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHitRadius: 14,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: col,
+          pointHoverBorderColor: isLight ? '#F4EFE5' : '#0A0F1F',
+          pointHoverBorderWidth: 2,
+          tension: .16,
+          spanGaps: true,
+          fill: false,
         }]},
         options: {
           responsive: true,
-          plugins: { legend:{display:false} },
+          maintainAspectRatio: false,
+          animation: false,
+          normalized: true,
+          resizeDelay: 0,
+          interaction: { mode: 'index', intersect: false, axis: 'x' },
+          hover: { mode: 'index', intersect: false },
+          events: ['mousemove','mouseout','click','touchstart','touchmove'],
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              mode: 'index', intersect: false,
+              animation: false,
+              backgroundColor: isLight ? 'rgba(11,30,63,0.97)' : 'rgba(17,26,51,0.97)',
+              titleColor: '#F1F4FB', bodyColor: '#F1F4FB',
+              borderColor: col, borderWidth: 1, padding: 10, cornerRadius: 8,
+              displayColors: false,
+              titleFont: { family: "'Newsreader', serif", size: 12, weight: '400' },
+              bodyFont: { family: "'Geist Mono', monospace", size: 13, weight: '700' },
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0]?.dataIndex ?? 0;
+                  const r = chartRows[idx];
+                  return r ? fDateShort(new Date(`${r.dateKey}T12:00:00Z`)) : (items[0]?.label || '');
+                },
+                label: (item) => {
+                  const r = chartRows[item.dataIndex];
+                  if (!r) return '';
+                  const total = convertFromILS(r.total, curCode);
+                  const pnl = convertFromILS(r.pnl, curCode);
+                  const pct = r.prevTotal ? (r.pnl / r.prevTotal * 100) : 0;
+                  const sign = r.pnl >= 0 ? '+' : '';
+                  return [
+                    `${curDef.sym}${total.toLocaleString(undefined,{maximumFractionDigits:0})}`,
+                    `${sign}${curDef.sym}${pnl.toLocaleString(undefined,{maximumFractionDigits:0})}   ${pct>=0?'+':''}${pct.toFixed(2)}%`,
+                  ];
+                },
+              },
+            },
+          },
           scales: {
-            x: {ticks:{color:axisColor(),maxTicksLimit:5,font:{size:9}},grid:{display:false}},
-            y: {ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,.04)'}}
+            x: { ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
+            y: { ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
           }
-        }
+        },
+        plugins: [{
+          id: 'histVerticalCrosshair',
+          afterDraw(chart) {
+            const active = chart.tooltip?.getActiveElements?.();
+            if (!active?.length) return;
+            const x = active[0].element.x;
+            const {top,bottom} = chart.chartArea;
+            const c = chart.ctx;
+            c.save();
+            c.beginPath();
+            c.setLineDash([4,4]);
+            c.strokeStyle = isLight ? 'rgba(11,30,63,0.38)' : 'rgba(241,244,251,0.34)';
+            c.lineWidth = 1;
+            c.moveTo(x,top); c.lineTo(x,bottom); c.stroke();
+            c.restore();
+          }
+        }]
       });
+      const histCanvas = document.getElementById('histChart');
+      if (histCanvas) histCanvas.style.cursor = 'crosshair';
     }
   } catch (e) {
     console.error('[History] calculation failed:', e);
