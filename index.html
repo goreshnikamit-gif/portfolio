@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-19-period-summary-v9-real-pnl">
+<meta name="app-version" content="2026-07-01-merged-fast-charts-v12">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-19-period-summary-v9-real-pnl");
+console.info("Vector build: 2026-07-01-merged-fast-charts-v12");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1238,6 +1238,18 @@ body.light .mkpi-v.ac { color: var(--t1); }
 body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6px rgba(11,30,63,0.12); }
 .mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 240px; position: relative; margin-bottom: 16px; overflow: hidden; }
 
+/* Fast interactive stock charts */
+.stock-chart-status {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; text-align: center; pointer-events: none;
+  color: var(--t3); font-size: 11px; font-family: var(--font-body);
+  background: color-mix(in srgb, var(--s1) 68%, transparent);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.stock-chart-status.hidden { display: none; }
+.stock-chart-status .spinner { margin-inline-end: 7px; }
+
 .man { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media(max-width: 480px) { .man { grid-template-columns: 1fr; } }
 .manc { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 14px; }
@@ -1977,9 +1989,25 @@ window.doGoogleLogin = async () => {
     }
   } catch(e) {
     lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
-    err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
+    err.textContent = googleAuthErrorMessage(e);
   }
 };
+// Translate common Firebase Auth error codes into clear, actionable Hebrew
+// messages — especially auth/unauthorized-domain, which is by far the most
+// common reason Google sign-in works on localhost but fails once the site is
+// hosted somewhere else (like GitHub Pages): the hosting domain needs to be
+// added to the Firebase project's Authorized domains list.
+function googleAuthErrorMessage(e) {
+  const code = e?.code || '';
+  if (code === 'auth/popup-closed-by-user') return 'החלון נסגר — נסה שוב';
+  if (code === 'auth/unauthorized-domain') {
+    return `הדומיין ${location.hostname} אינו מאושר בפיירבייס. הוסיפי אותו ב-Firebase Console → Authentication → Settings → Authorized domains.`;
+  }
+  if (code === 'auth/operation-not-allowed') return 'התחברות עם Google אינה מופעלת בפרויקט. הפעילי אותה ב-Firebase Console → Authentication → Sign-in method.';
+  if (code === 'auth/network-request-failed') return 'בעיית רשת — בדקי את החיבור לאינטרנט ונסי שוב.';
+  if (code === 'auth/popup-blocked') return 'הדפדפן חסם את חלון ההתחברות — אפשרי חלונות קופצים ונסי שוב.';
+  return 'שגיאה: ' + (e?.message || code || 'לא ידועה') + (code ? ` (${code})` : '');
+}
 
 window.checkAuthAndShow = () => {
   const user = auth.currentUser;
@@ -2079,6 +2107,11 @@ getRedirectResult(auth).then(async result => {
 }).catch(error => {
   localStorage.removeItem('google_pending_redirect');
   console.warn('Google redirect result failed:', error);
+  // Show the error on screen too (not just the console) — this path runs on
+  // iOS, where signInWithRedirect previously failed completely silently from
+  // the user's point of view.
+  const err = document.getElementById('lockErr');
+  if (err && typeof googleAuthErrorMessage === 'function') err.textContent = googleAuthErrorMessage(error);
 });
 
 onAuthStateChanged(auth, async user => {
@@ -2569,6 +2602,10 @@ function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
     stocks: S.stocks,
+    commodities: S.commodities || [],
+    bonds: S.bonds || [],
+    etfs: S.etfs || [],
+    view: S.view || null,
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -3104,6 +3141,292 @@ async function fetchStockFundamentals(sym) {
   return result;
 }
 
+// ── Fast chart data layer ───────────────────────────────────────────────────
+// The database stores the user's portfolio. It is deliberately NOT in the hot
+// path for charts. Chart speed comes from the market-data source, request
+// parallelism, cache, prefetch, and rendering.
+const STOCK_CHART_CACHE_VERSION = 3;
+const STOCK_CHART_CACHE_PREFIX = 'vector_stock_chart_v3:';
+const STOCK_CHART_MEM = new Map();
+const STOCK_CHART_PENDING = new Map();
+let _stockChartWarmupScheduled = false;
+
+function stockChartKey(sym, range) {
+  return `${String(sym || '').toUpperCase()}_${range}`;
+}
+function stockChartTTL(range) {
+  if (range === '1d') return 55 * 1000;
+  if (range === '5d') return 20 * 60 * 1000;
+  if (range === '1mo') return 3 * 60 * 60 * 1000;
+  if (range === '3mo') return 8 * 60 * 60 * 1000;
+  return 18 * 60 * 60 * 1000;
+}
+function stockChartMaxStale(range) {
+  return range === '1d' ? 3 * 24 * 60 * 60 * 1000 : 14 * 24 * 60 * 60 * 1000;
+}
+function validStockSeries(data) {
+  return Array.isArray(data) && data.length >= 2 && data.every(x => Number.isFinite(Number(x?.t)) && Number.isFinite(Number(x?.p)));
+}
+function normalizeStockSeries(data) {
+  if (!Array.isArray(data)) return null;
+  const out = data.map(x => ({
+    t: Number(x.t), p: Number(x.p),
+    o: Number.isFinite(Number(x.o)) ? Number(x.o) : Number(x.p),
+    label: typeof x.label === 'string' ? x.label : undefined,
+  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  out.sort((a, b) => a.t - b.t);
+  return out.length >= 2 ? out : null;
+}
+function readStockChartCache(sym, range, allowStale = true) {
+  const key = stockChartKey(sym, range);
+  let rec = STOCK_CHART_MEM.get(key) || null;
+  if (!rec && (range === '1d' || range === '1mo')) {
+    try {
+      const raw = localStorage.getItem(STOCK_CHART_CACHE_PREFIX + key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.v === STOCK_CHART_CACHE_VERSION && validStockSeries(parsed.data)) {
+          rec = { ts: Number(parsed.ts) || 0, data: normalizeStockSeries(parsed.data) };
+          STOCK_CHART_MEM.set(key, rec);
+        }
+      }
+    } catch (_) {}
+  }
+  if (!rec || !validStockSeries(rec.data)) return null;
+  const age = Date.now() - rec.ts;
+  if (!allowStale && age > stockChartTTL(range)) return null;
+  if (age > stockChartMaxStale(range)) return null;
+  return { data: rec.data, age, fresh: age <= stockChartTTL(range) };
+}
+function writeStockChartCache(sym, range, data) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  const key = stockChartKey(sym, range);
+  const rec = { ts: Date.now(), data: normalized };
+  STOCK_CHART_MEM.set(key, rec);
+  S.sChg[key] = normalized;
+  if (range === '1d' || range === '1mo') {
+    try {
+      localStorage.setItem(STOCK_CHART_CACHE_PREFIX + key, JSON.stringify({ v: STOCK_CHART_CACHE_VERSION, ...rec }));
+    } catch (_) {}
+  }
+  return normalized;
+}
+function peekStockHist(sym, range) {
+  const key = stockChartKey(sym, range);
+  const inState = normalizeStockSeries(S.sChg[key]);
+  if (inState) return inState;
+  return readStockChartCache(sym, range, true)?.data || null;
+}
+function marketTimeZoneForSymbol(sym) {
+  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+  return cur === 'ILS' ? 'Asia/Jerusalem' : cur === 'EUR' ? 'Europe/Paris'
+    : cur === 'GBP' ? 'Europe/London' : cur === 'JPY' ? 'Asia/Tokyo'
+    : cur === 'HKD' ? 'Asia/Hong_Kong' : cur === 'AUD' ? 'Australia/Sydney'
+    : cur === 'CAD' ? 'America/Toronto' : cur === 'CHF' ? 'Europe/Zurich'
+    : 'America/New_York';
+}
+function latestTradingSessionOnly(data, sym) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  const tz = marketTimeZoneForSymbol(sym);
+  const fmt = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:tz });
+  const latestDay = fmt.format(new Date(normalized[normalized.length - 1].t));
+  const sameDay = normalized.filter(x => fmt.format(new Date(x.t)) === latestDay);
+  return sameDay.length >= 2 ? sameDay : normalized;
+}
+async function fetchJsonFast(url, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_) { return null; }
+  finally { clearTimeout(timer); }
+}
+async function fetchTextFast(url, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.text();
+  } catch (_) { return null; }
+  finally { clearTimeout(timer); }
+}
+function firstValidResult(tasks, validator = validStockSeries) {
+  return new Promise(resolve => {
+    if (!tasks.length) return resolve(null);
+    let left = tasks.length, done = false;
+    tasks.forEach(task => Promise.resolve(task).then(value => {
+      if (!done && validator(value)) { done = true; resolve(value); return; }
+      if (--left === 0 && !done) resolve(null);
+    }).catch(() => { if (--left === 0 && !done) resolve(null); }));
+  });
+}
+function delayedTask(ms, fn) {
+  return new Promise(resolve => setTimeout(() => Promise.resolve(fn()).then(resolve).catch(() => resolve(null)), ms));
+}
+function chartRangeLookbackDays(range) {
+  return ({ '1d':7, '5d':12, '1mo':45, '3mo':130, '6mo':220, '1y':400, '5y':1900, 'ytd':400 })[range] || 45;
+}
+
+async function fetchFinnhubSeries(sym, range) {
+  if (!FINNHUB_KEY || String(sym).includes('.')) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - chartRangeLookbackDays(range) * 86400;
+  const resolution = range === '1d' ? '5' : 'D';
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
+  const d = await fetchJsonFast(url, 1800);
+  if (d?.s !== 'ok' || !Array.isArray(d.t) || !Array.isArray(d.c)) return null;
+  let data = d.t.map((t, i) => ({ t:Number(t) * 1000, p:Number(d.c[i]), o:Number(d.o?.[i] ?? d.c[i]) }))
+    .filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  if (range === '1d') data = latestTradingSessionOnly(data, sym) || [];
+  return validStockSeries(data) ? data : null;
+}
+
+async function fetchTwelveDataSeries(sym, range) {
+  if (!TWELVE_DATA_KEY) return null;
+  const cfg = range === '1d'
+    ? { interval:'5min', outputsize:160 }
+    : { interval:'1day', outputsize:({ '5d':10, '1mo':40, '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 40 };
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange&apikey=${TWELVE_DATA_KEY}`;
+  const d = await fetchJsonFast(url, 3500);
+  if (d?.status === 'error' || !Array.isArray(d?.values)) return null;
+  let values = d.values.slice();
+  if (range === '1d' && values.length) {
+    const day = String(values[values.length - 1].datetime || '').slice(0, 10);
+    values = values.filter(v => String(v.datetime || '').startsWith(day));
+  }
+  const data = values.map((v, i) => {
+    const dt = String(v.datetime || '');
+    const parsed = Date.parse(dt.replace(' ', 'T'));
+    return { t:Number.isFinite(parsed) ? parsed : Date.now() + i, p:Number(v.close), o:Number(v.open ?? v.close), label:dt.slice(11,16) || undefined };
+  }).filter(x => Number.isFinite(x.p));
+  return validStockSeries(data) ? data : null;
+}
+
+function parseYahooChartPayload(payload, sym, intraday) {
+  let json = payload;
+  if (typeof payload === 'string') {
+    try { json = JSON.parse(payload); } catch (_) { return null; }
+  }
+  if (typeof json?.contents === 'string') {
+    try { json = JSON.parse(json.contents); } catch (_) { return null; }
+  }
+  const result = json?.chart?.result?.[0];
+  const t = result?.timestamp;
+  const q = result?.indicators?.quote?.[0];
+  const c = q?.close;
+  if (!Array.isArray(t) || !Array.isArray(c)) return null;
+  const divisor = chartSubunitDivisor(sym, result?.meta?.currency);
+  let data = t.map((ts, i) => ({
+    t:Number(ts) * 1000,
+    p:Number(c[i]) / divisor,
+    o:Number(q?.open?.[i] ?? c[i]) / divisor,
+  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  if (intraday) data = latestTradingSessionOnly(data, sym) || [];
+  return validStockSeries(data) ? data : null;
+}
+
+async function fetchYahooSeries(sym, range) {
+  const intraday = range === '1d';
+  const interval = intraday ? '5m' : '1d';
+  const yahooRange = range;
+  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${yahooRange}&includePrePost=false&events=div%2Csplits`;
+  const candidates = [];
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  if (worker) {
+    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
+  }
+  // Public fallbacks are raced rather than attempted sequentially. This changes a
+  // possible 20–60 second wait into a bounded ~5 second first-load fallback.
+  candidates.push(delayedTask(worker ? 250 : 0, async () => {
+    const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 350 : 100, async () => {
+    const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
+    return parseYahooChartPayload(text, sym, intraday);
+  }));
+  candidates.push(delayedTask(worker ? 500 : 200, async () => {
+    const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
+    return parseYahooChartPayload(json, sym, intraday);
+  }));
+  return firstValidResult(candidates);
+}
+
+function trimStockSeriesToRange(data, range, sym) {
+  const normalized = normalizeStockSeries(data);
+  if (!normalized) return null;
+  if (range === '1d') return latestTradingSessionOnly(normalized, sym);
+  const now = Date.now();
+  let cutoff = null;
+  if (range === 'ytd') cutoff = new Date(new Date().getFullYear(), 0, 1).getTime();
+  else {
+    const days = ({ '5d':8, '1mo':32, '3mo':95, '6mo':190, '1y':370, '5y':1850 })[range];
+    if (days) cutoff = now - days * 86400000;
+  }
+  if (!cutoff) return normalized;
+  const filtered = normalized.filter(x => x.t >= cutoff);
+  return filtered.length >= 2 ? filtered : normalized;
+}
+
+async function fetchBestStockSeries(sym, range) {
+  // Start the direct provider immediately and launch Yahoo shortly afterwards.
+  // This avoids both the old sequential 10-second waits and an unnecessary proxy
+  // storm when Finnhub answers quickly.
+  const isUS = !String(sym).includes('.');
+  const tasks = [];
+  if (isUS && FINNHUB_KEY) tasks.push(fetchFinnhubSeries(sym, range));
+  if (TWELVE_DATA_KEY) tasks.push(fetchTwelveDataSeries(sym, range));
+  const yahooDelay = MY_PROXY ? 0 : (isUS ? 650 : 0);
+  tasks.push(delayedTask(yahooDelay, () => fetchYahooSeries(sym, range)));
+  const data = await firstValidResult(tasks);
+  return trimStockSeriesToRange(data, range, sym);
+}
+
+async function getStockHist(sym, range, { force = false } = {}) {
+  const key = stockChartKey(sym, range);
+  const cached = readStockChartCache(sym, range, true);
+  if (!force && cached?.fresh) {
+    S.sChg[key] = cached.data;
+    return cached.data;
+  }
+  if (!force && STOCK_CHART_PENDING.has(key)) return STOCK_CHART_PENDING.get(key);
+  const promise = (async () => {
+    const fresh = await fetchBestStockSeries(sym, range);
+    if (fresh) return writeStockChartCache(sym, range, fresh);
+    return cached?.data || normalizeStockSeries(S.sChg[key]) || null;
+  })();
+  STOCK_CHART_PENDING.set(key, promise);
+  try { return await promise; }
+  finally { if (STOCK_CHART_PENDING.get(key) === promise) STOCK_CHART_PENDING.delete(key); }
+}
+
+function prefetchStockChart(sym) {
+  if (!sym) return;
+  getStockHist(sym, '1d').catch(() => {});
+  getStockHist(sym, '1mo').catch(() => {});
+}
+function scheduleStockChartWarmup() {
+  if (_stockChartWarmupScheduled || !Array.isArray(S.stocks) || !S.stocks.length) return;
+  _stockChartWarmupScheduled = true;
+  const queue = S.stocks.map(s => s.sym).filter(sym => !readStockChartCache(sym, '1d', false));
+  let index = 0, active = 0;
+  const pump = () => {
+    while (active < 2 && index < queue.length) {
+      active++;
+      getStockHist(queue[index++], '1d').catch(() => {}).finally(() => { active--; pump(); });
+    }
+    if (index >= queue.length && active === 0) _stockChartWarmupScheduled = false;
+  };
+  const start = () => pump();
+  if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout:1200 });
+  else setTimeout(start, 700);
+}
+
 async function getStocks() {
   const fetchFinnhubQuote = async sym => {
     try {
@@ -3219,107 +3542,15 @@ async function getStocks() {
 }
 
 async function fetchYahooIntraday(sym) {
-  // 5-min candles for the most recent trading day — gives ~78 real data points
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=5m&range=1d`;
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  ];
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
-      if (!r.ok) continue;
-      let json = await r.json();
-      if (json.contents) json = JSON.parse(json.contents);
-      const result = json?.chart?.result?.[0];
-      if (!result) continue;
-      const t = result.timestamp;
-      const c = result.indicators?.quote?.[0]?.close;
-      if (!t?.length || !c?.length) continue;
-      const data = t.map((ts, i) => ({ t: ts * 1000, p: c[i] })).filter(x => x.p != null);
-      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
-      const meta = result?.meta;
-      const divisor = chartSubunitDivisor(sym, meta?.currency);
-      if (divisor !== 1) data.forEach(d => { d.p = d.p / divisor; });
-      if (data.length >= 2) return data;
-    } catch (_) {}
-  }
-  return null;
+  return getStockHist(sym, '1d');
 }
 
 async function fetchYahooCandles(sym, range) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-  const url2 = `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${range}`;
-  const proxies = [
-    ...(MY_PROXY ? [`${MY_PROXY}/?url=${encodeURIComponent(url)}`] : []),
-    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url2)}`,
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-  ];
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy, {signal: AbortSignal.timeout(10000)});
-      if (!r.ok) continue;
-      const text = await r.text();
-      let body = text;
-      try { const j = JSON.parse(text); if (j && typeof j.contents === 'string') body = j.contents; } catch (_) {}
-      let json;
-      try { json = JSON.parse(body); } catch (_) { continue; }
-      const result = json?.chart?.result?.[0];
-      if (!result) continue;
-      const t  = result.timestamp;
-      const o  = result.indicators?.quote?.[0]?.open;
-      const c  = result.indicators?.quote?.[0]?.close;
-      if (!t?.length || !c?.length) continue;
-      const data = t.map((ts, i) => ({
-        t: ts * 1000,
-        p: c[i],
-        o: o?.[i] ?? c[i]
-      })).filter(x => x.p != null);
-      // Normalize sub-unit exchanges (agorot/pence/cents) → main currency unit.
-      const cdiv = chartSubunitDivisor(sym, result?.meta?.currency);
-      if (cdiv !== 1) data.forEach(d => { d.p /= cdiv; d.o /= cdiv; });
-      if (data.length >= 2) return data;
-    } catch(_) {}
-  }
-  // Last-resort fallback: Stooq (no CORS issues, free, daily candles for US stocks)
-  try {
-    const today = new Date();
-    const yearStart = new Date(today.getFullYear(), 0, 1);
-    const rangeDays = { '5d': 5, '1mo': 31, '3mo': 93, '6mo': 186, '1y': 366, '5y': 1830, 'ytd': Math.ceil((today - yearStart) / 86400000) + 1 };
-    const days = rangeDays[range] || 31;
-    const d1 = new Date(today.getTime() - days * 86400000);
-    const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    const stooqUrl = `https://stooq.com/q/d/l/?s=${sym.toLowerCase()}.us&d1=${fmt(d1)}&d2=${fmt(today)}&i=d`;
-    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(stooqUrl)}`, { signal: AbortSignal.timeout(10000) });
-    if (!r.ok) return null;
-    const csv = await r.text();
-    const lines = csv.trim().split('\n').slice(1);     // drop header
-    const data = lines.map(line => {
-      const cols = line.split(',');
-      const ts = new Date(cols[0]).getTime();
-      const close = parseFloat(cols[4]);
-      const open = parseFloat(cols[1]);
-      return { t: ts, p: close, o: isNaN(open) ? close : open };
-    }).filter(x => !isNaN(x.t) && !isNaN(x.p));
-    if (data.length >= 2) return data;
-  } catch (_) {}
-  return null;
+  return fetchBestStockSeries(sym, range);
 }
 
 async function fetchFinnhubCandles(sym, range) {
-  return fetchYahooCandles(sym, range);
-}
-
-async function getStockHist(sym, range) {
-  const key = sym + '_' + range;
-  if (S.sChg[key]) return S.sChg[key];
-  const data = await fetchFinnhubCandles(sym, range);
-  if (data && data.length >= 2) S.sChg[key] = data;
-  return data;
+  return fetchBestStockSeries(sym, range);
 }
 
 async function getCryptoHist(sym, days) {
@@ -8212,7 +8443,7 @@ function tkStart() {
   clearInterval(tkTimer);
   tkTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && S.curPage === 'dash') tkFetch();
-  }, 30000);
+  }, 300000);
 }
 
 // ═══════════════════════════════════════════
@@ -8248,44 +8479,28 @@ async function drawSpark(cid, key, isCrypto, isUp) {
     await new Promise(r => requestAnimationFrame(r));
     if (containers.some(c => !c.clientWidth)) await new Promise(r => setTimeout(r, 50));
   }
-  let prices = S.sparks[key];
+  let prices = isCrypto ? S.sparks[key] : null;
   if (!prices) {
     if (isCrypto) {
       // 30-day crypto history → ~30 points for a naturally curvy line
       const h = await getCryptoHist(key, 30);
       prices = h.map(([, p]) => p);
     } else {
-      // 1-month stock history (Yahoo daily candles) → ~22 trading-day points
-      try {
-        const data = await getStockHist(key, '1mo');
-        if (data && data.length >= 2) prices = data.map(d => d.p).filter(p => p != null);
-      } catch (_) {}
-      // fallback if Yahoo blocks: still better than 3 points — interpolate intraday-style noise
+      // Paint cached data immediately, then refresh in the background. If a monthly
+      // series is unavailable, an actual intraday series is still a truthful fallback.
+      const cached = peekStockHist(key, '1mo') || peekStockHist(key, '1d');
+      if (cached?.length >= 2) prices = cached.map(d => d.p).filter(Number.isFinite);
+      const fresh = await getStockHist(key, '1mo');
+      if (fresh?.length >= 2) prices = fresh.map(d => d.p).filter(Number.isFinite);
       if (!prices?.length) {
-        const p = S.sp[key];
-        // Use known prices if we have them, otherwise a generic sine wave so the area isn't empty
-        const open  = p?.prevClose ?? 100;
-        const close = p?.price ?? (open * (isUp ? 1.05 : 0.95));
-        // Hash the symbol to a stable per-symbol seed so each ticker gets a unique fake curve
-        let seed = 0;
-        for (let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) | 0;
-        const f1 = 0.7 + (Math.abs(seed) % 100) / 100;             // 0.7–1.7
-        const f2 = 1.2 + (Math.abs(seed >> 5) % 130) / 100;        // 1.2–2.5
-        const f3 = 0.3 + (Math.abs(seed >> 11) % 80) / 100;        // 0.3–1.1
-        const phase = (Math.abs(seed >> 3) % 628) / 100;           // 0–2π
-        const amp = 0.22 + (Math.abs(seed >> 7) % 18) / 100;       // 0.22–0.4
-        const n = 30;
-        prices = Array.from({ length: n }, (_, i) => {
-          const t = i / (n - 1);
-          const trend = open + (close - open) * t;
-          const wave = (
-            Math.sin(i * f1 + phase) +
-            Math.sin(i * f2 + phase * 1.7) * 0.6 +
-            Math.sin(i * f3 + phase * 0.4) * 0.4
-          );
-          const noise = wave * Math.max(Math.abs(close - open), open * 0.02) * amp;
-          return trend + noise;
+        const day = await getStockHist(key, '1d');
+        if (day?.length >= 2) prices = day.map(d => d.p).filter(Number.isFinite);
+      }
+      if (!prices?.length) {
+        containers.forEach(c => {
+          c.innerHTML = '<div style="height:56px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:9px">אין נתוני גרף</div>';
         });
+        return;
       }
     }
     if (prices?.length) S.sparks[key] = prices;
@@ -8341,7 +8556,7 @@ function cardHTML(o) {
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
-  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')">
+  return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')" onpointerenter="${type==='stock'?`prefetchStockChart('${sym}')`:''}" onpointerdown="${type==='stock'?`prefetchStockChart('${sym}')`:''}">
     <div class="cg" style="background:${color}"></div>
     <div class="ct" style="direction:ltr;">
       <div class="cid"><div class="ico">${icon}</div>
@@ -8361,7 +8576,6 @@ function cardHTML(o) {
     </div>
     <div class="cf">
       <div class="pi">${priceStr}</div>
-      ${priceUSD && type !== 'crypto' ?`<div class="pi">USD <span>${fP(priceUSD)}</span></div>`:''}
     </div>
 </div>`;
 }
@@ -8393,7 +8607,7 @@ function renderDashCrypto() {
     const html = cardHTML({sym:a.sym,id:a.id,name:a.name,icon:a.icon,color:a.color,type:'crypto',value:cv(a),qtyLabel:fNum(cQty(a))+' '+a.sym,priceStr:pu?`<span>$${fP(pu)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:cc(a),pnlDay:cpnl(a),pnlTotal:cryptoTotalPnl(a)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  if (animate) sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), 40));
+  sorted.forEach(a => setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, true, cc(a) >= 0), animate ? 40 : 0));
 }
 
 function renderDashStocks() {
@@ -8409,7 +8623,14 @@ function renderDashStocks() {
     const html = cardHTML({sym:s.sym,name:s.name,icon:s.icon,color:s.color,type:'stock',value:sv(s),qtyLabel:'NASDAQ / Equity',priceStr:pu?`<span>${fPriceNative(pu, S.sp[s.sym]?.currency, 2)}</span>`:'<span style="color:var(--t3)">טוען...</span>',priceUSD:pu,change:p?.change??null,pnlDay:spnl(s),pnlTotal:stockTotalPnl(s)});
     return animate ? html.replace('<div class="card"', `<div class="card card-enter" style="animation-delay:${idx * 50}ms"`) : html;
   }).join('');
-  if (animate) S.stocks.forEach(s => { const p = S.sp[s.sym]; if (p) setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, p.change >= 0), 40); });
+  // Always draw after every data refresh. Previously this ran only when the
+  // portfolio signature changed; the first render happened before prices arrived,
+  // so the second render skipped every dashboard sparkline.
+  S.stocks.forEach(s => {
+    const p = S.sp[s.sym];
+    setTimeout(() => drawSpark(`spk_${s.sym}`, s.sym, false, (p?.change ?? 0) >= 0), animate ? 40 : 0);
+  });
+  scheduleStockChartWarmup();
 }
 
 // Render the placeholder categories (commodities / bonds / etfs). They have no data
@@ -9356,17 +9577,24 @@ async function buildHistoryTable() {
     const ms = Date.parse(raw);
     return Number.isFinite(ms) ? dateKeyInTimeZone(ms, APP_TIME_ZONE) : '';
   };
-  const qtyOnDate = (asset, dateKey, type) => {
+  // Split the position into units held before the day and lots bought during the day.
+  // This prevents attributing price movement from before the purchase to the user.
+  const positionOnDate = (asset, dateKey, type) => {
     if (Array.isArray(asset.lots) && asset.lots.length) {
-      let qty = 0;
+      let existingQty = 0;
+      const boughtToday = [];
       for (const lot of asset.lots) {
-        const q = parseFloat(lot.qty) || 0;
+        const qty = parseFloat(lot.qty) || 0;
+        if (!(qty > 0)) continue;
         const lk = lotDateKey(lot.date);
-        if (!lk || lk <= dateKey) qty += q;
+        if (!lk || lk < dateKey) existingQty += qty;
+        else if (lk === dateKey) boughtToday.push({ qty, price: parseFloat(lot.price) || 0 });
       }
-      return qty;
+      const boughtQty = boughtToday.reduce((sum, lot) => sum + lot.qty, 0);
+      return { qty: existingQty + boughtQty, existingQty, boughtToday };
     }
-    return type === 'stock' ? getShares(asset) : cQty(asset);
+    const qty = type === 'stock' ? getShares(asset) : cQty(asset);
+    return { qty, existingQty: qty, boughtToday: [] };
   };
   const stockUsesIls = s => {
     const currency = String(S.sp[s.sym]?.currency || '').toUpperCase();
@@ -9413,7 +9641,8 @@ async function buildHistoryTable() {
         });
       }
     } catch (_) {}
-    let lastFx = S.fx;
+    const priorFxKeys = Object.keys(fxByDay).filter(k => k < boundaryKeys[0]).sort();
+    let lastFx = priorFxKeys.length ? fxByDay[priorFxKeys[priorFxKeys.length - 1]] : S.fx;
     for (const dk of boundaryKeys) {
       if (fxByDay[dk] > 0) lastFx = fxByDay[dk];
       else fxByDay[dk] = lastFx;
@@ -9537,8 +9766,8 @@ async function buildHistoryTable() {
       let cryptoStart = 0, cryptoEnd = 0, cryptoPnl = 0, cryptoHasData = false;
 
       for (const s of S.stocks) {
-        const qty = qtyOnDate(s, dateKey, 'stock');
-        if (!(qty > 0)) continue;
+        const pos = positionOnDate(s, dateKey, 'stock');
+        if (!(pos.qty > 0)) continue;
         const map = stockHist[s.sym] || {};
         const keys = Object.keys(map).sort();
         let previousClose = null;
@@ -9555,7 +9784,6 @@ async function buildHistoryTable() {
         if (isLatestDay && live?.price > 0) {
           let lp = live.prevClose;
           if (!(lp > 0) && Number.isFinite(live.change) && live.change !== 0) {
-            // price = prev * (1 + change/100)  →  prev = price / (1 + change/100)
             lp = live.price / (1 + live.change / 100);
           }
           if (lp > 0) {
@@ -9563,38 +9791,52 @@ async function buildHistoryTable() {
             previousClose = lp;
           }
         }
-        // Fallback: if no historical close is available at all, value the position
-        // at the current live price so the stock still counts toward the base total.
-        if (!(previousClose > 0)) {
-          const livePx = live?.price > 0 ? live.price : 0;
-          if (livePx > 0) {
-            const factor0 = stockUsesIls(s) ? 1 : fx;
-            stockStart += livePx * qty * factor0;
-            stockEnd   += livePx * qty * factor0;
-          }
-          continue;
+        const isIls = stockUsesIls(s);
+        const startFx = isIls ? 1 : fx;
+        const endFx = isIls ? 1 : (dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx));
+        const endPrice = sessionClose > 0 ? sessionClose : (previousClose > 0 ? previousClose : (live?.price || 0));
+        if (!(endPrice > 0)) continue;
+
+        let assetStart = 0;
+        if (pos.existingQty > 0) {
+          const basePrice = previousClose > 0 ? previousClose : endPrice;
+          assetStart += basePrice * pos.existingQty * startFx;
         }
-        const factor = stockUsesIls(s) ? 1 : fx;
-        const endPrice = sessionClose > 0 ? sessionClose : previousClose;
-        stockStart += previousClose * qty * factor;
-        stockEnd += endPrice * qty * factor;
-        if (sessionClose > 0) {
-          stockPnl += (sessionClose - previousClose) * qty * factor;
-          stockHasData = true;
+        for (const lot of pos.boughtToday) {
+          const entryPrice = lot.price > 0 ? lot.price : (previousClose > 0 ? previousClose : endPrice);
+          assetStart += entryPrice * lot.qty * startFx;
         }
+        const assetEnd = endPrice * pos.qty * endFx;
+        stockStart += assetStart;
+        stockEnd += assetEnd;
+        stockPnl += assetEnd - assetStart;
+        if (sessionClose > 0 || endFx !== startFx || pos.boughtToday.length) stockHasData = true;
       }
 
       for (const a of S.crypto) {
-        const qty = qtyOnDate(a, dateKey, 'crypto');
-        if (!(qty > 0)) continue;
+        const pos = positionOnDate(a, dateKey, 'crypto');
+        if (!(pos.qty > 0)) continue;
         const map = cryptoBoundary[a.sym] || {};
-        const startPrice = Number(map[dateKey]);
+        const marketStartPrice = Number(map[dateKey]);
         let endPrice = Number(map[tomorrowKey]);
         if (dateKey === todayKey && S.cp[a.id]?.usd > 0) endPrice = Number(S.cp[a.id].usd);
-        if (!(startPrice > 0) || !(endPrice > 0)) continue;
-        cryptoStart += startPrice * qty * fx;
-        cryptoEnd += endPrice * qty * fx;
-        cryptoPnl += (endPrice - startPrice) * qty * fx;
+        if (!(endPrice > 0)) continue;
+        const startFx = fx;
+        const endFx = dateKey === todayKey ? S.fx : (fxByDay[tomorrowKey] || fx);
+        let assetStart = 0;
+        if (pos.existingQty > 0) {
+          if (!(marketStartPrice > 0)) continue;
+          assetStart += marketStartPrice * pos.existingQty * startFx;
+        }
+        for (const lot of pos.boughtToday) {
+          const entryPrice = lot.price > 0 ? lot.price : marketStartPrice;
+          if (!(entryPrice > 0)) continue;
+          assetStart += entryPrice * lot.qty * startFx;
+        }
+        const assetEnd = endPrice * pos.qty * endFx;
+        cryptoStart += assetStart;
+        cryptoEnd += assetEnd;
+        cryptoPnl += assetEnd - assetStart;
         cryptoHasData = true;
       }
 
@@ -9704,6 +9946,7 @@ async function openDet(sym, type) {
   document.getElementById('detOv').classList.add('open');
   document.body.style.overflow = 'hidden';
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+  if (type === 'stock') prefetchStockChart(sym);
   const el = document.getElementById('detContent');
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
@@ -9864,91 +10107,69 @@ function renderStockModal(s, el) {
   loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
 
+function setStockChartStatus(text = '', loading = false) {
+  const box = document.getElementById('mchBox');
+  if (!box) return;
+  let el = box.querySelector('.stock-chart-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'stock-chart-status hidden';
+    box.appendChild(el);
+  }
+  if (!text) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
+}
+function stockChartLabels(data, sym, range) {
+  if (range !== '1d') return data.map(d => {
+    const dt = new Date(d.t);
+    if (range === '5d') return dt.toLocaleDateString(_dateLocale(), { weekday:'short' });
+    if (range === '1mo' || range === '3mo') return fDateShort(dt);
+    return dt.toLocaleDateString(_dateLocale(), { month:'2-digit', year:'2-digit' });
+  });
+  const tz = marketTimeZoneForSymbol(sym);
+  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+  const label = cur === 'ILS' ? 'TLV' : cur === 'EUR' ? 'EU' : cur === 'GBP' ? 'LON'
+    : cur === 'JPY' ? 'TYO' : cur === 'HKD' ? 'HKG' : cur === 'AUD' ? 'SYD'
+    : cur === 'CAD' ? 'TOR' : cur === 'CHF' ? 'ZRH' : 'NY';
+  const fmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:tz });
+  return data.map((d, i) => {
+    const time = d.label || fmt.format(new Date(d.t));
+    return i === 0 ? `${label} ${time}` : time;
+  });
+}
 async function loadSC(sym, range, btn, silent) {
   if (!silent) {
-    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active')); if (btn) btn.classList.add('active');
+    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
     // Start/stop live refresh based on selected range
     if (range === '1d') startLiveChart(sym, 'stock'); else stopLiveChart();
   }
   const box = document.getElementById('mchBox');
-  if (box && !silent) { box.classList.add('chart-loading'); box.style.opacity = '1'; }
-  let prices = [], labels = [];
-  if (range === '1d') {
-    const intraday = await fetchYahooIntraday(sym);
-    // Determine exchange timezone + label from the stock's native currency
-    const nc = (S.sp[sym]?.currency || 'USD').toUpperCase();
-    const mktTz  = nc==='ILS'?'Asia/Jerusalem':nc==='EUR'?'Europe/Paris':nc==='GBP'?'Europe/London'
-                 : nc==='JPY'?'Asia/Tokyo':nc==='HKD'?'Asia/Hong_Kong':nc==='AUD'?'Australia/Sydney'
-                 : nc==='CAD'?'America/Toronto':nc==='CHF'?'Europe/Zurich':'America/New_York';
-    const mktLbl = nc==='ILS'?'TLV':nc==='EUR'?'EU':nc==='GBP'?'LON':nc==='JPY'?'TYO'
-                 : nc==='HKD'?'HKG':nc==='AUD'?'SYD':nc==='CAD'?'TOR':nc==='CHF'?'ZRH':'NY';
-    const mktOpenH  = nc==='ILS'?9:nc==='GBP'?8:nc==='JPY'?9:9;
-    const mktOpenM  = nc==='ILS'?59:nc==='USD'?30:0;
-    const mktCloseH = nc==='ILS'?17:nc==='GBP'?16:nc==='JPY'?15:16;
-    const mktCloseM = nc==='ILS'?25:0;
-    const mktTotalMins = (mktCloseH*60+mktCloseM) - (mktOpenH*60+mktOpenM);
-    const tzFmt = new Intl.DateTimeFormat('en-US', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:mktTz });
-    if (intraday?.length) {
-      prices = intraday.map(d => d.p);
-      labels = intraday.map((d, i) => {
-        const t = tzFmt.format(new Date(d.t));
-        return i === 0 ? `${mktLbl} ${t}` : t;
-      });
-    } else {
-      // Synthetic fallback using correct market timezone
-      const p = S.sp[sym];
-      if (p?.price && p?.prevClose) {
-        const open = p.prevClose, close = p.price;
-        const mktNow = new Date(new Date().toLocaleString('en-US', { timeZone: mktTz }));
-        const dow = mktNow.getDay();
-        const isClosed = (nc==='ILS' && dow===6) || (nc!=='ILS' && (dow===0||dow===6));
-        let minsFromOpen;
-        if (isClosed) {
-          minsFromOpen = mktTotalMins;
-        } else {
-          const todayOpen  = new Date(mktNow); todayOpen.setHours(mktOpenH, mktOpenM, 0, 0);
-          const todayClose = new Date(mktNow); todayClose.setHours(mktCloseH, mktCloseM, 0, 0);
-          if (mktNow < todayOpen) minsFromOpen = 0;
-          else if (mktNow > todayClose) minsFromOpen = mktTotalMins;
-          else minsFromOpen = Math.floor((mktNow - todayOpen) / 60000);
-        }
-        if (minsFromOpen <= 0) {
-          prices = [open];
-          labels = [`${mktLbl} ${String(mktOpenH).padStart(2,'0')}:${String(mktOpenM).padStart(2,'0')}`];
-        } else {
-          const n = Math.max(2, Math.min(78, Math.floor(minsFromOpen / 5) + 1));
-          prices = Array.from({ length: n }, (_, i) => {
-            const t = i / (n - 1);
-            const trend = open + (close - open) * t;
-            const noise = (Math.sin(i * 1.1) + Math.sin(i * 0.6)) * Math.abs(close - open) * 0.22;
-            return trend + noise;
-          });
-          labels = prices.map((_, i) => {
-            const m = (i / (prices.length - 1)) * minsFromOpen;
-            const totalMin = mktOpenH * 60 + mktOpenM + m;
-            const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
-            const mm = String(Math.floor(totalMin % 60)).padStart(2, '0');
-            return i === 0 ? `${mktLbl} ${hh}:${mm}` : `${hh}:${mm}`;
-          });
-        }
-      }
-    }
-    if (box) box.classList.remove('chart-loading');
-    drawSChart(prices, labels, sym);
+  const cached = peekStockHist(sym, range);
+
+  // Instant paint from memory/local cache. This is what makes a click feel immediate.
+  if (cached?.length >= 2) {
+    drawSChart(cached.map(d => d.p), stockChartLabels(cached, sym, range), sym);
+    setStockChartStatus('');
     updateChartDate(range);
+  } else if (!silent) {
+    if (box) box.classList.add('chart-loading');
+    setStockChartStatus('טוען גרף שוק...', true);
+  }
+
+  const data = await getStockHist(sym, range, { force: Boolean(silent && range === '1d') });
+  if (box) box.classList.remove('chart-loading');
+  if (!data?.length) {
+    if (!cached?.length) {
+      if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+      setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.');
+    }
     return;
   }
-  const data = await getStockHist(sym, range);
-  if (box) box.classList.remove('chart-loading');
-  if (!data || !data.length) { const c = document.getElementById('dCanvas'); if (c) c.getContext('2d').clearRect(0,0,c.width,c.height); return; }
-  prices = data.map(d => d.p);
-  labels = data.map(d => {
-    const dt = new Date(d.t);
-    if (range==='5d') return dt.toLocaleDateString(_dateLocale(),{weekday:'short'});
-    if (range==='1mo'||range==='3mo') return fDateShort(dt);
-    return dt.toLocaleDateString(_dateLocale(),{month:'2-digit',year:'2-digit'});
-  });
-  drawSChart(prices, labels, sym);
+  if (S.sel !== sym || !document.getElementById('detOv')?.classList.contains('open')) return;
+  drawSChart(data.map(d => d.p), stockChartLabels(data, sym, range), sym);
+  setStockChartStatus('');
   updateChartDate(range);
 }
 
@@ -10559,15 +10780,31 @@ async function acFetch(q, boxId = 'acBox') {
     }
     if (seq !== acSeqs[boxId] || !box) return;     // a newer search already ran
     if (!items.length) { box.innerHTML = '<div class="ac-load">לא נמצאו תוצאות</div>'; return; }
-    box.innerHTML = items.map(it =>
-      `<div class="ac-item" onmousedown="event.preventDefault();edPick('${it.sym}',\`${(it.name || '').replace(/`/g, '')}\`,${it.id ? `'${it.id}'` : 'null'},'${boxId}')">` +
-      (it.thumb ? `<img class="ac-thumb" src="${it.thumb}" alt="">` : '') +
-      `<span class="ac-sym">${it.sym}</span><span class="ac-name">${it.name || ''}</span>` +
-      (it.exch ? `<span class="ac-exch">${it.exch}</span>` : '') +
-      `</div>`
-    ).join('');
+    // Build autocomplete results with DOM APIs. API-provided symbols/names must never
+    // be interpolated into executable HTML or inline event attributes.
+    box.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'ac-item';
+      row.addEventListener('mousedown', event => {
+        event.preventDefault();
+        edPick(String(it.sym || ''), String(it.name || ''), it.id || null, boxId);
+      });
+      if (it.thumb) {
+        const img = document.createElement('img');
+        img.className = 'ac-thumb'; img.alt = ''; img.referrerPolicy = 'no-referrer';
+        try { const u = new URL(it.thumb, location.href); if (u.protocol === 'https:') img.src = u.href; } catch (_) {}
+        row.appendChild(img);
+      }
+      const sym = document.createElement('span'); sym.className = 'ac-sym'; sym.textContent = String(it.sym || ''); row.appendChild(sym);
+      const name = document.createElement('span'); name.className = 'ac-name'; name.textContent = String(it.name || ''); row.appendChild(name);
+      if (it.exch) { const exch = document.createElement('span'); exch.className = 'ac-exch'; exch.textContent = String(it.exch); row.appendChild(exch); }
+      frag.appendChild(row);
+    });
+    box.appendChild(frag);
   } catch (_) {
-    if (seq === acSeq && box) box.innerHTML = '<div class="ac-load">שגיאה בחיפוש</div>';
+    if (seq === acSeqs[boxId] && box) box.innerHTML = '<div class="ac-load">שגיאה בחיפוש</div>';
   }
 }
 
@@ -11332,7 +11569,8 @@ async function dashGetFxMap(range,lotDates=[]) {
     const d=await r.json(); Object.entries(d?.rates||{}).forEach(([k,v])=>{const n=Number(v?.ILS);if(n>0)map[k]=n;});
   }catch(_){}
   if(!Object.keys(map).length && stale) return stale;
-  let last=S.fx;
+  const fetchedKeys=Object.keys(map).sort();
+  let last=fetchedKeys.length ? map[fetchedKeys[0]] : S.fx;
   for(let k=from;k<=to;k=dashAddDays(k,1)){ if(map[k]>0)last=map[k]; else map[k]=last; }
   if(range.includesToday) map[todayLocalDateKey()]=S.fx;
   dashCachePut(key,map); return map;
@@ -11492,6 +11730,7 @@ async function doRefresh() {
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
+      S._lastRefreshAt = Date.now();
       if (btn) btn.classList.remove('spin');
       if (overlay) overlay.classList.remove('show');
     }
@@ -11514,12 +11753,12 @@ function startAutoRefresh() {
     }
   }, AUTO_REFRESH_MS);
 }
-// Fast catch-up: in the first ~80s, retry any stocks still missing a price every 10s
+// Fast catch-up: in the first ~60s, retry any stocks still missing a price every 20s
 // so slow international/TASE symbols fill in quickly instead of waiting a full cycle.
 let _catchupCount = 0;
 const _catchupTimer = setInterval(() => {
   _catchupCount++;
-  if (_catchupCount > 8) { clearInterval(_catchupTimer); return; }
+  if (_catchupCount > 3) { clearInterval(_catchupTimer); return; }
   if (document.visibilityState !== 'visible' || refreshInFlight) return;
   const stillMissing = (S.stocks || []).some(s => !(S.sp[s.sym]?.price > 0));
   if (stillMissing && typeof getStocks === 'function') {
@@ -11527,12 +11766,18 @@ const _catchupTimer = setInterval(() => {
   } else if (!stillMissing) {
     clearInterval(_catchupTimer);
   }
-}, 10000);
-// Refresh immediately when the user returns to the tab (data may be stale).
+}, 20000);
+// Refresh immediately when the user returns to the tab — but only if the data is
+// actually stale (more than a minute old), to avoid a redundant fetch when the
+// user just briefly glanced away and came right back.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !refreshInFlight) doRefresh();
+  const stale = !S._lastRefreshAt || Date.now() - S._lastRefreshAt > 60 * 1000;
+  if (document.visibilityState === 'visible' && !refreshInFlight && stale) doRefresh();
 });
-startAutoRefresh();
+// NOTE: the fixed-interval startAutoRefresh() below is intentionally NOT started.
+// The adaptive scheduler in proceedToApp() (market-hours-aware setTimeout loop) is
+// the single periodic-refresh source; running both concurrently would double every
+// price fetch and needlessly increase rate-limit risk on the free API proxies.
 
 
 // ── Dual clock (user's local time + New York), updates every 30s ──
@@ -11562,7 +11807,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260619-period-v9-real-pnl');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260701-merged-fast-charts-v12');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -11589,6 +11834,17 @@ function applyCloudPortfolio(data, { force = false } = {}) {
   }
   if (Array.isArray(data.stocks)) {
     S.stocks = normalizeStocks(data.stocks);
+    changed = true;
+  }
+  if (Array.isArray(data.commodities)) { S.commodities = data.commodities; changed = true; }
+  if (Array.isArray(data.bonds))       { S.bonds = data.bonds; changed = true; }
+  if (Array.isArray(data.etfs))        { S.etfs = data.etfs; changed = true; }
+  if (data.view && typeof data.view === 'object') {
+    S.view = {
+      show: { ...VIEW_DEFAULT.show, ...(data.view.show || {}) },
+      widgets: { ...VIEW_DEFAULT.widgets, ...(data.view.widgets || {}) },
+    };
+    saveView();
     changed = true;
   }
   if (data.preferences && typeof data.preferences === 'object') {
@@ -11714,7 +11970,7 @@ window.proceedToApp = async function() {
   setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
   const scheduleRefresh = () => {
-    const delay = isUsRegularMarketOpenNow() ? 20000 : 45000;
+    const delay = isUsRegularMarketOpenNow() ? 60000 : 180000;
     appRefreshTimer = setTimeout(async () => {
       if (document.visibilityState === 'visible') await doRefresh();
       scheduleRefresh();
@@ -11818,6 +12074,10 @@ function exportPortfolio() {
     portfolio: {
       crypto: S.crypto,
       stocks: S.stocks,
+      commodities: S.commodities || [],
+      bonds: S.bonds || [],
+      etfs: S.etfs || [],
+      view: S.view || null,
       currency: S.currency,
       fx: S.fx,
     },
@@ -11841,18 +12101,34 @@ async function importPortfolio(event) {
     const text = await file.text();
     const data = JSON.parse(text);
     const p = data.portfolio || data;
-    if (!p.crypto && !p.stocks) {
+    if (!p.crypto && !p.stocks && !p.commodities && !p.bonds && !p.etfs) {
       alert('הקובץ לא מכיל נתוני תיק תקינים.');
       return;
     }
-    if (!confirm(`לטעון גיבוי?\n\n• ${p.crypto?.length || 0} מטבעות\n• ${p.stocks?.length || 0} מניות\n\nהנתונים הקיימים יוחלפו.`)) return;
-    if (p.crypto?.length) S.crypto = p.crypto;
-    if (p.stocks?.length) S.stocks = normalizeStocks(p.stocks);
+    if (!confirm(`לטעון גיבוי?
+
+• ${p.crypto?.length || 0} מטבעות
+• ${p.stocks?.length || 0} מניות
+• ${(p.commodities?.length || 0) + (p.bonds?.length || 0) + (p.etfs?.length || 0)} נכסים נוספים
+
+הנתונים הקיימים יוחלפו.`)) return;
+    if (Array.isArray(p.crypto)) S.crypto = p.crypto;
+    if (Array.isArray(p.stocks)) S.stocks = normalizeStocks(p.stocks);
+    if (Array.isArray(p.commodities)) S.commodities = p.commodities;
+    if (Array.isArray(p.bonds)) S.bonds = p.bonds;
+    if (Array.isArray(p.etfs)) S.etfs = p.etfs;
+    if (p.view && typeof p.view === 'object') {
+      S.view = {
+        show: { ...VIEW_DEFAULT.show, ...(p.view.show || {}) },
+        widgets: { ...VIEW_DEFAULT.widgets, ...(p.view.widgets || {}) },
+      };
+      saveView();
+    }
     if (p.currency) S.currency = p.currency;
     if (p.fx)       S.fx = p.fx;
     fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
     saveLS();
-    if (window.fbSave) window.fbSave({ crypto: S.crypto, stocks: S.stocks, updatedAt: Date.now() });
+    if (window.fbSave) window.fbSave(currentCloudPortfolioPayload());
     alert('הגיבוי נטען בהצלחה!');
     location.reload();
   } catch (e) {
