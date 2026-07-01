@@ -471,7 +471,12 @@ body.light .fab-edit::before {
   .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 62; }
   .nav-top { display: flex; position: fixed; top: 62px; left: 0; right: 0; z-index: 61; }
   #tickerBar { display: flex !important; position: fixed !important; top: 108px !important; left: 0; right: 0; z-index: 60; }
-  #app { padding-bottom: 24px; padding-top: 136px; }   /* topbar(62) + nav(46) + ticker(28) = exact */
+  #marketBar { display: flex !important; position: fixed !important; top: 136px !important; left: 0; right: 0; z-index: 59; }
+  #app { padding-bottom: 24px; padding-top: 164px; }   /* topbar(62) + nav(46) + ticker(28) + marketBar(28) = exact */
+  /* Pickers are relocated to <body> via JS (positionPickerToBody) so they escape the
+     topbar's backdrop-filter stacking context and float above the ticker/nav. */
+  .fx-conv { z-index: 100001 !important; }
+  .tk-menu { z-index: 100000 !important; }
 }
 
 /* ── TOP TICKER TAPE (dash only) ── */
@@ -501,6 +506,29 @@ body.light .tk-opt.sel { color: #F4EFE5; }
 .tk-chg.up { color: var(--gr); }
 .tk-chg.dn { color: var(--rd); }
 .tk-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--t3); opacity: .5; flex-shrink: 0; }
+
+/* ── SECOND BAR: MARKET STATUS (open/closed + countdown) ── */
+#marketBar { position: sticky; top: 28px; z-index: 59; display: none; height: 28px; background: var(--bg); border-bottom: 1px solid var(--b2); overflow: visible; }
+#marketBar.show { display: flex; }
+@media (min-width: 640px) { #marketBar { display: flex !important; } }
+.mk-label { flex-shrink: 0; height: 100%; display: flex; align-items: center; gap: 5px; padding: 0 10px; background: var(--s2); border-left: 1px solid var(--b2); color: var(--t1); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.mk-label i { font-size: 12px; color: var(--gd); }
+.mk-strip { flex: 1; overflow: hidden; position: relative; direction: ltr; mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+.mk-track { display: inline-flex; align-items: center; height: 28px; white-space: nowrap; will-change: transform; animation: tkScroll var(--mk-dur, 40s) linear infinite; }
+.mk-strip:hover .mk-track, .mk-strip:active .mk-track { animation-play-state: paused; }
+.mk-item { display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; font-family: var(--font-mono); font-size: 11px; }
+.mk-flag { font-size: 12px; line-height: 1; }
+.mk-name { color: var(--t2); font-family: 'Newsreader', serif; font-style: italic; font-size: 12.5px; font-weight: 400; letter-spacing: .3px; }
+.mk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mk-dot.open { background: var(--gr); box-shadow: 0 0 6px color-mix(in srgb, var(--gr) 70%, transparent); }
+.mk-dot.closed { background: var(--rd); }
+.mk-dot.pre { background: var(--gd); }
+.mk-status { font-weight: 700; }
+.mk-status.open { color: var(--gr); }
+.mk-status.closed { color: var(--rd); }
+.mk-status.pre { color: var(--gd); }
+.mk-count { color: var(--t3); font-weight: 500; }
+.mk-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--t3); opacity: .5; flex-shrink: 0; }
 
 /* ── SYMBOL AUTOCOMPLETE ── */
 .ff { position: relative; }
@@ -800,6 +828,7 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
 .picker-opt:hover { background: var(--s3); color: var(--t1); }
 .picker-opt.sel { background: color-mix(in srgb, var(--ac) 12%, transparent); color: var(--t1); }
 .picker-opt .po-flag { font-size: 16px; line-height: 1; }
+.picker-opt .po-sym { font-family: var(--font-mono); font-weight: 700; color: var(--gd); font-size: 15px; min-width: 24px; text-align: center; line-height: 1; }
 .picker-opt .po-code { font-family: var(--font-mono); font-weight: 700; color: var(--gd); min-width: 40px; font-size: 11px; }
 .picker-opt .po-name { flex: 1; }
 .picker-opt .po-check { color: var(--ac); opacity: 0; font-size: 12px; }
@@ -852,6 +881,8 @@ html[dir="ltr"] .picker-pop, html:not([dir="rtl"]) .picker-pop { left: 0; }
   .card .pp { font-size: 11px; text-align: right; }
   /* mobile: keep cumulative P&L visible, override the generic .pn hide */
   .card .pn.pn-total { display: block !important; font-size: 10px; line-height: 1.2; margin-top: 1px !important; border-top: none !important; padding-top: 0 !important; opacity: 0.85; text-align: right; }
+  /* mobile: also show the DAILY P&L value (₪), sitting between the % and the cumulative P&L */
+  .card .pn:not(.pn-total) { display: block !important; font-size: 11px; font-weight: 700; line-height: 1.2; margin-top: 1px !important; text-align: right; }
   .card .pl.pl-total { display: none; }   /* keep label hidden — sign + color speak for themselves */
 }
 
@@ -2168,6 +2199,11 @@ onAuthStateChanged(auth, async user => {
       </div>
     </div>
     <div class="tk-strip"><div class="tk-track" id="tkTrack"></div></div>
+  </div>
+
+<div id="marketBar" class="show">
+    <div class="mk-label"><i class="ph ph-clock"></i><span>שווקים</span></div>
+    <div class="mk-strip"><div class="mk-track" id="mkTrack"></div></div>
   </div>
 
 <div id="app" style="display:none">
@@ -3996,14 +4032,31 @@ const tots = () => {
 // Currency display config. Values in S come in as ILS.
 // To display in CUR: take USD = ILS / S.fx, then mulitply by units_per_USD ratio.
 const CURRENCIES = {
-  ILS: { sym: '₪', flag: '🇮🇱', name: 'שקל', locale: 'he-IL' },
-  USD: { sym: '$', flag: '🇺🇸', name: 'דולר אמריקאי', locale: 'en-US' },
-  EUR: { sym: '€', flag: '🇪🇺', name: 'יורו', locale: 'de-DE' },
-  GBP: { sym: '£', flag: '🇬🇧', name: 'לירה שטרלינג', locale: 'en-GB' },
-  JPY: { sym: '¥', flag: '🇯🇵', name: 'יין יפני', locale: 'ja-JP' },
-  CHF: { sym: 'Fr', flag: '🇨🇭', name: 'פרנק שוויצרי', locale: 'de-CH' },
-  CAD: { sym: 'C$', flag: '🇨🇦', name: 'דולר קנדי', locale: 'en-CA' },
-  AUD: { sym: 'A$', flag: '🇦🇺', name: 'דולר אוסטרלי', locale: 'en-AU' },
+  ILS: { sym: '₪',   flag: '🇮🇱', name: 'שקל',           locale: 'he-IL' },
+  USD: { sym: '$',   flag: '🇺🇸', name: 'דולר אמריקאי',   locale: 'en-US' },
+  EUR: { sym: '€',   flag: '🇪🇺', name: 'יורו',           locale: 'de-DE' },
+  GBP: { sym: '£',   flag: '🇬🇧', name: 'לירה שטרלינג',   locale: 'en-GB' },
+  JPY: { sym: '¥',   flag: '🇯🇵', name: 'יין יפני',        locale: 'ja-JP' },
+  CNY: { sym: '¥',   flag: '🇨🇳', name: 'יואן סיני',       locale: 'zh-CN' },
+  CHF: { sym: 'Fr',  flag: '🇨🇭', name: 'פרנק שוויצרי',    locale: 'de-CH' },
+  CAD: { sym: 'C$',  flag: '🇨🇦', name: 'דולר קנדי',       locale: 'en-CA' },
+  AUD: { sym: 'A$',  flag: '🇦🇺', name: 'דולר אוסטרלי',    locale: 'en-AU' },
+  HKD: { sym: 'HK$', flag: '🇭🇰', name: 'דולר הונג קונג',  locale: 'en-HK' },
+  INR: { sym: '₹',   flag: '🇮🇳', name: 'רופי הודי',       locale: 'en-IN' },
+  BRL: { sym: 'R$',  flag: '🇧🇷', name: 'ריאל ברזילאי',    locale: 'pt-BR' },
+  KRW: { sym: '₩',   flag: '🇰🇷', name: 'וון דרום קוריאני', locale: 'ko-KR' },
+  SEK: { sym: 'kr',  flag: '🇸🇪', name: 'כתר שוודי',       locale: 'sv-SE' },
+  NOK: { sym: 'kr',  flag: '🇳🇴', name: 'כתר נורווגי',     locale: 'nb-NO' },
+  DKK: { sym: 'kr',  flag: '🇩🇰', name: 'כתר דני',         locale: 'da-DK' },
+  PLN: { sym: 'zł',  flag: '🇵🇱', name: 'זלוטי פולני',     locale: 'pl-PL' },
+  TRY: { sym: '₺',   flag: '🇹🇷', name: 'לירה טורקית',     locale: 'tr-TR' },
+  ZAR: { sym: 'R',   flag: '🇿🇦', name: 'ראנד דרום אפריקאי', locale: 'en-ZA' },
+  SGD: { sym: 'S$',  flag: '🇸🇬', name: 'דולר סינגפורי',   locale: 'en-SG' },
+  NZD: { sym: 'NZ$', flag: '🇳🇿', name: 'דולר ניו זילנדי', locale: 'en-NZ' },
+  TWD: { sym: 'NT$', flag: '🇹🇼', name: 'דולר טאיוואני',   locale: 'zh-TW' },
+  THB: { sym: '฿',   flag: '🇹🇭', name: 'באט תאילנדי',     locale: 'th-TH' },
+  MXN: { sym: 'MX$', flag: '🇲🇽', name: 'פזו מקסיקני',     locale: 'es-MX' },
+  SAR: { sym: '﷼',   flag: '🇸🇦', name: 'ריאל סעודי',      locale: 'ar-SA' },
 };
 // Convert an ILS amount to the active display currency.
 // Uses fxConvRates (USD value of 1 unit of X). If rates not loaded, falls back to ILS/USD.
@@ -4190,7 +4243,7 @@ function buildCurrPicker(filter = '') {
     <input class="picker-search" id="currSearch" type="text" placeholder="${i18nGetText('חיפוש מטבע...')}" oninput="buildCurrPicker(this.value.toLowerCase())" autocomplete="off">
     ${items.length ? items.map(([code, d]) => `
       <div class="picker-opt ${code === cur ? 'sel' : ''}" onclick="setCurrency('${code}')">
-        <span class="po-flag">${d.flag}</span>
+        <span class="po-sym">${d.sym}</span>
         <span class="po-code">${code}</span>
         <span class="po-name">${d.name}</span>
         <span class="po-check"><i class="ph-thin ph-check"></i></span>
@@ -4207,9 +4260,31 @@ function toggleCurrPicker(e) {
   closeAllPickers();
   if (opening) {
     buildCurrPicker();
+    positionPickerToBody(pop, document.getElementById('currBtn'));
     pop.classList.add('open');
     setTimeout(() => document.getElementById('currSearch')?.focus(), 50);
   }
+}
+// Move a picker popup to document.body and anchor it beneath its trigger button.
+// This escapes the topbar's backdrop-filter stacking context, which otherwise traps
+// the dropdown behind the fixed ticker/nav on mobile.
+function positionPickerToBody(pop, btn) {
+  if (!pop || !btn) return;
+  if (pop.parentElement !== document.body) document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  pop.style.position = 'fixed';
+  pop.style.top = (r.bottom + 6) + 'px';
+  // Align the popup's right edge with the button (RTL-friendly), clamped to viewport.
+  const width = isMobile ? Math.min(260, window.innerWidth - 20) : 240;
+  let left = r.right - width;
+  if (left < 10) left = 10;
+  if (left + width > window.innerWidth - 10) left = window.innerWidth - 10 - width;
+  pop.style.left = left + 'px';
+  pop.style.right = 'auto';
+  pop.style.width = width + 'px';
+  pop.style.zIndex = '100000';
+  pop.style.maxHeight = '72vh';
 }
 function closeAllPickers() {
   document.getElementById('currPop')?.classList.remove('open');
@@ -4217,6 +4292,7 @@ function closeAllPickers() {
 }
 document.addEventListener('click', e => {
   if (e.target.closest('.picker-host')) return;
+  if (e.target.closest('.picker-pop')) return;   // picker was relocated to body — don't close on inside clicks
   closeAllPickers();
 });
 // Backwards compat: any old call to toggleCurrency() still works (cycles ILS↔USD)
@@ -8009,6 +8085,7 @@ function toggleLangPicker(e) {
   closeAllPickers();
   if (opening) {
     buildLangPicker();
+    positionPickerToBody(pop, document.getElementById('langBtn'));
     pop.classList.add('open');
     setTimeout(() => document.getElementById('langSearch')?.focus(), 50);
   }
@@ -8037,7 +8114,7 @@ document.addEventListener('click', e => {
 // FX CONVERTER — floating multi-currency calculator
 // ═══════════════════════════════════════════
 // Rates expressed as: amount_in_USD = amount_in_X * fxConvRates[X]
-const fxConvRates = { USD: 1, ILS: null, EUR: null, GBP: null, JPY: null, CHF: null, CAD: null, AUD: null, BTC: null, ETH: null };
+const fxConvRates = { USD: 1, ILS: null, EUR: null, GBP: null, JPY: null, CNY: null, CHF: null, CAD: null, AUD: null, HKD: null, INR: null, BRL: null, KRW: null, SEK: null, NOK: null, DKK: null, PLN: null, TRY: null, ZAR: null, SGD: null, NZD: null, TWD: null, THB: null, MXN: null, SAR: null, BTC: null, ETH: null };
 let fxConvLastFetched = 0;
 
 async function fxConvLoadRates() {
@@ -8051,7 +8128,7 @@ async function fxConvLoadRates() {
     if (rates) {
       // rates[X] = X per 1 USD → amount_in_USD = amount_in_X / rates[X]
       // we store fxConvRates[X] = USD value of 1 unit of X = 1 / rates[X]
-      for (const cur of ['ILS','EUR','GBP','JPY','CHF','CAD','AUD']) {
+      for (const cur of ['ILS','EUR','GBP','JPY','CNY','CHF','CAD','AUD','HKD','INR','BRL','KRW','SEK','NOK','DKK','PLN','TRY','ZAR','SGD','NZD','TWD','THB','MXN','SAR']) {
         if (rates[cur]) fxConvRates[cur] = 1 / rates[cur];
       }
     }
@@ -8368,6 +8445,108 @@ function tkStart() {
   tkTimer = setInterval(() => {
     if (document.visibilityState === 'visible' && S.curPage === 'dash') tkFetch();
   }, 300000);
+  mkStart();
+}
+
+// ═══════════════════════════════════════════
+// MARKET STATUS BAR — open/closed + countdown for major exchanges
+// ═══════════════════════════════════════════
+// Each market: local trading hours (in its own timezone) + which portfolio asset
+// suffixes belong to it, so we can flag the markets the user actually holds.
+const MK_MARKETS = [
+  { key: 'us', name: 'ארה"ב',   flag: '🇺🇸', tz: 'America/New_York', open: [9,30], close: [16,0], days: [1,2,3,4,5], suffixes: [''] },
+  { key: 'il', name: 'ת"א',     flag: '🇮🇱', tz: 'Asia/Jerusalem',   open: [9,59], close: [17,15], days: [0,1,2,3,4], suffixes: ['.TA'] },
+  { key: 'eu', name: 'אירופה',  flag: '🇪🇺', tz: 'Europe/Berlin',    open: [9,0],  close: [17,30], days: [1,2,3,4,5], suffixes: ['.DE','.PA','.AS','.MI','.MC','.SW','.BR','.LS','.VI','.HE'] },
+  { key: 'uk', name: 'לונדון',  flag: '🇬🇧', tz: 'Europe/London',    open: [8,0],  close: [16,30], days: [1,2,3,4,5], suffixes: ['.L'] },
+];
+
+// Minutes-since-midnight in a given timezone, plus weekday (0=Sun..6=Sat).
+function mkLocalNow(tz) {
+  try {
+    const p = datePartsInTimeZone(Date.now(), tz);
+    if (!p) return null;
+    const weekday = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+    return { minutes: p.hour * 60 + p.minute, weekday, p };
+  } catch (_) { return null; }
+}
+function mkFmtCountdown(mins) {
+  if (mins < 60) return `${mins} דק'`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}ש' ${m}דק'` : `${h}ש'`;
+}
+// Returns { state:'open'|'closed'|'pre', label, countdownMins }
+function mkMarketState(mkt) {
+  try {
+    const now = mkLocalNow(mkt.tz);
+    if (!now) return { state: 'closed', label: 'סגור', countdownMins: null };
+    const openMin = mkt.open[0] * 60 + mkt.open[1];
+    const closeMin = mkt.close[0] * 60 + mkt.close[1];
+    const isTradingDay = mkt.days.includes(now.weekday);
+    if (isTradingDay && now.minutes >= openMin && now.minutes < closeMin) {
+      return { state: 'open', label: 'פתוח', countdownMins: closeMin - now.minutes };  // time until close
+    }
+    if (isTradingDay && now.minutes < openMin) {
+      return { state: 'pre', label: 'נפתח בקרוב', countdownMins: openMin - now.minutes };
+    }
+    return { state: 'closed', label: 'סגור', countdownMins: null };
+  } catch (_) {
+    return { state: 'closed', label: 'סגור', countdownMins: null };
+  }
+}
+// Which markets does the user actually hold stocks in?
+function mkHeldMarkets() {
+  const held = new Set();
+  (S.stocks || []).forEach(s => {
+    const sym = String(s.sym || '');
+    const dot = sym.lastIndexOf('.');
+    const suffix = dot >= 0 ? sym.slice(dot) : '';
+    for (const mkt of MK_MARKETS) {
+      if (mkt.suffixes.includes(suffix)) { held.add(mkt.key); break; }
+    }
+  });
+  return held;
+}
+function mkRender() {
+  try {
+    const track = document.getElementById('mkTrack');
+    if (!track) return;
+    const held = mkHeldMarkets();
+    // Show all major markets, but put the ones the user holds first (with a subtle marker).
+    const ordered = [...MK_MARKETS].sort((a, b) => (held.has(b.key) ? 1 : 0) - (held.has(a.key) ? 1 : 0));
+    const items = ordered.map(mkt => {
+      const st = mkMarketState(mkt);
+      let countTxt = '';
+      if (st.state === 'open')      countTxt = `<span class="mk-count">· נסגר בעוד ${mkFmtCountdown(st.countdownMins)}</span>`;
+      else if (st.state === 'pre')  countTxt = `<span class="mk-count">· נפתח בעוד ${mkFmtCountdown(st.countdownMins)}</span>`;
+      const holdMark = held.has(mkt.key) ? '<span class="mk-count" style="color:var(--gd)">●</span>' : '';
+      return `<span class="mk-item">
+        <span class="mk-flag">${mkt.flag}</span>
+        <span class="mk-name">${mkt.name}</span>
+        <span class="mk-dot ${st.state}"></span>
+        <span class="mk-status ${st.state}">${st.label}</span>
+        ${countTxt}
+        ${holdMark}
+      </span><span class="mk-sep"></span>`;
+    }).join('');
+    track.innerHTML = items + items;   // duplicated for a seamless loop
+    requestAnimationFrame(() => {
+      const w = track.scrollWidth / 2;
+      track.style.setProperty('--mk-dur', Math.max(20, Math.round(w / 45)) + 's');
+    });
+  } catch (e) {
+    console.warn('[MarketBar] render skipped:', e?.message);
+  }
+}
+let mkTimer = null;
+function mkStart() {
+  const bar = document.getElementById('marketBar');
+  if (bar) bar.classList.add('show');
+  mkRender();
+  clearInterval(mkTimer);
+  // Re-render every 30s so the countdown and open/closed state stay live.
+  mkTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') mkRender();
+  }, 30000);
 }
 
 // ═══════════════════════════════════════════
@@ -8382,6 +8561,7 @@ function goPage(id, btn) {
   document.querySelectorAll(`[data-p="${id}"]`).forEach(b => b.classList.add('active'));
   S.curPage = id;
   document.getElementById('tickerBar').classList.add('show');   // always-on across pages
+  document.getElementById('marketBar')?.classList.add('show');  // market status bar — always-on too
   document.getElementById('app').scrollTop = 0;
   if (id === 'dash')     { scheduleDashPeriodRefresh(true); renderAssetNews(); }
   if (id === 'stocks')   renderStocksPage();
@@ -11887,10 +12067,10 @@ window.proceedToApp = async function() {
   document.getElementById('app').style.display = '';
   document.querySelector('.topbar').style.display = '';
   document.querySelector('.nav').style.display = '';
-  tkStart();
 
   if (appStarted) return;
   appStarted = true;
+  tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
 
   // ⚡ SPEED: kick off market-price fetching IMMEDIATELY, in parallel with Firebase.
   // Previously prices waited for firebaseAuthReady + cloud load to finish first (3-4s
