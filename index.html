@@ -2560,6 +2560,27 @@ function persistPortfolioLocally() {
     localStorage.setItem('petf', JSON.stringify(S.etfs || []));
   } catch(_) {}
 }
+// ⚡ SPEED: cache the last-known prices so on the NEXT load we can paint real numbers
+// at 0ms (instead of "טוען...") while fresh quotes arrive in the background.
+function persistPriceSnapshot() {
+  try {
+    localStorage.setItem('price_snap_v1', JSON.stringify({
+      sp: S.sp, cp: S.cp, fx: S.fx, ts: Date.now(),
+    }));
+  } catch(_) {}
+}
+function loadPriceSnapshot() {
+  try {
+    const raw = localStorage.getItem('price_snap_v1');
+    if (!raw) return;
+    const snap = JSON.parse(raw);
+    // Only use snapshots less than 24h old (stale prices are better than "טוען..." but not ancient ones)
+    if (!snap || !snap.ts || Date.now() - snap.ts > 24 * 60 * 60 * 1000) return;
+    if (snap.sp && Object.keys(S.sp).length === 0) S.sp = snap.sp;
+    if (snap.cp && Object.keys(S.cp).length === 0) S.cp = snap.cp;
+    if (snap.fx > 2 && snap.fx < 6 && S.fx === 3.65) S.fx = snap.fx;
+  } catch(_) {}
+}
 function currentCloudPortfolioPayload() {
   return {
     crypto: S.crypto,
@@ -2616,6 +2637,9 @@ const S = {
   etfs: loadLS('petf', []),
 };
 fixIcons(S.crypto, 'crypto'); fixIcons(S.stocks, 'stock');
+// ⚡ SPEED: hydrate last-known prices from localStorage so the dashboard paints real
+// numbers instantly on load, before any network request completes.
+loadPriceSnapshot();
 
 // ═══════════════════════════════════════════
 // DATA ACQUISITION
@@ -3403,7 +3427,7 @@ async function getStocks() {
   const fetchFinnhubQuote = async sym => {
     try {
       const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, {
-        signal: AbortSignal.timeout(7000), cache: 'no-store'
+        signal: AbortSignal.timeout(3000), cache: 'no-store'
       });
       if (!r.ok) return null;
       const d = await r.json();
@@ -11581,13 +11605,21 @@ async function doRefresh() {
     if (btn) btn.classList.add('spin');
     if (overlay) overlay.classList.add('show');
     try {
-      await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
+      // ⚡ SPEED: render each data source the moment IT finishes — don't wait for the
+      // slowest of the three. Stocks (Finnhub, ~300ms) shouldn't wait on FX or crypto.
+      await Promise.allSettled([
+        getFX().then(() => { try { updateFxKpi?.(); updateKPIs?.(); } catch(_){} }),
+        getCrypto().then(() => { try { renderDashCrypto?.(); if (S.curPage==='crypto') renderCryptoPage?.(); updateKPIs?.(); } catch(_){} }),
+        getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); updateKPIs?.(); } catch(_){} }),
+      ]);
+      // Final consistent render after everything has settled
       renderDashCrypto(); renderDashStocks(); updateKPIs();
       if (S.curPage === 'dash') scheduleDashPeriodRefresh();
       if (S.curPage === 'stocks') renderStocksPage();
       if (S.curPage === 'crypto') renderCryptoPage();
       if (S.curPage === 'insights') renderInsights();
       updateClocks(); updateDailyDate();
+      persistPriceSnapshot();   // cache for instant paint on next load
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
@@ -11813,6 +11845,12 @@ window.proceedToApp = async function() {
   if (appStarted) return;
   appStarted = true;
 
+  // ⚡ SPEED: kick off market-price fetching IMMEDIATELY, in parallel with Firebase.
+  // Previously prices waited for firebaseAuthReady + cloud load to finish first (3-4s
+  // of dead time). The holdings list is already in localStorage, so we can fetch prices
+  // right now and let the cloud sync catch up. This is the biggest single win.
+  const _earlyPrices = doRefresh();
+
   try {
     if (window.firebaseAuthReady) await window.firebaseAuthReady;
   } catch (_) {}
@@ -11820,8 +11858,9 @@ window.proceedToApp = async function() {
   await connectCloudForCurrentUser({ loadFirst: true });
   renderPortfolioImmediately();
 
-  // Market prices refresh in the background; synchronized holdings are already visible.
-  doRefresh();
+  // If the cloud load changed the holdings, refresh prices for any new symbols.
+  // (doRefresh de-dupes via refreshInFlight, so this is cheap if nothing changed.)
+  _earlyPrices.then(() => doRefresh());
   // Load asset-related news for the dashboard (slight delay so holdings are ready)
   setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
