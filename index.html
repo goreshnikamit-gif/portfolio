@@ -2977,22 +2977,24 @@ async function fetchYahooSeries(sym, range) {
   const candidates = [];
   const worker = String(MY_PROXY || '').replace(/\/$/, '');
   if (worker) {
-    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
+    // ⚡ Worker only — fast & reliable, no public-proxy noise.
+    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3000), sym, intraday))());
+    candidates.push(delayedTask(400, async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3500), sym, intraday)));
+  } else {
+    // No Worker — race public proxies.
+    candidates.push(delayedTask(0, async () => {
+      const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
+      return parseYahooChartPayload(text, sym, intraday);
+    }));
+    candidates.push(delayedTask(100, async () => {
+      const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
+      return parseYahooChartPayload(text, sym, intraday);
+    }));
+    candidates.push(delayedTask(200, async () => {
+      const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
+      return parseYahooChartPayload(json, sym, intraday);
+    }));
   }
-  // Public fallbacks are raced rather than attempted sequentially. This changes a
-  // possible 20–60 second wait into a bounded ~5 second first-load fallback.
-  candidates.push(delayedTask(worker ? 250 : 0, async () => {
-    const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
-  }));
-  candidates.push(delayedTask(worker ? 350 : 100, async () => {
-    const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
-  }));
-  candidates.push(delayedTask(worker ? 500 : 200, async () => {
-    const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
-    return parseYahooChartPayload(json, sym, intraday);
-  }));
   return firstValidResult(candidates);
 }
 
@@ -3208,12 +3210,15 @@ async function fetchGoogleFinanceQuote(sym) {
   const googleSym = `${ticker}:${mapping.ex}`;
   const nativeCur = mapping.cur;
   const url = `https://www.google.com/finance/quote/${encodeURIComponent(googleSym)}`;
-  // ⚡ SPEED: race proxies in parallel with short timeouts (was 4 sequential @ 10s = 40s worst case)
-  const proxyUrls = [
-    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  ];
+  // ⚡ Prefer the private Worker; only use public proxies if no Worker is configured.
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  const proxyUrls = worker
+    ? [`${worker}/?url=${encodeURIComponent(url)}`]
+    : [
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ];
   const parseGoogle = (text) => {
     try {
       let body = text;
@@ -3314,7 +3319,10 @@ async function fetchStooqQuote(sym) {
   for (const code of candidates) {
     try {
       const stooqUrl = `https://stooq.com/q/l/?s=${code}&f=sd2t2ohlcv&h&e=csv`;
-      const proxied = `https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`;
+      const worker = String(MY_PROXY || '').replace(/\/$/, '');
+      const proxied = worker
+        ? `${worker}/?url=${encodeURIComponent(stooqUrl)}`
+        : `https://corsproxy.io/?url=${encodeURIComponent(stooqUrl)}`;
       const r = await fetch(proxied, { signal: AbortSignal.timeout(6000) });
       if (!r.ok) continue;
       const csv = (await r.text()).trim();
@@ -3386,22 +3394,27 @@ async function fetchYahooQuote(sym) {
     };
   };
 
-  // ⚡ SPEED: race ALL proxies in parallel (same technique the fast charts use),
-  // not one-after-another. First valid quote wins. Short timeouts so a slow/blocked
-  // proxy can't stall the whole thing. This is the difference between 1s and 40s.
+  // ⚡ When a private Worker is configured, use ONLY it — it's fast (~20ms) and reliable.
+  // The public proxies (corsproxy/allorigins/codetabs) only slow things down and throw
+  // 429/CORS noise, so we skip them entirely unless there's no Worker.
   const worker = String(MY_PROXY || '').replace(/\/$/, '');
   const tasks = [];
   if (worker) {
-    tasks.push((async () => parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 2800)))());
+    // Two quick attempts at the Worker (covers a rare cold-start), nothing else needed.
+    tasks.push((async () => parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 3000)))());
+    tasks.push(delayedTask(400, async () =>
+      parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 3500))));
+  } else {
+    // No Worker — fall back to the public proxies raced in parallel.
+    tasks.push(delayedTask(0, async () =>
+      parseQuote(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 3500))));
+    tasks.push(delayedTask(100, async () =>
+      parseQuote(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, 3500))));
+    tasks.push(delayedTask(200, async () =>
+      parseQuote(await fetchTextFast(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 4000))));
+    tasks.push(delayedTask(300, async () =>
+      parseQuote(await fetchTextFast(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 4500))));
   }
-  tasks.push(delayedTask(worker ? 250 : 0, async () =>
-    parseQuote(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 3500))));
-  tasks.push(delayedTask(worker ? 350 : 100, async () =>
-    parseQuote(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, 3500))));
-  tasks.push(delayedTask(worker ? 450 : 200, async () =>
-    parseQuote(await fetchTextFast(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 4000))));
-  tasks.push(delayedTask(worker ? 600 : 300, async () =>
-    parseQuote(await fetchTextFast(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 4500))));
 
   return firstValidResult(tasks, v => v && v.price > 0);
 }
