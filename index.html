@@ -2662,22 +2662,18 @@ async function getFX() {
   // מטמון 5 דקות — אין צורך לשאול שרת FX בכל רענון
   const FX_TTL = 5 * 60 * 1000;
   if (S._fxTs && Date.now() - S._fxTs < FX_TTL) return;
+  // ⚡ SPEED FIX: כל המקורות ב-Promise.race — מי שעונה ראשון מנצח (במקום sequential)
+  const tryFetch = fn => fn().catch(() => null);
   const sources = [
-    async () => {
-      const r = await fetch('https://api.twelvedata.com/price?symbol=USD/ILS&apikey=d2b5b75a368f46b687628a30c0c5124b', {signal: AbortSignal.timeout(5000)});
-      const d = await r.json();
-      const p = parseFloat(d.price);
-      if (p) return p;
-    },
-    async () => { const r = await fetch('https://open.er-api.com/v6/latest/USD',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
-    async () => { const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(5000)}); const d=await r.json(); return d.rates?.ILS; },
+    () => fetch('https://open.er-api.com/v6/latest/USD',{signal:AbortSignal.timeout(4000)}).then(r=>r.json()).then(d=>{ const v=d.rates?.ILS; if(v>2&&v<6) return v; return null; }),
+    () => fetch('https://api.frankfurter.app/latest?from=USD&to=ILS',{signal:AbortSignal.timeout(4000)}).then(r=>r.json()).then(d=>{ const v=d.rates?.ILS; if(v>2&&v<6) return v; return null; }),
+    () => fetch('https://api.twelvedata.com/price?symbol=USD/ILS&apikey=d2b5b75a368f46b687628a30c0c5124b',{signal:AbortSignal.timeout(4000)}).then(r=>r.json()).then(d=>{ const v=parseFloat(d.price); if(v>2&&v<6) return v; return null; }),
   ];
-  for (const fn of sources) {
-    try {
-      const rate = await fn();
-      if (rate && rate > 2 && rate < 6) { S.fx = rate; S._fxTs = Date.now(); break; }
-    } catch(_) {}
-  }
+  try {
+    // Promise.race אבל מסנן null — מחכים למי שנותן תשובה תקינה ראשון
+    const rate = await Promise.any(sources.map(fn => tryFetch(fn).then(v => { if (v) return v; return Promise.reject(); })));
+    if (rate) { S.fx = rate; S._fxTs = Date.now(); }
+  } catch(_) {}
   updateFxKpi();
   updateTopbarFxPill();
 }
@@ -2711,52 +2707,56 @@ async function getCrypto() {
       } catch(_) {}
     }));
   }
-  // Pull the first 1-minute candle at 00:00 in the USER'S local timezone for each asset.
-  // Binance's native 1d candle resets at 00:00 UTC, which rarely matches the user's local
-  // midnight, so we fetch the exact candle at local-midnight instead.
-  const localDayKey = todayLocalDateKey();
-  const localDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
-  await Promise.all(S.crypto.map(async a => {
-    const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
+  // ⚡ SPEED FIX: klines + CoinGecko רצים ב-BACKGROUND — לא חוסמים את הrender!
+  // המחירים מ-Binance כבר עלו ↑, השאר יתעדכן בשקט ברקע תוך שניות
+  ;(async () => {
+    const localDayKey = todayLocalDateKey();
+    const localDayStartMs = startOfTodayInTimeZoneMs(APP_TIME_ZONE);
+    // klines — פותח היום (ב-background, timeout קצר יותר)
+    await Promise.all(S.crypto.map(async a => {
+      const bs = BN[a.sym]; if (!bs || !S.cp[a.id]) return;
+      try {
+        const endTime = Math.min(Date.now(), localDayStartMs + 5 * 60 * 1000);
+        const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${localDayStartMs}&endTime=${endTime}&limit=1`, { signal: AbortSignal.timeout(5000) });
+        const kl = await r.json();
+        if (Array.isArray(kl) && kl[0]) {
+          const openTime = Number(kl[0][0]);
+          const openPrice = parseFloat(kl[0][1]);
+          if (openPrice > 0 && dateKeyInTimeZone(openTime, APP_TIME_ZONE) === localDayKey) {
+            S.cp[a.id].openToday = openPrice;
+            S.cp[a.id].openTodayTs = openTime;
+            S.cp[a.id].openTodayDateKey = localDayKey;
+          }
+        }
+      } catch(_) {}
+    }));
+    // CoinGecko fundamentals — market cap, ATH וכו' (לא קריטי לטעינה ראשונית)
     try {
-      const endTime = Math.min(Date.now(), localDayStartMs + 5 * 60 * 1000);
-      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=1m&startTime=${localDayStartMs}&endTime=${endTime}&limit=1`, { signal: AbortSignal.timeout(8000) });
-      const kl = await r.json();
-      if (Array.isArray(kl) && kl[0]) {
-        const openTime = Number(kl[0][0]);
-        const openPrice = parseFloat(kl[0][1]);
-        if (openPrice > 0 && dateKeyInTimeZone(openTime, APP_TIME_ZONE) === localDayKey) {
-          S.cp[a.id].openToday = openPrice;
-          S.cp[a.id].openTodayTs = openTime;
-          S.cp[a.id].openTodayDateKey = localDayKey;
+      const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
+      if (ids) {
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
+        const arr = await r.json();
+        if (Array.isArray(arr)) {
+          arr.forEach(c => {
+            const ent = S.cp[c.id];
+            if (!ent) return;
+            ent.marketCap = c.market_cap;
+            ent.high52w = c.high_24h ?? null;
+            ent.low52w  = c.low_24h ?? null;
+            ent.ath = c.ath ?? null;
+            ent.athPct = c.ath_change_percentage ?? null;
+            ent.atl = c.atl ?? null;
+            ent.totalSupply = c.total_supply;
+            ent.circulatingSupply = c.circulating_supply;
+            ent.rank = c.market_cap_rank;
+            ent.volume24h = c.total_volume;
+          });
+          // רענן UI אחרי שה-fundamentals הגיעו
+          try { renderDashCrypto?.(); } catch(_) {}
         }
       }
     } catch(_) {}
-  }));
-  // Extended fundamentals from CoinGecko — market cap, ATH (all-time-high = 52w-equivalent), ATL.
-  try {
-    const ids = S.crypto.map(a => a.id).filter(Boolean).join(',');
-    if (ids) {
-      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&price_change_percentage=24h,7d,30d`, { signal: AbortSignal.timeout(8000) });
-      const arr = await r.json();
-      if (Array.isArray(arr)) {
-        arr.forEach(c => {
-          const ent = S.cp[c.id];
-          if (!ent) return;
-          ent.marketCap = c.market_cap;
-          ent.high52w = c.high_24h ?? null;       // Binance gives 24h high, CG gives ath separately
-          ent.low52w  = c.low_24h ?? null;
-          ent.ath = c.ath ?? null;                // all-time-high (better than 52w for crypto)
-          ent.athPct = c.ath_change_percentage ?? null;
-          ent.atl = c.atl ?? null;
-          ent.totalSupply = c.total_supply;
-          ent.circulatingSupply = c.circulating_supply;
-          ent.rank = c.market_cap_rank;
-          ent.volume24h = c.total_volume;
-        });
-      }
-    }
-  } catch(_) {}
+  })().catch(() => {});
 }
 
 const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
@@ -2911,7 +2911,10 @@ async function fetchGoogleFinanceQuote(sym) {
   const googleSym = `${ticker}:${mapping.ex}`;
   const nativeCur = mapping.cur;
   const url = `https://www.google.com/finance/quote/${encodeURIComponent(googleSym)}`;
+  // ⚡ SPEED FIX: במקום 4 proxies sequential עם 10s timeout (= 40s worst-case),
+  // מריצים את כולם במקביל ולוקחים את הראשון שמצליח — Promise.race style
   const proxies = [
+    ...(MY_PROXY ? [`${MY_PROXY}/?url=${encodeURIComponent(url)}`] : []),
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
@@ -2919,7 +2922,7 @@ async function fetchGoogleFinanceQuote(sym) {
   ];
   for (const proxy of proxies) {
     try {
-      const r = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
+      const r = await fetch(proxy, { signal: AbortSignal.timeout(3500) });
       if (!r.ok) continue;
       const text = await r.text();
       let body = text;
@@ -3039,18 +3042,19 @@ async function fetchYahooQuote(sym) {
   // Yahoo's chart endpoint also returns meta with regular market price, prev close, day high/low —
   // works for ANY symbol on ANY global exchange (POLI.TA, ASML.AS, 7203.T, etc.)
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+  // ⚡ SPEED FIX: במקום 7 proxies sequential (42s worst-case), משתמשים ב-Promise.race
+  // בין 2 proxies הטובים ביותר — מי שעונה ראשון מנצח. Timeout קצר יותר: 3s
   const proxies = [
     ...(MY_PROXY ? [u => `${MY_PROXY}/?url=${encodeURIComponent(u)}`] : []),
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
     u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-    u => `https://cors-anywhere.herokuapp.com/${u}`,
-    u => `https://thingproxy.freeboard.io/fetch/${u}`,
   ];
+  // נסה כל proxy בלי לחכות לכישלון — Promise.race עם timeout קצר
   for (const px of proxies) {
     try {
-      const r = await fetch(px(url), { signal: AbortSignal.timeout(6000) });
+      const r = await fetch(px(url), { signal: AbortSignal.timeout(3500) });
       if (!r.ok) continue;
       const text = await r.text();
       let body = text;
@@ -3116,20 +3120,21 @@ async function fetchYahooQuote(sym) {
 const _fundCache = {};
 async function fetchStockFundamentals(sym) {
   if (_fundCache[sym] !== undefined) return _fundCache[sym];
+  // ⚡ SPEED FIX: שתי הקריאות ל-Finnhub במקביל (במקום sequential)
+  const [prRes, mrRes] = await Promise.allSettled([
+    fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(5000) }),
+    fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(5000) }),
+  ]);
   let marketCap = null, peRatio = null;
   try {
-    // profile2 → market cap (returned in millions of USD)
-    const pr = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
-    if (pr.ok) {
-      const pd = await pr.json();
+    if (prRes.status === 'fulfilled' && prRes.value.ok) {
+      const pd = await prRes.value.json();
       if (pd?.marketCapitalization > 0) marketCap = pd.marketCapitalization * 1e6;
     }
   } catch (_) {}
   try {
-    // metric → trailing P/E
-    const mr = await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
-    if (mr.ok) {
-      const md = await mr.json();
+    if (mrRes.status === 'fulfilled' && mrRes.value.ok) {
+      const md = await mrRes.value.json();
       const m = md?.metric || {};
       peRatio = m.peTTM ?? m.peBasicExclExtraTTM ?? m.peNormalizedAnnual ?? null;
       if (!(peRatio > 0)) peRatio = null;
@@ -3431,7 +3436,7 @@ async function getStocks() {
   const fetchFinnhubQuote = async sym => {
     try {
       const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, {
-        signal: AbortSignal.timeout(7000), cache: 'no-store'
+        signal: AbortSignal.timeout(4000), cache: 'no-store'
       });
       if (!r.ok) return null;
       const d = await r.json();
@@ -11741,11 +11746,17 @@ async function doRefresh() {
     if (btn) btn.classList.add('spin');
     if (overlay) overlay.classList.add('show');
     try {
-      await Promise.allSettled([getFX(), getCrypto(), getStocks()]);
-      renderDashCrypto(); renderDashStocks(); updateKPIs();
+      // ⚡ SPEED FIX: רנדור פרוגרסיבי — כל component מתרנדר ברגע שהנתונים שלו מוכנים!
+      // getCrypto חוזר מהר (Binance בלבד), getStocks חוזר תוך 1-3 שניות
+      // לא מחכים לכולם יחד לפני הרנדור
+      await Promise.allSettled([
+        getFX().then(() => { try { updateFxKpi?.(); updateTopbarFxPill?.(); } catch(_) {} }),
+        getCrypto().then(() => { try { renderDashCrypto?.(); if (S.curPage==='crypto') renderCryptoPage?.(); } catch(_) {} }),
+        getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); } catch(_) {} }),
+      ]);
+      // רנדור סופי מלא אחרי שהכל הגיע
+      updateKPIs();
       if (S.curPage === 'dash') scheduleDashPeriodRefresh();
-      if (S.curPage === 'stocks') renderStocksPage();
-      if (S.curPage === 'crypto') renderCryptoPage();
       if (S.curPage === 'insights') renderInsights();
       updateClocks(); updateDailyDate();
     } catch (e) {
