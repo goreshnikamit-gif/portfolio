@@ -2650,7 +2650,7 @@ async function getFX() {
   if (S._fxTs && Date.now() - S._fxTs < FX_TTL) return;
   const sources = [
     async () => {
-      const r = await fetch('https://api.twelvedata.com/price?symbol=USD/ILS&apikey=d2b5b75a368f46b687628a30c0c5124b', {signal: AbortSignal.timeout(5000)});
+      const r = await fetch(viaProxy('https://api.twelvedata.com/price?symbol=USD/ILS'), {signal: AbortSignal.timeout(5000)});
       const d = await r.json();
       const p = parseFloat(d.price);
       if (p) return p;
@@ -2757,16 +2757,28 @@ async function getCrypto() {
   }
 }
 
-const FINNHUB_KEY = 'd6kptghr01qmopd1m2o0d6kptghr01qmopd1m2og';
+// ── API keys now live SERVER-SIDE in the Cloudflare Worker (env secrets), not here. ──
+// The browser sends requests through MY_PROXY, which injects the real keys. This keeps
+// the keys off the public page and lets you rotate/rate-limit centrally later.
+const FINNHUB_KEY = '';   // intentionally blank — real key is in the Worker
 // ── Your personal Yahoo proxy (Cloudflare Worker) ──
 // Paste your Worker URL here to make TASE / international stocks reliable.
 // Example: 'https://yahoo-proxy.yourname.workers.dev'
 // Leave '' to fall back to the free public proxies (less reliable).
-const MY_PROXY = '';
-// ── Twelve Data API (free tier: 800 calls/day, CORS-enabled, supports TASE!) ──
-// Get a free key at https://twelvedata.com/ → Sign Up → copy your API key here.
-// This fetches Israeli (.TA) + global stocks DIRECTLY from the browser, no proxy needed.
-const TWELVE_DATA_KEY = '';
+const MY_PROXY = 'https://vector-proxy.goreshnikamit.workers.dev';
+// ── Twelve Data API — real key is in the Worker (env secret), not here. ──
+const TWELVE_DATA_KEY = '';   // intentionally blank — real key is in the Worker
+
+// ⚡ Route a Finnhub/TwelveData URL through the Worker so the API key is injected
+// server-side. If MY_PROXY isn't set (local dev), fall back to the raw URL.
+function viaProxy(url) {
+  if (!MY_PROXY) return url;
+  return `${MY_PROXY}/?url=${encodeURIComponent(url)}`;
+}
+// Flags so key-gated code paths still run (the key exists — just on the server).
+const HAS_FINNHUB = Boolean(MY_PROXY) || Boolean(FINNHUB_KEY);
+const HAS_TWELVE  = Boolean(MY_PROXY) || Boolean(TWELVE_DATA_KEY);
+
 
 // ── Fast chart data layer ───────────────────────────────────────────────────
 // The database stores the user's portfolio. It is deliberately NOT in the hot
@@ -2900,11 +2912,11 @@ function chartRangeLookbackDays(range) {
 }
 
 async function fetchFinnhubSeries(sym, range) {
-  if (!FINNHUB_KEY || String(sym).includes('.')) return null;
+  if (!HAS_FINNHUB || String(sym).includes('.')) return null;
   const now = Math.floor(Date.now() / 1000);
   const from = now - chartRangeLookbackDays(range) * 86400;
   const resolution = range === '1d' ? '5' : 'D';
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
+  const url = viaProxy(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}`);
   const d = await fetchJsonFast(url, 1800);
   if (d?.s !== 'ok' || !Array.isArray(d.t) || !Array.isArray(d.c)) return null;
   let data = d.t.map((t, i) => ({ t:Number(t) * 1000, p:Number(d.c[i]), o:Number(d.o?.[i] ?? d.c[i]) }))
@@ -2914,11 +2926,11 @@ async function fetchFinnhubSeries(sym, range) {
 }
 
 async function fetchTwelveDataSeries(sym, range) {
-  if (!TWELVE_DATA_KEY) return null;
+  if (!HAS_TWELVE) return null;
   const cfg = range === '1d'
     ? { interval:'5min', outputsize:160 }
     : { interval:'1day', outputsize:({ '5d':10, '1mo':40, '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 40 };
-  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange&apikey=${TWELVE_DATA_KEY}`;
+  const url = viaProxy(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange`);
   const d = await fetchJsonFast(url, 3500);
   if (d?.status === 'error' || !Array.isArray(d?.values)) return null;
   let values = d.values.slice();
@@ -3006,8 +3018,8 @@ async function fetchBestStockSeries(sym, range) {
   // storm when Finnhub answers quickly.
   const isUS = !String(sym).includes('.');
   const tasks = [];
-  if (isUS && FINNHUB_KEY) tasks.push(fetchFinnhubSeries(sym, range));
-  if (TWELVE_DATA_KEY) tasks.push(fetchTwelveDataSeries(sym, range));
+  if (isUS && HAS_FINNHUB) tasks.push(fetchFinnhubSeries(sym, range));
+  if (HAS_TWELVE) tasks.push(fetchTwelveDataSeries(sym, range));
   const yahooDelay = MY_PROXY ? 0 : (isUS ? 650 : 0);
   tasks.push(delayedTask(yahooDelay, () => fetchYahooSeries(sym, range)));
   const data = await firstValidResult(tasks);
@@ -3263,9 +3275,9 @@ async function fetchGoogleFinanceQuote(sym) {
 // Twelve Data: CORS-enabled, supports TASE (.TA) and global exchanges directly
 // from the browser — no proxy. Returns price in the exchange's native currency.
 async function fetchTwelveDataQuote(sym) {
-  if (!TWELVE_DATA_KEY) return null;
+  if (!HAS_TWELVE) return null;
   try {
-    const r = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}&apikey=${TWELVE_DATA_KEY}`, { signal: AbortSignal.timeout(6000) });
+    const r = await fetch(viaProxy(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(sym)}`), { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return null;
     const d = await r.json();
     if (d.status === 'error' || !d.close) return null;
@@ -3401,7 +3413,7 @@ async function fetchStockFundamentals(sym) {
   let marketCap = null, peRatio = null;
   try {
     // profile2 → market cap (returned in millions of USD)
-    const pr = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
+    const pr = await fetch(viaProxy(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}`), { signal: AbortSignal.timeout(7000) });
     if (pr.ok) {
       const pd = await pr.json();
       if (pd?.marketCapitalization > 0) marketCap = pd.marketCapitalization * 1e6;
@@ -3409,7 +3421,7 @@ async function fetchStockFundamentals(sym) {
   } catch (_) {}
   try {
     // metric → trailing P/E
-    const mr = await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) });
+    const mr = await fetch(viaProxy(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all`), { signal: AbortSignal.timeout(7000) });
     if (mr.ok) {
       const md = await mr.json();
       const m = md?.metric || {};
@@ -3426,7 +3438,7 @@ async function fetchStockFundamentals(sym) {
 async function getStocks() {
   const fetchFinnhubQuote = async sym => {
     try {
-      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, {
+      const r = await fetch(viaProxy(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}`), {
         signal: AbortSignal.timeout(3000), cache: 'no-store'
       });
       if (!r.ok) return null;
@@ -8256,7 +8268,7 @@ async function tkFetch() {
       const syms = TK_MARKETS[m].syms;
       // Try Finnhub first (fast). On failure (CORS on file://, rate limit, etc.) fall back to Yahoo via proxy.
       const res = await Promise.all(syms.map(s =>
-        fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) })
+        fetch(viaProxy(`https://finnhub.io/api/v1/quote?symbol=${s}`), { signal: AbortSignal.timeout(7000) })
           .then(r => r.ok ? r.json() : null).catch(() => null)
       ));
       rows = syms.map((s, i) => {
@@ -10671,7 +10683,7 @@ async function acFetch(q) {
         .slice(0, 5)
         .map(c => ({ sym: c.symbol.toUpperCase(), name: c.name, id: c.id, thumb: c.thumb }));
     } else {
-      const r = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(8000) });
+      const r = await fetch(viaProxy(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}`), { signal: AbortSignal.timeout(8000) });
       const d = await r.json();
       // Map Finnhub symbol suffix → human exchange tag. No suffix = US (NYSE / NASDAQ).
       const EXCHANGES = {
@@ -11098,7 +11110,7 @@ async function fillNewUnitPrice() {
       const q = await fetchYahooQuote(sym).catch(()=>null); p = q?.price || 0;
       if (!(p>0) && /\.TA$/i.test(sym)) { const su = await fetchStooqQuote(sym.replace(/\.TA$/i,'').toLowerCase()+'.il').catch(()=>null); if (su?.price>0) p = su.price/100; }
     } else {
-      try { const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${FINNHUB_KEY}`, { signal: AbortSignal.timeout(7000) }); if (r.ok){ const d=await r.json(); if(d?.c>0)p=d.c; } } catch(_){}
+      try { const r = await fetch(viaProxy(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}`), { signal: AbortSignal.timeout(7000) }); if (r.ok){ const d=await r.json(); if(d?.c>0)p=d.c; } } catch(_){}
       if (!(p>0)) { const q=await fetchYahooQuote(sym).catch(()=>null); p=q?.price||0; }
       if (!(p>0)) { const su=await fetchStooqQuote(sym).catch(()=>null); p=su?.price||0; }
     }
