@@ -9251,7 +9251,7 @@ async function renderStocksPage(customFrom, customTo) {
   S.sbC = new Chart(document.getElementById('sBarChart'), {
     type:'bar',
     data:{labels:S.stocks.map(s=>s.sym),datasets:[{data:changes.map(c=>c??0),backgroundColor:changes.map(c=>(c||0)>=0?uc:dc),borderRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:10}},grid:{display:false}},y:{ticks:{color:ax,font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:15}},grid:{display:false}},y:{ticks:{color:ax,font:{size:14},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
   });
 }
 
@@ -9296,7 +9296,7 @@ async function renderCryptoPage() {
   S.cbC = new Chart(document.getElementById('cBarChart'), {
     type:'bar',
     data:{labels:sorted.map(x=>x.a.sym),datasets:[{data:sorted.map(x=>x.chg??0),backgroundColor:sorted.map(x=>(x.chg||0)>=0?uc:dc),borderRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:10}},grid:{display:false}},y:{ticks:{color:ax,font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:15}},grid:{display:false}},y:{ticks:{color:ax,font:{size:14},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
   });
 }
 
@@ -10327,7 +10327,7 @@ async function buildHistoryTable() {
           resizeDelay: 0,
           interaction: { mode: 'index', intersect: false, axis: 'x' },
           hover: { mode: 'index', intersect: false },
-          events: ['mousemove','mouseout','click','touchstart','touchmove'],
+          events: ['mousemove','mousedown','mouseup','mouseout','click','touchstart','touchmove','touchend'],
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -10362,8 +10362,8 @@ async function buildHistoryTable() {
             },
           },
           scales: {
-            x: { ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-            y: { ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
+            x: { ticks:{color:axisColor(),font:{size:14},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
+            y: { ticks:{color:axisColor(),font:{size:14},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
           }
         },
         plugins: [{
@@ -10382,7 +10382,23 @@ async function buildHistoryTable() {
             c.moveTo(x,top); c.lineTo(x,bottom); c.stroke();
             c.restore();
           }
-        }]
+        },
+        makeRangeSelectPlugin((i0, i1) => {
+          const r0 = chartRows[i0], r1 = chartRows[i1];
+          if (!r0 || !r1) return null;
+          const a = Number(r0.total), b = Number(r1.total);
+          if (!isFinite(a) || !isFinite(b)) return null;
+          const diff = convertFromILS(b - a, curCode);
+          const pct = a ? ((b - a) / a) * 100 : 0;
+          const sign = diff >= 0 ? '+' : '';
+          const d0 = fDateShort(new Date(`${r0.dateKey}T12:00:00Z`));
+          const d1 = fDateShort(new Date(`${r1.dateKey}T12:00:00Z`));
+          return {
+            text: `${sign}${curDef.sym}${Math.round(diff).toLocaleString()}  (${pct>=0?'+':''}${pct.toFixed(2)}%)`,
+            dateText: `${d0} – ${d1}`,
+            positive: diff >= 0
+          };
+        })]
       });
       const histCanvas = document.getElementById('histChart');
       if (histCanvas) histCanvas.style.cursor = 'crosshair';
@@ -10627,6 +10643,130 @@ async function loadSC(sym, range, btn, silent) {
   updateChartDate(range);
 }
 
+// ── Reusable "drag to select a range" plugin (Google-Finance style) ──
+// Click-drag across the chart to highlight a span; a label shows the change from the
+// start point to the end point. `getRangeLabel(i0, i1)` returns { text, positive }.
+function makeRangeSelectPlugin(getRangeLabel) {
+  const st = { active: false, startX: null, endX: null, i0: null, i1: null };
+  return {
+    id: 'rangeSelect',
+    _st: st,
+    afterEvent(chart, args) {
+      const e = args.event;
+      const area = chart.chartArea;
+      const nativeType = e.type;
+      const clampX = x => Math.max(area.left, Math.min(area.right, x));
+      const xToIndex = (x) => {
+        const xs = chart.scales.x;
+        // find nearest data index for a pixel x
+        const meta = chart.getDatasetMeta(0);
+        if (!meta?.data?.length) return null;
+        let best = 0, bestD = Infinity;
+        for (let i = 0; i < meta.data.length; i++) {
+          const d = Math.abs(meta.data[i].x - x);
+          if (d < bestD) { bestD = d; best = i; }
+        }
+        return best;
+      };
+      if (nativeType === 'mousedown' || nativeType === 'touchstart') {
+        st.active = true;
+        st.startX = clampX(e.x);
+        st.endX = st.startX;
+        st.i0 = xToIndex(st.startX);
+        st.i1 = st.i0;
+        chart.draw();
+      } else if ((nativeType === 'mousemove' || nativeType === 'touchmove') && st.active) {
+        st.endX = clampX(e.x);
+        st.i1 = xToIndex(st.endX);
+        chart.draw();
+      } else if (nativeType === 'mouseup' || nativeType === 'touchend' || nativeType === 'mouseout') {
+        // Keep the selection drawn after release; a fresh click resets it.
+        if (nativeType !== 'mouseout') st.active = false;
+        // If it was just a click (no real drag), clear the selection.
+        if (st.startX != null && st.endX != null && Math.abs(st.endX - st.startX) < 4) {
+          st.startX = st.endX = st.i0 = st.i1 = null;
+        }
+        chart.draw();
+      }
+    },
+    afterDraw(chart) {
+      if (st.startX == null || st.endX == null || st.i0 == null || st.i1 == null) return;
+      if (st.i0 === st.i1) return;
+      const c = chart.ctx;
+      const area = chart.chartArea;
+      const x0 = Math.min(st.startX, st.endX);
+      const x1 = Math.max(st.startX, st.endX);
+      const isLight = document.body.classList.contains('light');
+
+      // shaded band
+      c.save();
+      c.fillStyle = isLight ? 'rgba(11,30,63,0.08)' : 'rgba(255,255,255,0.07)';
+      c.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
+      // edges
+      c.strokeStyle = isLight ? 'rgba(11,30,63,0.28)' : 'rgba(255,255,255,0.28)';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(x0, area.top); c.lineTo(x0, area.bottom); c.stroke();
+      c.beginPath(); c.moveTo(x1, area.top); c.lineTo(x1, area.bottom); c.stroke();
+      c.restore();
+
+      // label with the date range + the change over the selected range
+      const lo = Math.min(st.i0, st.i1), hi = Math.max(st.i0, st.i1);
+      const info = getRangeLabel ? getRangeLabel(lo, hi) : null;
+      if (!info || !info.text) return;
+      const col = info.positive ? upColor() : downColor();
+      const dateText = info.dateText || '';
+      c.save();
+
+      // Fully-opaque, theme-aware colors so the label is always readable.
+      const bgFill   = isLight ? '#FFFFFF' : '#141B2E';
+      const bdrCol   = isLight ? 'rgba(11,30,63,0.18)' : 'rgba(255,255,255,0.16)';
+      const dateCol  = isLight ? '#3A4358' : '#AEB6C6';
+
+      const dateFont   = "600 13px 'Assistant','Rubik',sans-serif";
+      const changeFont = "800 15px 'Geist Mono','Assistant',monospace";
+
+      c.font = changeFont;
+      const changeW = c.measureText(info.text).width;
+      c.font = dateFont;
+      const dateW = dateText ? c.measureText(dateText).width : 0;
+
+      const padX = 12, padTop = 8, padBot = 9, lineGap = 4;
+      const dateLineH = dateText ? 17 : 0;
+      const changeLineH = 19;
+      const bw = Math.max(changeW, dateW) + padX * 2;
+      const bh = padTop + dateLineH + (dateText ? lineGap : 0) + changeLineH + padBot;
+      let bx = (x0 + x1) / 2 - bw / 2;
+      bx = Math.max(area.left + 2, Math.min(area.right - bw - 2, bx));
+      const by = area.top + 4;
+
+      // rounded, fully opaque background + subtle shadow for separation
+      const r = 8;
+      c.shadowColor = 'rgba(0,0,0,0.28)';
+      c.shadowBlur = 10; c.shadowOffsetY = 3;
+      c.fillStyle = bgFill;
+      c.beginPath();
+      c.moveTo(bx + r, by); c.arcTo(bx + bw, by, bx + bw, by + bh, r);
+      c.arcTo(bx + bw, by + bh, bx, by + bh, r); c.arcTo(bx, by + bh, bx, by, r);
+      c.arcTo(bx, by, bx + bw, by, r); c.closePath();
+      c.fill();
+      c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
+      c.lineWidth = 1; c.strokeStyle = bdrCol; c.stroke();
+
+      c.textAlign = 'center'; c.textBaseline = 'top';
+      const cx = bx + bw / 2;
+      let ty = by + padTop;
+      if (dateText) {
+        c.font = dateFont; c.fillStyle = dateCol;
+        c.fillText(dateText, cx, ty);
+        ty += dateLineH + lineGap;
+      }
+      c.font = changeFont; c.fillStyle = col;
+      c.fillText((info.positive ? '▲ ' : '▼ ') + info.text, cx, ty);
+      c.restore();
+    }
+  };
+}
+
 function drawSChart(prices, labels, sym) {
   const canvas = document.getElementById('dCanvas');
   if (!canvas || !Array.isArray(prices) || prices.length < 2) return;
@@ -10661,7 +10801,7 @@ function drawSChart(prices, labels, sym) {
       resizeDelay:0,
       interaction:{ mode:'index', intersect:false, axis:'x' },
       hover:{ mode:'index', intersect:false },
-      events:['mousemove','mouseout','click','touchstart','touchmove'],
+      events:['mousemove','mousedown','mouseup','mouseout','click','touchstart','touchmove','touchend'],
       plugins:{
         legend:{display:false},
         tooltip:{
@@ -10687,8 +10827,8 @@ function drawSChart(prices, labels, sym) {
         },
       },
       scales:{
-        x:{ ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-        y:{ ticks:{color:axisColor(),font:{size:9},callback:v=>{
+        x:{ ticks:{color:axisColor(),font:{size:14},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
+        y:{ ticks:{color:axisColor(),font:{size:14},callback:v=>{
           const cur=(S.sp[sym]?.currency||'USD').toUpperCase();
           const def=CURRENCIES[cur]||{sym:cur+' '};
           return def.sym+(v>=1?Number(v).toFixed(2):Number(v).toFixed(4));
@@ -10711,7 +10851,24 @@ function drawSChart(prices, labels, sym) {
         ctx.moveTo(x,top); ctx.lineTo(x,bottom); ctx.stroke();
         ctx.restore();
       }
-    }]
+    },
+    makeRangeSelectPlugin((i0, i1) => {
+      const a = Number(prices[i0]), b = Number(prices[i1]);
+      if (!(a > 0) || !isFinite(b)) return null;
+      const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+      const def = CURRENCIES[cur] || { sym: cur + ' ' };
+      const diff = b - a;
+      const pct = a ? (diff / a) * 100 : 0;
+      const sign = diff >= 0 ? '+' : '';
+      const dec = Math.abs(b) >= 1 ? 2 : 4;
+      const l0 = labels?.[i0] != null ? String(labels[i0]) : '';
+      const l1 = labels?.[i1] != null ? String(labels[i1]) : '';
+      return {
+        text: `${sign}${def.sym}${diff.toFixed(dec)}  (${pct>=0?'+':''}${pct.toFixed(2)}%)`,
+        dateText: (l0 && l1) ? `${l0} – ${l1}` : '',
+        positive: diff >= 0
+      };
+    })]
   });
   canvas.style.cursor = 'crosshair';
 }
