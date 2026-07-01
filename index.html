@@ -60,6 +60,7 @@ console.info("Vector build: 2026-06-30-fast-charts-v11");
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    BRAND BOOK 2026 — DESIGN TOKENS
@@ -1284,7 +1285,24 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 }
 .stock-chart-status.hidden { display: none; }
 .stock-chart-status .spinner { margin-inline-end: 7px; }
-.mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 240px; position: relative; margin-bottom: 16px; overflow: hidden; }
+.mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 320px; position: relative; margin-bottom: 16px; overflow: hidden; }
+@media (max-width: 640px) { .mchb { height: 260px; } }
+/* TradingView toolbar (mode switch + reset) */
+.tv-toolbar { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 5; display: flex; gap: 4px; background: color-mix(in srgb, var(--s2) 82%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--b1); border-radius: 8px; padding: 3px; }
+.tv-mode-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 6px; color: var(--t3); cursor: pointer; font-size: 15px; transition: all .12s; }
+.tv-mode-btn:hover { color: var(--t1); background: var(--s3); }
+.tv-mode-btn.active { background: var(--ac); color: #fff; }
+body.light .tv-mode-btn.active { color: #F4EFE5; }
+/* External HTML tooltip (crosshair) */
+.tv-tooltip { position: absolute; z-index: 6; pointer-events: none; display: none; background: var(--s1); border: 1px solid var(--b2); border-radius: 8px; padding: 8px 11px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--t1); box-shadow: 0 8px 24px rgba(0,0,0,.4); white-space: nowrap; }
+.tv-tooltip .tvt-date { color: var(--t3); font-size: 10.5px; margin-bottom: 2px; font-family: var(--font-body); }
+.tv-tooltip .tvt-price { font-weight: 700; font-size: 14px; }
+/* Measurement result box */
+.tv-measure-box { position: absolute; z-index: 6; pointer-events: none; display: none; background: var(--s1); border: 1px solid var(--b2); border-radius: 10px; padding: 9px 13px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; box-shadow: 0 10px 30px rgba(0,0,0,.45); white-space: nowrap; }
+.tv-measure-box .tvm-time { color: var(--t3); font-size: 11px; font-family: var(--font-body); margin-bottom: 3px; }
+.tv-measure-box .tvm-px { color: var(--t2); font-size: 12px; }
+.tv-measure-box .tvm-chg { font-weight: 800; font-size: 15px; margin-top: 2px; }
+.tv-measure-box .tvm-pos { color: var(--gd); font-size: 12px; margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--b1); }
 
 .man { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media(max-width: 480px) { .man { grid-template-columns: 1fr; } }
@@ -2706,6 +2724,7 @@ const S = {
   fx: 3.65,
   cp: {}, sp: {}, sparks: {}, sChg: {}, cChg: {},
   dChart: null, aC: null, sC: null, cbC: null, sbC: null,
+  tvChart: null, tvSeries: null, tvMeasureSeries: null, _tvResizeObs: null,
   sel: null, sPeriod: '1d', cPeriod: '1d', curPage: 'dash',
   crypto: loadLS('pc', DEF_C),
   stocks: loadLS('ps', DEF_S),
@@ -4362,7 +4381,7 @@ const I18N = {
   '(אופציונלי)':'(optional)','ניהול קניות':'Manage buys','מחק קנייה':'Delete buy',
 
   'התפלגות תיק הנכסים':'Portfolio Allocation','פילוח קטגוריות':'Category Breakdown','תשואה תקופתית — מניות':'Periodic Return — Stocks',
-  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
+  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','שינוי בשווי ההחזקה':'Holding value change','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
   'התראות מערכת וחריגות אלוקציה':'System alerts & allocation anomalies','הנכסים המניבים ביותר היום':'Top performing assets today',
   'המפסידים ביותר היום':'Biggest losers today','התפלגות ומשקלים בתיק':'Portfolio distribution & weights',
   'ריכוז וסיכום נתונים':'Data summary','ביצועי שוק':'Market Performance','מאזן כמותי':'Quantitative Balance',
@@ -4421,7 +4440,7 @@ const I18N = {
   // ticker
   'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
   // market status bar
-  'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
+  'ת"א':'TLV','לונדון':'London','טוקיו':'Tokyo','הונג קונג':'Hong Kong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
   'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
   // lock screen + auth
   'כניסה מאובטחת לנתונים':'Secure data access','התחבר באמצעות Google':'Sign in with Google','התחבר עם Google':'Sign in with Google',
@@ -4824,7 +4843,7 @@ const LANG_DICTS = {
   ru: {
 
     // market status bar
-    'ת"א':'ТА','לונדון':'Лондон','שוק פתוח':'Открыт','שוק סגור':'Закрыт','נפתח בקרוב':'Скоро откр.','נסגר בעוד':'Закр. через','נפתח בעוד':'Откр. через','דק׳':'мин','ש׳':'ч',
+    'ת"א':'ТА','לונדון':'Лондон','טוקיו':'Токио','הונג קונג':'Гонконг','שנחאי':'Шанхай','מומבאי':'Мумбаи','סיאול':'Сеул','סידני':'Сидней','שוק פתוח':'Открыт','שוק סגור':'Закрыт','נפתח בקרוב':'Скоро откр.','נסגר בעוד':'Закр. через','נפתח בעוד':'Откр. через','דק׳':'мин','ש׳':'ч',
     'שוק אמריקאי':'Рынок США',
     'אירופה':'Европа',
     'אסיה':'Азия',
@@ -5296,7 +5315,7 @@ const LANG_DICTS = {
   es: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Abierto','שוק סגור':'Cerrado','נפתח בקרוב':'Abre pronto','נסגר בעוד':'Cierra en','נפתח בעוד':'Abre en','דק׳':'min','ש׳':'h',
+    'ת"א':'TLV','לונדון':'Londres','טוקיו':'Tokio','הונג קונג':'Hong Kong','שנחאי':'Shanghái','מומבאי':'Bombay','סיאול':'Seúl','סידני':'Sídney','שוק פתוח':'Abierto','שוק סגור':'Cerrado','נפתח בקרוב':'Abre pronto','נסגר בעוד':'Cierra en','נפתח בעוד':'Abre en','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Mercado de EE. UU.',
     'אירופה':'Europa',
     'אסיה':'Asia',
@@ -5761,7 +5780,7 @@ const LANG_DICTS = {
   fr: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Ouvert','שוק סגור':'Fermé','נפתח בקרוב':'Ouvre bientôt','נסגר בעוד':'Ferme dans','נפתח בעוד':'Ouvre dans','דק׳':'min','ש׳':'h',
+    'ת"א':'TLV','לונדון':'Londres','טוקיו':'Tokyo','הונג קונג':'Hong Kong','שנחאי':'Shanghai','מומבאי':'Bombay','סיאול':'Séoul','סידני':'Sydney','שוק פתוח':'Ouvert','שוק סגור':'Fermé','נפתח בקרוב':'Ouvre bientôt','נסגר בעוד':'Ferme dans','נפתח בעוד':'Ouvre dans','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Marché américain',
     'אירופה':'Europe',
     'אסיה':'Asie',
@@ -6226,7 +6245,7 @@ const LANG_DICTS = {
   ar: {
 
     // market status bar
-    'ת"א':'تل أبيب','לונדון':'لندن','שוק פתוח':'مفتوح','שוק סגור':'مغلق','נפתח בקרוב':'يفتح قريباً','נסגר בעוד':'يغلق خلال','נפתח בעוד':'يفتح خلال','דק׳':'د','ש׳':'س',
+    'ת"א':'تل أبيب','לונדון':'لندن','טוקיו':'طوكيو','הונג קונג':'هونغ كونغ','שנחאי':'شنغهاي','מומבאי':'مومباي','סיאול':'سيول','סידני':'سيدني','שוק פתוח':'مفتوح','שוק סגור':'مغلق','נפתח בקרוב':'يفتح قريباً','נסגר בעוד':'يغلق خلال','נפתח בעוד':'يفتح خلال','דק׳':'د','ש׳':'س',
     'שוק אמריקאי':'السوق الأمريكي',
     'אירופה':'أوروبا',
     'אסיה':'آسيا',
@@ -6691,7 +6710,7 @@ const LANG_DICTS = {
   de: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'London','שוק פתוח':'Offen','שוק סגור':'Geschlossen','נפתח בקרוב':'Öffnet bald','נסגר בעוד':'Schließt in','נפתח בעוד':'Öffnet in','דק׳':'Min','ש׳':'Std',
+    'ת"א':'TLV','לונדון':'London','טוקיו':'Tokio','הונג קונג':'Hongkong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Offen','שוק סגור':'Geschlossen','נפתח בקרוב':'Öffnet bald','נסגר בעוד':'Schließt in','נפתח בעוד':'Öffnet in','דק׳':'Min','ש׳':'Std',
     'שוק אמריקאי':'US-Markt',
     'אירופה':'Europa',
     'אסיה':'Asien',
@@ -7156,7 +7175,7 @@ const LANG_DICTS = {
   zh: {
 
     // market status bar
-    'ת"א':'特拉维夫','לונדון':'伦敦','שוק פתוח':'开市','שוק סגור':'休市','נפתח בקרוב':'即将开市','נסגר בעוד':'距收市','נפתח בעוד':'距开市','דק׳':'分','ש׳':'时',
+    'ת"א':'特拉维夫','לונדון':'伦敦','טוקיו':'东京','הונג קונג':'香港','שנחאי':'上海','מומבאי':'孟买','סיאול':'首尔','סידני':'悉尼','שוק פתוח':'开市','שוק סגור':'休市','נפתח בקרוב':'即将开市','נסגר בעוד':'距收市','נפתח בעוד':'距开市','דק׳':'分','ש׳':'时',
     'שוק אמריקאי':'美国市场',
     'אירופה':'欧洲',
     'אסיה':'亚洲',
@@ -7621,7 +7640,7 @@ const LANG_DICTS = {
   nl: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londen','שוק פתוח':'Open','שוק סגור':'Gesloten','נפתח בקרוב':'Opent snel','נסגר בעוד':'Sluit over','נפתח בעוד':'Opent over','דק׳':'min','ש׳':'u',
+    'ת"א':'TLV','לונדון':'Londen','טוקיו':'Tokio','הונג קונג':'Hongkong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Open','שוק סגור':'Gesloten','נפתח בקרוב':'Opent snel','נסגר בעוד':'Sluit over','נפתח בעוד':'Opent over','דק׳':'min','ש׳':'u',
     'שוק אמריקאי':'Amerikaanse markt',
     'אירופה':'Europa',
     'אסיה':'Azië',
@@ -8518,10 +8537,16 @@ function tkStart() {
 // Each market: local trading hours (in its own timezone) + which portfolio asset
 // suffixes belong to it, so we can flag the markets the user actually holds.
 const MK_MARKETS = [
-  { key: 'us', name: 'ארה"ב',   flag: '🇺🇸', tz: 'America/New_York', open: [9,30], close: [16,0], days: [1,2,3,4,5], suffixes: [''] },
+  { key: 'us', name: 'ארה"ב',   flag: '🇺🇸', tz: 'America/New_York', open: [9,30], close: [16,0],  days: [1,2,3,4,5], suffixes: [''] },
   { key: 'il', name: 'ת"א',     flag: '🇮🇱', tz: 'Asia/Jerusalem',   open: [9,59], close: [17,15], days: [0,1,2,3,4], suffixes: ['.TA'] },
   { key: 'eu', name: 'אירופה',  flag: '🇪🇺', tz: 'Europe/Berlin',    open: [9,0],  close: [17,30], days: [1,2,3,4,5], suffixes: ['.DE','.PA','.AS','.MI','.MC','.SW','.BR','.LS','.VI','.HE'] },
   { key: 'uk', name: 'לונדון',  flag: '🇬🇧', tz: 'Europe/London',    open: [8,0],  close: [16,30], days: [1,2,3,4,5], suffixes: ['.L'] },
+  { key: 'jp', name: 'טוקיו',   flag: '🇯🇵', tz: 'Asia/Tokyo',       open: [9,0],  close: [15,0],  days: [1,2,3,4,5], suffixes: ['.T'] },
+  { key: 'hk', name: 'הונג קונג', flag: '🇭🇰', tz: 'Asia/Hong_Kong', open: [9,30], close: [16,0],  days: [1,2,3,4,5], suffixes: ['.HK'] },
+  { key: 'cn', name: 'שנחאי',   flag: '🇨🇳', tz: 'Asia/Shanghai',    open: [9,30], close: [15,0],  days: [1,2,3,4,5], suffixes: ['.SS','.SZ'] },
+  { key: 'in', name: 'מומבאי',  flag: '🇮🇳', tz: 'Asia/Kolkata',     open: [9,15], close: [15,30], days: [1,2,3,4,5], suffixes: ['.NS','.BO'] },
+  { key: 'kr', name: 'סיאול',   flag: '🇰🇷', tz: 'Asia/Seoul',       open: [9,0],  close: [15,30], days: [1,2,3,4,5], suffixes: ['.KS','.KQ'] },
+  { key: 'au', name: 'סידני',   flag: '🇦🇺', tz: 'Australia/Sydney', open: [10,0], close: [16,0],  days: [1,2,3,4,5], suffixes: ['.AX'] },
 ];
 
 // Minutes-since-midnight in a given timezone, plus weekday (0=Sun..6=Sat).
@@ -10422,7 +10447,16 @@ async function openDet(sym, type) {
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
-function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
+function closeDet() {
+  document.getElementById('detOv').classList.remove('open');
+  document.body.style.overflow = '';
+  S.sel = null;
+  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+  if (S.tvChart) { try { S.tvChart.remove(); } catch(_){} S.tvChart = null; S.tvSeries = null; }
+  if (S._tvResizeObs) { try { S._tvResizeObs.disconnect(); } catch(_){} S._tvResizeObs = null; }
+  tvClearMeasure();
+  stopLiveChart();
+}
 
 async function renderCryptoModal(a, el) {
   const p = S.cp[a.id]; const pu = p?.usd || 0; const pi = pu * S.fx;
@@ -10457,7 +10491,17 @@ async function renderCryptoModal(a, el) {
         <button class="rb" onclick="loadCC('${a.sym}',90,this)">3M</button>
       </div>
     </div>
-    <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
+    <div class="mchb" id="mchBox">
+      <div id="tvChart" style="position:absolute;inset:0;"></div>
+      <canvas id="dCanvas" style="position:relative;z-index:1;display:none"></canvas>
+      <div class="tv-toolbar" id="tvToolbar">
+        <button class="tv-mode-btn active" id="tvNavBtn" onclick="tvSetMode('nav')" title="ניווט — גרירה מזיזה את הגרף"><i class="ph-thin ph-hand"></i></button>
+        <button class="tv-mode-btn" id="tvMeasBtn" onclick="tvSetMode('measure')" title="מדידה — גרירה מסמנת טווח"><i class="ph-thin ph-ruler"></i></button>
+        <button class="tv-mode-btn" id="tvResetBtn" onclick="tvResetZoom()" title="איפוס תצוגה"><i class="ph-thin ph-arrows-in"></i></button>
+      </div>
+      <div class="tv-tooltip" id="tvTooltip"></div>
+      <div class="tv-measure-box" id="tvMeasureBox"></div>
+    </div>
     <div class="man">
       <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מאזן כמותי</span><span class="mrv">${fNum(a.qty)}</span></div>
@@ -10550,7 +10594,17 @@ function renderStockModal(s, el) {
         <button class="rb" onclick="loadSC('${s.sym}','5y',this)">5Y</button>
       </div>
     </div>
-    <div class="mchb" id="mchBox"><canvas id="dCanvas"></canvas></div>
+    <div class="mchb" id="mchBox">
+      <div id="tvChart" style="position:absolute;inset:0;"></div>
+      <canvas id="dCanvas" style="position:relative;z-index:1;display:none"></canvas>
+      <div class="tv-toolbar" id="tvToolbar">
+        <button class="tv-mode-btn active" id="tvNavBtn" onclick="tvSetMode('nav')" title="ניווט — גרירה מזיזה את הגרף"><i class="ph-thin ph-hand"></i></button>
+        <button class="tv-mode-btn" id="tvMeasBtn" onclick="tvSetMode('measure')" title="מדידה — גרירה מסמנת טווח"><i class="ph-thin ph-ruler"></i></button>
+        <button class="tv-mode-btn" id="tvResetBtn" onclick="tvResetZoom()" title="איפוס תצוגה"><i class="ph-thin ph-arrows-in"></i></button>
+      </div>
+      <div class="tv-tooltip" id="tvTooltip"></div>
+      <div class="tv-measure-box" id="tvMeasureBox"></div>
+    </div>
     <div class="man">
       <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מספר מניות</span><span class="mrv">${sh?sh.toFixed(3):'--'}</span></div>
@@ -10767,7 +10821,27 @@ function makeRangeSelectPlugin(getRangeLabel) {
   };
 }
 
+// Dispatcher: use TradingView Lightweight Charts for the detailed asset view when the
+// library is present; otherwise fall back to the existing Chart.js renderer.
 function drawSChart(prices, labels, sym) {
+  const hasTV = typeof LightweightCharts !== 'undefined' && LightweightCharts?.createChart;
+  const tvEl = document.getElementById('tvChart');
+  const canvas = document.getElementById('dCanvas');
+  if (hasTV && tvEl) {
+    if (canvas) canvas.style.display = 'none';
+    tvEl.style.display = 'block';
+    const tb = document.getElementById('tvToolbar'); if (tb) tb.style.display = 'flex';
+    try { drawSChartTV(prices, labels, sym); return; }
+    catch (e) { console.warn('[TV] failed, falling back to Chart.js:', e?.message); }
+  }
+  // Fallback path
+  if (tvEl) tvEl.style.display = 'none';
+  const tb = document.getElementById('tvToolbar'); if (tb) tb.style.display = 'none';
+  if (canvas) canvas.style.display = 'block';
+  drawSChartCanvas(prices, labels, sym);
+}
+
+function drawSChartCanvas(prices, labels, sym) {
   const canvas = document.getElementById('dCanvas');
   if (!canvas || !Array.isArray(prices) || prices.length < 2) return;
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
@@ -10873,7 +10947,245 @@ function drawSChart(prices, labels, sym) {
   canvas.style.cursor = 'crosshair';
 }
 
-// ═══════════════════════════════════════════
+// ── TradingView Lightweight Charts: detailed asset view ──
+let tvMode = 'nav';                       // 'nav' | 'measure'
+let tvMeasure = { active: false, from: null, to: null };
+window._tvData = [];                      // [{ time, value }]
+window._tvSym = null;
+
+function tvSetMode(mode) {
+  tvMode = mode;
+  document.getElementById('tvNavBtn')?.classList.toggle('active', mode === 'nav');
+  document.getElementById('tvMeasBtn')?.classList.toggle('active', mode === 'measure');
+  const el = document.getElementById('tvChart');
+  if (el) el.style.cursor = mode === 'measure' ? 'crosshair' : 'grab';
+  // In measure mode, disable the chart's own scroll/scale so drag = measure.
+  if (S.tvChart) {
+    const on = mode === 'nav';
+    S.tvChart.applyOptions({
+      handleScroll: on, handleScale: on,
+    });
+  }
+  tvClearMeasure();
+}
+function tvResetZoom() { try { S.tvChart?.timeScale().fitContent(); } catch(_){} }
+function tvClearMeasure() {
+  tvMeasure = { active: false, from: null, to: null };
+  const box = document.getElementById('tvMeasureBox'); if (box) box.style.display = 'none';
+  if (S.tvSeries && S.tvMeasureSeries) { try { S.tvChart.removeSeries(S.tvMeasureSeries); } catch(_){} S.tvMeasureSeries = null; }
+}
+
+function drawSChartTV(prices, labels, sym) {
+  const el = document.getElementById('tvChart');
+  if (!el || !Array.isArray(prices) || prices.length < 2) return;
+  const isLight = document.body.classList.contains('light');
+  const up = prices[prices.length - 1] >= prices[0];
+  const col = up ? upColor() : downColor();
+
+  // Build time/value pairs. Lightweight Charts wants ascending unique times (unix seconds).
+  // We synthesize an evenly-spaced timeline from index so any label set works.
+  const now = Math.floor(Date.now() / 1000);
+  const step = 3600;                       // 1h spacing (purely for ordering)
+  const startT = now - step * (prices.length - 1);
+  const data = prices.map((p, i) => ({ time: startT + i * step, value: Number(p) }))
+                     .filter(d => isFinite(d.value));
+  window._tvData = data;
+  window._tvSym = sym;
+  window._tvLabels = labels;
+
+  // If the same symbol is already charted, just update the data in place — this keeps
+  // the user's zoom/pan/measurement intact during the 30s live refresh (no flicker).
+  if (S.tvChart && S.tvSeries && window._tvSym === sym && S._tvColUp === up) {
+    try {
+      S.tvSeries.setData(data);
+      window._tvData = data; window._tvLabels = labels;
+      return;
+    } catch(_) { /* fall through to full rebuild */ }
+  }
+  S._tvColUp = up;
+
+  const cur = (S.sp[sym]?.currency || S.cp?.[sym]?.currency || 'USD').toUpperCase();
+  const curDef = CURRENCIES[cur] || { sym: cur + ' ' };
+
+  // (Re)create the chart.
+  if (S.tvChart) { try { S.tvChart.remove(); } catch(_){} S.tvChart = null; S.tvSeries = null; }
+  const textColor = isLight ? '#3A4358' : '#AEB6C6';
+  const gridColor = isLight ? 'rgba(11,30,63,0.06)' : 'rgba(255,255,255,0.05)';
+  S.tvChart = LightweightCharts.createChart(el, {
+    width: el.clientWidth, height: el.clientHeight,
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor, fontSize: 12, fontFamily: "'Assistant','Rubik',sans-serif" },
+    grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+    rightPriceScale: { borderColor: gridColor, scaleMargins: { top: 0.12, bottom: 0.12 } },
+    timeScale: { borderColor: gridColor, timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: { color: isLight ? 'rgba(11,30,63,0.4)' : 'rgba(255,255,255,0.35)', width: 1, style: 2, labelBackgroundColor: col },
+      horzLine: { color: isLight ? 'rgba(11,30,63,0.4)' : 'rgba(255,255,255,0.35)', width: 1, style: 2, labelBackgroundColor: col },
+    },
+    handleScroll: tvMode === 'nav', handleScale: tvMode === 'nav',
+  });
+  // Area series: thick line + soft gradient fill, price axis on the right (default).
+  S.tvSeries = S.tvChart.addAreaSeries({
+    lineColor: col, lineWidth: 3,
+    topColor: (isLight ? hexToRgba(col, 0.22) : hexToRgba(col, 0.28)),
+    bottomColor: hexToRgba(col, 0.01),
+    priceLineVisible: true, priceLineColor: col, priceLineWidth: 1, priceLineStyle: 2,
+    lastValueVisible: true,
+    priceFormat: { type: 'price', precision: (Math.abs(prices[prices.length-1]) >= 1 ? 2 : 4), minMove: (Math.abs(prices[prices.length-1]) >= 1 ? 0.01 : 0.0001) },
+  });
+  S.tvSeries.setData(data);
+  S.tvChart.timeScale().fitContent();
+
+  // ── External HTML tooltip driven by the crosshair ──
+  const tooltip = document.getElementById('tvTooltip');
+  const measureBox = document.getElementById('tvMeasureBox');
+  const fmtT = (t) => {
+    const idx = data.findIndex(d => d.time === t);
+    return (idx >= 0 && labels?.[idx] != null) ? String(labels[idx]) : '';
+  };
+  const fmtPx = (v) => curDef.sym + (Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(4));
+
+  S.tvChart.subscribeCrosshairMove(param => {
+    if (!param || !param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
+      if (tooltip) tooltip.style.display = 'none';
+      if (tvMode === 'measure' && tvMeasure.active) tvUpdateMeasure(param);
+      return;
+    }
+    const val = param.seriesData.get(S.tvSeries);
+    const price = val?.value ?? val;
+    if (tooltip && price != null) {
+      const base = data[0]?.value || price;
+      const pct = base ? ((price - base) / base) * 100 : 0;
+      tooltip.innerHTML = `<div class="tvt-date">${fmtT(param.time)}</div>
+        <div class="tvt-price" style="color:${col}">${fmtPx(price)}</div>
+        <div style="color:var(--t3);font-size:11px">${pct>=0?'+':''}${pct.toFixed(2)}%</div>`;
+      tooltip.style.display = 'block';
+      const box = el.getBoundingClientRect();
+      let left = param.point.x + 14;
+      if (left + tooltip.offsetWidth > box.width - 6) left = param.point.x - tooltip.offsetWidth - 14;
+      tooltip.style.left = Math.max(6, left) + 'px';
+      tooltip.style.top = Math.max(6, param.point.y - 10) + 'px';
+    }
+    if (tvMode === 'measure' && tvMeasure.active) tvUpdateMeasure(param);
+  });
+
+  // ── Measure mode: press → drag → release on the chart element ──
+  tvBindMeasure(el, sym, curDef);
+
+  // keep it sized to its container
+  if (S._tvResizeObs) { try { S._tvResizeObs.disconnect(); } catch(_){} }
+  S._tvResizeObs = new ResizeObserver(() => {
+    if (S.tvChart && el.clientWidth) S.tvChart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+  });
+  S._tvResizeObs.observe(el);
+
+  tvSetMode(tvMode);   // apply current mode (cursor + scroll lock)
+}
+
+function hexToRgba(hex, a) {
+  const h = String(hex).replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function tvBindMeasure(el, sym, curDef) {
+  if (el._tvMeasureBound) return;
+  el._tvMeasureBound = true;
+  const getTV = () => S.tvChart, getSeries = () => S.tvSeries;
+
+  const startMeasure = (clientX, clientY) => {
+    if (tvMode !== 'measure') return;
+    const chart = getTV(), series = getSeries(); if (!chart || !series) return;
+    const box = el.getBoundingClientRect();
+    const x = clientX - box.left, y = clientY - box.top;
+    const t = chart.timeScale().coordinateToTime(x);
+    const price = series.coordinateToPrice(y);
+    if (t == null || price == null) return;
+    tvMeasure = { active: true, from: { t, price, x, y }, to: { t, price, x, y } };
+  };
+  const moveMeasure = (clientX, clientY) => {
+    if (!tvMeasure.active) return;
+    const chart = getTV(), series = getSeries(); if (!chart || !series) return;
+    const box = el.getBoundingClientRect();
+    const x = clientX - box.left, y = clientY - box.top;
+    const t = chart.timeScale().coordinateToTime(x);
+    const price = series.coordinateToPrice(y);
+    if (t == null || price == null) return;
+    tvMeasure.to = { t, price, x, y };
+    tvRenderMeasure(sym, curDef);
+  };
+  const endMeasure = () => { /* keep result visible until next press or mode change */ };
+
+  el.addEventListener('mousedown', e => { if (tvMode === 'measure') { e.preventDefault(); startMeasure(e.clientX, e.clientY); } });
+  window.addEventListener('mousemove', e => { if (tvMeasure.active) moveMeasure(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', endMeasure);
+  // touch: long-press starts measure
+  let touchTimer = null;
+  el.addEventListener('touchstart', e => {
+    if (tvMode !== 'measure') return;
+    const t = e.touches[0];
+    touchTimer = setTimeout(() => startMeasure(t.clientX, t.clientY), 250);
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (tvMeasure.active) { e.preventDefault(); const t = e.touches[0]; moveMeasure(t.clientX, t.clientY); }
+  }, { passive: false });
+  el.addEventListener('touchend', () => { if (touchTimer) clearTimeout(touchTimer); endMeasure(); });
+}
+
+function tvUpdateMeasure() { /* crosshair-driven refresh handled in tvRenderMeasure */ }
+
+function tvRenderMeasure(sym, curDef) {
+  const box = document.getElementById('tvMeasureBox');
+  const el = document.getElementById('tvChart');
+  if (!box || !el || !tvMeasure.from || !tvMeasure.to) return;
+  const a = tvMeasure.from.price, b = tvMeasure.to.price;
+  if (!isFinite(a) || !isFinite(b)) return;
+  const diff = b - a;
+  const pct = a ? (diff / a) * 100 : 0;
+  const positive = diff >= 0;
+  const col = positive ? upColor() : downColor();
+  const dec = Math.abs(b) >= 1 ? 2 : 4;
+  const sym$ = curDef.sym;
+
+  // time labels from the synthesized timeline → original labels
+  const data = window._tvData || [], labels = window._tvLabels || [];
+  const idxOf = (t) => { let best = -1, bd = Infinity; for (let i=0;i<data.length;i++){const d=Math.abs(data[i].time-t); if(d<bd){bd=d;best=i;}} return best; };
+  const i0 = idxOf(tvMeasure.from.t), i1 = idxOf(tvMeasure.to.t);
+  const lo = Math.min(i0, i1), hi = Math.max(i0, i1);
+  const t0 = labels[lo] != null ? String(labels[lo]) : '';
+  const t1 = labels[hi] != null ? String(labels[hi]) : '';
+
+  // change in the user's own holding value (qty × price move, converted to ILS)
+  let posLine = '';
+  try {
+    const s = S.stocks.find(x => x.sym === sym);
+    const c = S.crypto.find(x => x.sym === sym);
+    if (s) {
+      const qty = getShares(s);
+      const ils = nativeToILS(diff * qty, S.sp[sym]?.currency || 'USD');
+      posLine = `<div class="tvm-pos">${i18nGetText('שינוי בשווי ההחזקה')}: ${ils>=0?'+':''}${fILS(ils)}</div>`;
+    } else if (c) {
+      const qty = cQty(c);
+      const ils = diff * qty * S.fx;
+      posLine = `<div class="tvm-pos">${i18nGetText('שינוי בשווי ההחזקה')}: ${ils>=0?'+':''}${fILS(ils)}</div>`;
+    }
+  } catch(_){}
+
+  box.innerHTML = `
+    <div class="tvm-time">${t0} → ${t1}</div>
+    <div class="tvm-px">${sym$}${a.toFixed(dec)} → ${sym$}${b.toFixed(dec)}</div>
+    <div class="tvm-chg" style="color:${col}">${positive?'▲ ':'▼ '}${diff>=0?'+':''}${sym$}${diff.toFixed(dec)}   ${pct>=0?'+':''}${pct.toFixed(2)}%</div>
+    ${posLine}`;
+  box.style.display = 'block';
+  // position near the top-center of the selection
+  const midX = (tvMeasure.from.x + tvMeasure.to.x) / 2;
+  let left = midX - box.offsetWidth / 2;
+  left = Math.max(6, Math.min(el.clientWidth - box.offsetWidth - 6, left));
+  box.style.left = left + 'px';
+  box.style.top = '8px';
+}
+
 // EDITOR
 // ═══════════════════════════════════════════
 let edTab = 'stock';
