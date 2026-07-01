@@ -3172,17 +3172,14 @@ async function fetchGoogleFinanceQuote(sym) {
   const googleSym = `${ticker}:${mapping.ex}`;
   const nativeCur = mapping.cur;
   const url = `https://www.google.com/finance/quote/${encodeURIComponent(googleSym)}`;
-  const proxies = [
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  // ⚡ SPEED: race proxies in parallel with short timeouts (was 4 sequential @ 10s = 40s worst case)
+  const proxyUrls = [
+    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
     `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   ];
-  for (const proxy of proxies) {
+  const parseGoogle = (text) => {
     try {
-      const r = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
-      if (!r.ok) continue;
-      const text = await r.text();
       let body = text;
       try { const j = JSON.parse(text); if (j?.contents) body = j.contents; } catch(_) {}
       // Google Finance data extraction — try multiple patterns (old + new HTML)
@@ -3229,9 +3226,12 @@ async function fetchGoogleFinanceQuote(sym) {
           _source: 'google',
         };
       }
-    } catch (_) {}
-  }
-  return null;
+      return null;
+    } catch (_) { return null; }
+  };
+  const tasks = proxyUrls.map((pu, i) =>
+    delayedTask(i * 120, async () => parseGoogle(await fetchTextFast(pu, 4000))));
+  return firstValidResult(tasks, v => v && v.price > 0);
 }
 
 // Stooq: CORS-friendly, free, reliable last-quote source. Great fallback for
@@ -3297,80 +3297,77 @@ async function fetchStooqQuote(sym) {
 }
 
 async function fetchYahooQuote(sym) {
-  // Yahoo's chart endpoint also returns meta with regular market price, prev close, day high/low —
+  // Yahoo's chart endpoint returns meta with regularMarketPrice, prevClose, day high/low —
   // works for ANY symbol on ANY global exchange (POLI.TA, ASML.AS, 7203.T, etc.)
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
-  const proxies = [
-    ...(MY_PROXY ? [u => `${MY_PROXY}/?url=${encodeURIComponent(u)}`] : []),
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
-    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-    u => `https://cors-anywhere.herokuapp.com/${u}`,
-    u => `https://thingproxy.freeboard.io/fetch/${u}`,
-  ];
-  for (const px of proxies) {
-    try {
-      const r = await fetch(px(url), { signal: AbortSignal.timeout(6000) });
-      if (!r.ok) continue;
-      const text = await r.text();
-      let body = text;
-      try { const j = JSON.parse(text); if (j && typeof j.contents === 'string') body = j.contents; } catch (_) {}
-      let json;
-      try { json = JSON.parse(body); } catch (_) { continue; }
-      const result = json?.chart?.result?.[0];
-      const meta = result?.meta;
-      if (!meta) continue;
-      const price = meta.regularMarketPrice;
-      // Don't trust meta.previousClose — it can be stale or wrong for fast-moving stocks.
-      // Instead, pull the previous trading day's close DIRECTLY from the candle data we just fetched.
-      const t = result?.timestamp || [];
-      const c = result?.indicators?.quote?.[0]?.close || [];
-      let prev = null;
-      if (c.length >= 2) {
-        // walk backward from the last candle to find the previous valid close (skip the current day if it equals 'price')
-        for (let i = c.length - 2; i >= 0; i--) {
-          if (c[i] != null && c[i] > 0) { prev = c[i]; break; }
-        }
+
+  // Parse a raw proxy response (text or {contents:...}) into a normalized quote object.
+  const parseQuote = (text) => {
+    let body = text;
+    try { const j = JSON.parse(text); if (j && typeof j.contents === 'string') body = j.contents; } catch (_) {}
+    let json;
+    try { json = JSON.parse(body); } catch (_) { return null; }
+    const result = json?.chart?.result?.[0];
+    const meta = result?.meta;
+    if (!meta) return null;
+    const price = meta.regularMarketPrice;
+    const t = result?.timestamp || [];
+    const c = result?.indicators?.quote?.[0]?.close || [];
+    let prev = null;
+    if (c.length >= 2) {
+      for (let i = c.length - 2; i >= 0; i--) {
+        if (c[i] != null && c[i] > 0) { prev = c[i]; break; }
       }
-      // last-resort fallbacks
-      if (prev == null) prev = meta.previousClose ?? meta.chartPreviousClose;
-      const high  = meta.regularMarketDayHigh;
-      const low   = meta.regularMarketDayLow;
-      const open  = meta.regularMarketOpen;
-      if (price && prev) {
-        // Unified sub-unit normalization: handles ILA (agorot), GBp/GBX (pence),
-        // ZAc (cents) — not just Israel. Look up the suffix mapping for context.
-        const dotIdx = sym.lastIndexOf('.');
-        const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1).toUpperCase() : '';
-        const mapping = SUFFIX_TO_GOOGLE[sfx] || null;
-        const rawCurrency = (meta.currency || (mapping ? mapping.cur : 'USD')).toUpperCase();
-        const normP    = normalizeQuoteCurrency(price, rawCurrency, mapping);
-        const normPrev = normalizeQuoteCurrency(prev,  rawCurrency, mapping);
-        const normCurrency = normP.currency;
-        // Derive the same divisor used on price so high/low/open match.
-        const divisor = price ? (price / normP.price) : 1;
-        return {
-          price:     normP.price,
-          prevClose: normPrev.price,
-          high:  (high  ?? price) / divisor,
-          low:   (low   ?? price) / divisor,
-          open:  open != null ? open / divisor : null,
-          currency: normCurrency,
-          // extended fundamentals from meta
-          high52w: meta.fiftyTwoWeekHigh != null ? meta.fiftyTwoWeekHigh / divisor : null,
-          low52w:  meta.fiftyTwoWeekLow  != null ? meta.fiftyTwoWeekLow  / divisor : null,
-          marketCap: meta.marketCap ?? null,
-          peRatio: meta.trailingPE ?? meta.trailingPe ?? null,
-          quoteTime: normalizeEpochMs(meta.regularMarketTime ?? t[t.length - 1]),
-          marketState: meta.marketState ?? null,
-          exchangeTimeZone: meta.exchangeTimezoneName ?? null,
-          _source: 'yahoo',
-        };
-      }
-    } catch (_) {}
+    }
+    if (prev == null) prev = meta.previousClose ?? meta.chartPreviousClose;
+    const high  = meta.regularMarketDayHigh;
+    const low   = meta.regularMarketDayLow;
+    const open  = meta.regularMarketOpen;
+    if (!(price && prev)) return null;
+    const dotIdx = sym.lastIndexOf('.');
+    const sfx = dotIdx >= 0 ? sym.slice(dotIdx + 1).toUpperCase() : '';
+    const mapping = SUFFIX_TO_GOOGLE[sfx] || null;
+    const rawCurrency = (meta.currency || (mapping ? mapping.cur : 'USD')).toUpperCase();
+    const normP    = normalizeQuoteCurrency(price, rawCurrency, mapping);
+    const normPrev = normalizeQuoteCurrency(prev,  rawCurrency, mapping);
+    const normCurrency = normP.currency;
+    const divisor = price ? (price / normP.price) : 1;
+    return {
+      price:     normP.price,
+      prevClose: normPrev.price,
+      high:  (high  ?? price) / divisor,
+      low:   (low   ?? price) / divisor,
+      open:  open != null ? open / divisor : null,
+      currency: normCurrency,
+      high52w: meta.fiftyTwoWeekHigh != null ? meta.fiftyTwoWeekHigh / divisor : null,
+      low52w:  meta.fiftyTwoWeekLow  != null ? meta.fiftyTwoWeekLow  / divisor : null,
+      marketCap: meta.marketCap ?? null,
+      peRatio: meta.trailingPE ?? meta.trailingPe ?? null,
+      quoteTime: normalizeEpochMs(meta.regularMarketTime ?? t[t.length - 1]),
+      marketState: meta.marketState ?? null,
+      exchangeTimeZone: meta.exchangeTimezoneName ?? null,
+      _source: 'yahoo',
+    };
+  };
+
+  // ⚡ SPEED: race ALL proxies in parallel (same technique the fast charts use),
+  // not one-after-another. First valid quote wins. Short timeouts so a slow/blocked
+  // proxy can't stall the whole thing. This is the difference between 1s and 40s.
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  const tasks = [];
+  if (worker) {
+    tasks.push((async () => parseQuote(await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 2800)))());
   }
-  return null;
+  tasks.push(delayedTask(worker ? 250 : 0, async () =>
+    parseQuote(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 3500))));
+  tasks.push(delayedTask(worker ? 350 : 100, async () =>
+    parseQuote(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, 3500))));
+  tasks.push(delayedTask(worker ? 450 : 200, async () =>
+    parseQuote(await fetchTextFast(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 4000))));
+  tasks.push(delayedTask(worker ? 600 : 300, async () =>
+    parseQuote(await fetchTextFast(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 4500))));
+
+  return firstValidResult(tasks, v => v && v.price > 0);
 }
 
 // Market cap + P/E from Finnhub (free). Cached for the session to limit calls.
