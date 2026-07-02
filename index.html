@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-01-tradingview-charts-v12">
+<meta name="app-version" content="2026-07-02-sell-currency-52w-v13">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-01-tradingview-charts-v12");
+console.info("Vector build: 2026-07-02-sell-currency-52w-v13");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1136,11 +1136,16 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-btn:hover { opacity: .88; }
 .sell-btn:active { transform: scale(.98); }
 .sell-btn i { font-size: 16px; }
-.sell-cur-toggle { background: var(--s3); border: 1px solid var(--b1); border-radius: 7px; cursor: pointer; font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 700; color: var(--gd); padding: 4px 9px; line-height: 1; transition: all .12s; white-space: nowrap; }
-.sell-cur-toggle:hover { background: var(--s2); border-color: var(--ac); }
-.sell-cur-toggle::after { content: '▾'; font-size: 9px; margin-inline-start: 4px; opacity: .6; vertical-align: middle; }
-.sell-cur-pop { direction: rtl; }
-.sell-cur-toggle:hover { opacity: .75; }
+.sell-cur-toggle { background: color-mix(in srgb, var(--gr) 9%, transparent); border: 1px solid color-mix(in srgb, var(--gr) 24%, transparent); border-radius: 8px; cursor: pointer; font-family: var(--font-mono, monospace); font-size: 12px; font-weight: 700; color: var(--gr); padding: 6px 8px; line-height: 1; transition: opacity .12s, background .12s, border-color .12s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.sell-cur-toggle:hover { opacity: .88; background: color-mix(in srgb, var(--gr) 14%, transparent); border-color: color-mix(in srgb, var(--gr) 42%, transparent); }
+.sell-cur-toggle .sell-cur-code { color: var(--t2); font-size: 10px; letter-spacing: .35px; }
+.sell-cur-toggle i { font-size: 11px; color: var(--t3); }
+.sell-cur-rate { min-height: 15px; margin: -10px 0 14px; text-align: end; color: var(--t3); font-family: var(--font-mono, monospace); font-size: 9.5px; direction: ltr; }
+.sell-cur-rate.loading { color: var(--gd); }
+.sell-cur-rate.error { color: var(--rd); }
+.sell-cur-picker { min-width: 280px !important; }
+.sell-cur-picker .picker-opt { min-height: 38px; }
+.sell-cur-picker .po-sym { min-width: 38px; }
 
 /* ── חלונית מכירה ── */
 #sellOv { align-items: center; justify-content: center; z-index: 300; }
@@ -2550,10 +2555,12 @@ onAuthStateChanged(auth, async user => {
     <div class="sell-proceeds-row">
       <span class="sell-proceeds-lbl">תמורה משוערת</span>
       <div class="sell-proceeds-inp-wrap">
-        <button class="sell-cur-toggle" id="sellCurToggle" onclick="toggleSellCur()" title="החלף מטבע"></button>
+        <button class="sell-cur-toggle" id="sellCurToggle" onclick="toggleSellCurPicker(event)" title="בחר מטבע תמורה" aria-haspopup="listbox" aria-expanded="false"></button>
         <input type="number" id="sellIlsInput" min="0" step="any" placeholder="0" oninput="onSellIls(this.value)">
       </div>
     </div>
+    <div class="sell-cur-rate" id="sellCurRate"></div>
+    <div class="picker-pop sell-cur-picker" id="sellCurPop" role="listbox"></div>
 
     <div class="sell-actions">
       <button class="sell-cancel" onclick="closeSell()">ביטול</button>
@@ -3587,24 +3594,106 @@ async function fetchStockFundamentals(sym) {
     }
   } catch (_) {}
   try {
-    // metric → trailing P/E + 52-week range
+    // metric → trailing P/E
     const mr = await fetch(viaProxy(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all`), { signal: AbortSignal.timeout(7000) });
     if (mr.ok) {
       const md = await mr.json();
       const m = md?.metric || {};
       peRatio = m.peTTM ?? m.peBasicExclExtraTTM ?? m.peNormalizedAnnual ?? null;
       if (!(peRatio > 0)) peRatio = null;
+      high52w = Number(m['52WeekHigh'] ?? m.fiftyTwoWeekHigh ?? m.week52High) || null;
+      low52w  = Number(m['52WeekLow']  ?? m.fiftyTwoWeekLow  ?? m.week52Low)  || null;
+      if (!(high52w > 0)) high52w = null;
+      if (!(low52w > 0)) low52w = null;
       if (!marketCap && m.marketCapitalization > 0) marketCap = m.marketCapitalization * 1e6;
-      // Finnhub 52-week high/low live under these metric keys.
-      const h = m['52WeekHigh'] ?? m.fiftyTwoWeekHigh ?? null;
-      const l = m['52WeekLow']  ?? m.fiftyTwoWeekLow  ?? null;
-      if (h > 0) high52w = h;
-      if (l > 0) low52w  = l;
     }
   } catch (_) {}
   const result = (marketCap || peRatio || high52w || low52w) ? { marketCap, peRatio, high52w, low52w } : null;
   _fundCache[sym] = result;
   return result;
+}
+
+
+const _stock52Pending = new Map();
+
+function patchStock52WeekUI(sym) {
+  if (S.sel !== sym) return;
+  const p = S.sp?.[sym];
+  const hi = document.getElementById('stock52High');
+  const lo = document.getElementById('stock52Low');
+  if (hi) hi.textContent = p?.high52w > 0 ? fPriceNative(p.high52w, p.currency, 2) : '--';
+  if (lo) lo.textContent = p?.low52w > 0 ? fPriceNative(p.low52w, p.currency, 2) : '--';
+}
+
+async function fetchYahoo52WeekRange(sym) {
+  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1y&includePrePost=false&events=div%2Csplits`;
+  const parse = payload => {
+    let json = payload;
+    if (typeof payload === 'string') {
+      try { json = JSON.parse(payload); } catch (_) { return null; }
+    }
+    if (typeof json?.contents === 'string') {
+      try { json = JSON.parse(json.contents); } catch (_) { return null; }
+    }
+    const result = json?.chart?.result?.[0];
+    const q = result?.indicators?.quote?.[0];
+    if (!q) return null;
+    const divisor = chartSubunitDivisor(sym, result?.meta?.currency);
+    const highs = (q.high || []).map(Number).filter(v => Number.isFinite(v) && v > 0);
+    const lows  = (q.low  || []).map(Number).filter(v => Number.isFinite(v) && v > 0);
+    if (!highs.length || !lows.length) return null;
+    return { high52w: Math.max(...highs) / divisor, low52w: Math.min(...lows) / divisor };
+  };
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  const tasks = [];
+  if (worker) tasks.push((async () => parse(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3500)))());
+  tasks.push(delayedTask(worker ? 200 : 0, async () => parse(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 5000))));
+  tasks.push(delayedTask(worker ? 350 : 120, async () => parse(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 5000))));
+  tasks.push(delayedTask(worker ? 500 : 240, async () => parse(await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5500))));
+  return firstValidResult(tasks, v => v?.high52w > 0 && v?.low52w > 0);
+}
+
+async function ensureStock52Week(sym) {
+  const current = S.sp?.[sym];
+  if (current?.high52w > 0 && current?.low52w > 0) {
+    patchStock52WeekUI(sym);
+    return current;
+  }
+  if (_stock52Pending.has(sym)) return _stock52Pending.get(sym);
+  const job = (async () => {
+    let range = null;
+    try {
+      // Race the compact quote metadata against the full one-year daily range.
+      // Whichever source supplies a valid 52-week pair first wins.
+      range = await firstValidResult([
+        fetchYahoo52WeekRange(sym),
+        fetchYahooQuote(sym).then(quote => quote?.high52w > 0 && quote?.low52w > 0
+          ? { high52w:quote.high52w, low52w:quote.low52w } : null),
+        !String(sym).includes('.') ? fetchStockFundamentals(sym).then(f => f?.high52w > 0 && f?.low52w > 0
+          ? { high52w:f.high52w, low52w:f.low52w } : null) : Promise.resolve(null),
+      ], v => v?.high52w > 0 && v?.low52w > 0);
+    } catch (_) {}
+    // Final fallback: derive the range from one year of closing prices. It is less
+    // exact than daily highs/lows, but still prevents an empty 52-week panel.
+    if (!range) {
+      try {
+        const hist = await getStockHist(sym, '1y');
+        const vals = (hist || []).map(x => Number(x.p)).filter(v => Number.isFinite(v) && v > 0);
+        if (vals.length) range = { high52w: Math.max(...vals), low52w: Math.min(...vals) };
+      } catch (_) {}
+    }
+    if (range) {
+      const p = S.sp[sym] || (S.sp[sym] = {});
+      if (range.high52w > 0) p.high52w = range.high52w;
+      if (range.low52w > 0) p.low52w = range.low52w;
+      try { persistPriceSnapshot(); } catch (_) {}
+    }
+    patchStock52WeekUI(sym);
+    return S.sp?.[sym] || null;
+  })();
+  _stock52Pending.set(sym, job);
+  try { return await job; }
+  finally { _stock52Pending.delete(sym); }
 }
 
 async function getStocks() {
@@ -3682,7 +3771,6 @@ async function getStocks() {
         changeAmt: q.price - q.prevClose,
         high: q.high, low: q.low, open: q.open,
         currency: q.currency,
-        // Keep prior 52w values if this quote source (e.g. Finnhub) didn't provide them.
         high52w: q.high52w ?? existing?.high52w ?? null,
         low52w:  q.low52w  ?? existing?.low52w  ?? null,
         marketCap: q.marketCap ?? existing?.marketCap ?? null,
@@ -3693,9 +3781,9 @@ async function getStocks() {
         _source: q._source || null,
         _failCount: 0,
       };
-      // Backfill market cap / P-E AND 52-week range from Finnhub when missing
+      // Yahoo's chart meta rarely has market cap / P-E. Backfill them from Finnhub
       // (US symbols only — Finnhub's free tier doesn't cover TASE/intl).
-      if (!s.sym.includes('.') && (!S.sp[s.sym].marketCap || !S.sp[s.sym].peRatio || !S.sp[s.sym].high52w || !S.sp[s.sym].low52w)) {
+      if (!s.sym.includes('.') && (!S.sp[s.sym].marketCap || !S.sp[s.sym].peRatio)) {
         const fhSym = s.sym;
         fetchStockFundamentals(fhSym).then(f => {
           if (!f) return;
@@ -3705,8 +3793,10 @@ async function getStocks() {
           if (f.peRatio > 0 && !cur.peRatio) cur.peRatio = f.peRatio;
           if (f.high52w > 0 && !cur.high52w) cur.high52w = f.high52w;
           if (f.low52w > 0 && !cur.low52w) cur.low52w = f.low52w;
-          // refresh the open detail modal if it's showing this symbol
-          if (S.sel === s.sym) {
+          patchStock52WeekUI(s.sym);
+          // refresh the open detail modal if it's showing this symbol and the
+          // non-range fundamentals changed. Avoid rebuilding solely for 52w data.
+          if (S.sel === s.sym && (f.marketCap > 0 || f.peRatio > 0)) {
             const el = document.getElementById('detContent');
             if (el) renderStockModal(s, el);
           }
@@ -4176,6 +4266,42 @@ const CURRENCIES = {
   MXN: { sym: 'MX$', flag: '🇲🇽', name: 'פזו מקסיקני',     locale: 'es-MX' },
   SAR: { sym: '﷼',   flag: '🇸🇦', name: 'ריאל סעודי',      locale: 'ar-SA' },
 };
+
+// Build metadata lazily for every ISO currency returned by the live FX provider.
+// This lets the sell dialog offer the full world-currency table without keeping a
+// huge hard-coded list of names and symbols in the HTML.
+function currencyMeta(code) {
+  code = String(code || 'USD').toUpperCase();
+  if (CURRENCIES[code]) return CURRENCIES[code];
+  const lang = (document.documentElement.lang || navigator.language || 'he-IL');
+  let name = code, sym = code;
+  try {
+    const names = new Intl.DisplayNames([lang], { type:'currency' });
+    name = names.of(code) || code;
+  } catch (_) {}
+  try {
+    const parts = new Intl.NumberFormat(lang, {
+      style:'currency', currency:code, currencyDisplay:'narrowSymbol',
+      minimumFractionDigits:0, maximumFractionDigits:0
+    }).formatToParts(0);
+    sym = parts.find(x => x.type === 'currency')?.value || code;
+  } catch (_) {}
+  const meta = { sym, flag:'🌐', name, locale:lang };
+  CURRENCIES[code] = meta;
+  return meta;
+}
+function currencyRateToUSD(code) {
+  code = String(code || 'USD').toUpperCase();
+  if (code === 'USD') return 1;
+  const live = (typeof fxConvRates !== 'undefined') ? Number(fxConvRates[code]) : 0;
+  if (live > 0) return live;
+  if (code === 'ILS' && Number(S?.fx) > 0) return 1 / Number(S.fx);
+  return null;
+}
+function canConvertCurrency(fromCode, toCode) {
+  if (String(fromCode).toUpperCase() === String(toCode).toUpperCase()) return true;
+  return Boolean(currencyRateToUSD(fromCode) && currencyRateToUSD(toCode));
+}
 // Convert an ILS amount to the active display currency.
 // Uses fxConvRates (USD value of 1 unit of X). If rates not loaded, falls back to ILS/USD.
 function convertFromILS(n, cur) {
@@ -4222,11 +4348,13 @@ function nativeCurrencyForAsset(asset, type) {
 // (USD value of 1 unit of X). Falls back to returning the amount unconverted
 // if either currency isn't one we have a live rate for.
 function convertCurrencyAmount(amount, fromCode, toCode) {
-  if (amount == null || isNaN(amount) || fromCode === toCode) return amount;
-  const rates = (typeof fxConvRates !== 'undefined') ? fxConvRates : null;
-  const fromRate = fromCode === 'USD' ? 1 : rates?.[fromCode];
-  const toRate   = toCode   === 'USD' ? 1 : rates?.[toCode];
-  if (!fromRate || !toRate) return amount;   // can't convert reliably — leave as typed
+  if (amount == null || isNaN(amount)) return amount;
+  fromCode = String(fromCode || 'USD').toUpperCase();
+  toCode = String(toCode || 'USD').toUpperCase();
+  if (fromCode === toCode) return amount;
+  const fromRate = currencyRateToUSD(fromCode);
+  const toRate   = currencyRateToUSD(toCode);
+  if (!fromRate || !toRate) return null;
   const usd = amount * fromRate;
   return usd / toRate;
 }
@@ -4418,13 +4546,15 @@ function positionPickerToBody(pop, btn) {
   pop.style.pointerEvents = 'all';
 }
 function closeAllPickers() {
-  ['currPop', 'langPop'].forEach(id => {
+  ['currPop', 'langPop', 'sellCurPop'].forEach(id => {
     const pop = document.getElementById(id);
     if (!pop) return;
     pop.classList.remove('open');
     pop.style.opacity = '0';
     pop.style.pointerEvents = 'none';
   });
+  const sellBtn = document.getElementById('sellCurToggle');
+  if (sellBtn) sellBtn.setAttribute('aria-expanded', 'false');
 }
 document.addEventListener('click', e => {
   if (e.target.closest('.picker-host')) return;
@@ -4543,7 +4673,7 @@ const I18N = {
   'התנתק':'Log out','ערוך':'Edit','סנכרון רשת':'Network sync','להתנתק מהמערכת המאובטחת?':'Log out of the secure system?',
   // sell modal + refresh overlay
   'מכירה':'Sell','אישור מכירה':'Confirm Sale','ביטול':'Cancel',
-  'תמורה משוערת':'Estimated proceeds',
+  'תמורה משוערת':'Estimated proceeds','בחר מטבע תמורה':'Choose proceeds currency',
   'מכור את כל הפוזיציה':'Sell entire position',
   'אין פוזיציה למכירה':'No position to sell',
   'עבור לדולר':'Switch to USD','עבור לשקל':'Switch to ILS',
@@ -8290,8 +8420,12 @@ async function fxConvLoadRates() {
     if (rates) {
       // rates[X] = X per 1 USD → amount_in_USD = amount_in_X / rates[X]
       // we store fxConvRates[X] = USD value of 1 unit of X = 1 / rates[X]
-      for (const cur of ['ILS','EUR','GBP','JPY','CNY','CHF','CAD','AUD','HKD','INR','BRL','KRW','SEK','NOK','DKK','PLN','TRY','ZAR','SGD','NZD','TWD','THB','MXN','SAR']) {
-        if (rates[cur]) fxConvRates[cur] = 1 / rates[cur];
+      for (const [rawCode, unitsPerUsd] of Object.entries(rates)) {
+        const cur = String(rawCode).toUpperCase();
+        const n = Number(unitsPerUsd);
+        if (!/^[A-Z]{3}$/.test(cur) || !(n > 0)) continue;
+        fxConvRates[cur] = 1 / n;
+        currencyMeta(cur);
       }
     }
     // crypto via Binance (USDT ≈ USD)
@@ -10646,11 +10780,12 @@ function renderStockModal(s, el) {
     <div class="fundamentals-grid">
       <div class="fund-cell"><div class="fund-l">שווי שוק</div><div class="fund-v">${p?.marketCap?fMarketCapByExchange(p.marketCap, p.currency):'--'}</div></div>
       <div class="fund-cell"><div class="fund-l">מכפיל רווח</div><div class="fund-v">${p?.peRatio?p.peRatio.toFixed(2):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">שיא 52ש</div><div class="fund-v up" style="color:var(--gr)">${p?.high52w?fPriceCur(p.high52w,2):'--'}</div></div>
-      <div class="fund-cell"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" style="color:var(--rd)">${p?.low52w?fPriceCur(p.low52w,2):'--'}</div></div>
+      <div class="fund-cell"><div class="fund-l">שיא 52ש</div><div class="fund-v up" id="stock52High" style="color:var(--gr)">${p?.high52w>0?fPriceNative(p.high52w,p?.currency,2):'טוען…'}</div></div>
+      <div class="fund-cell"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" id="stock52Low" style="color:var(--rd)">${p?.low52w>0?fPriceNative(p.low52w,p?.currency,2):'טוען…'}</div></div>
     </div>
     ${lotsHistoryHTML(s, pu || 0, 'stock')}
     <button class="sell-btn" onclick="sellAsset('${s.sym}','stock')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
+  ensureStock52Week(s.sym).catch(() => patchStock52WeekUI(s.sym));
   loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
 
@@ -11271,8 +11406,120 @@ function refreshAllCategoryViews() {
 // (Screenshot auto-detect feature removed)
 
 // ── מכירה: פותח חלונית מעוצבת לבחירת כמות ──
-let _sellCtx = null; // {key, type, held, asset, unit, priceUSD}
-let _sellCur = 'ILS'; // מטבע תצוגה בחלונית המכירה
+let _sellCtx = null; // {key,type,held,asset,unit,priceNative,nativeCur}
+let _sellCur = 'ILS'; // follows the dashboard currency every time the modal opens
+let _updatingIls = false; // guard למניעת לולאה
+
+function _sellCurrencyCodes() {
+  const preferred = ['ILS','USD','EUR','GBP','JPY','CHF','CAD','AUD','CNY'];
+  const available = Object.keys(fxConvRates || {})
+    .map(x => String(x).toUpperCase())
+    .filter(code => /^[A-Z]{3}$/.test(code) && !['BTC','ETH'].includes(code) && currencyRateToUSD(code));
+  return [...new Set(available)].sort((a,b) => {
+    const ai = preferred.indexOf(a), bi = preferred.indexOf(b);
+    if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    return currencyMeta(a).name.localeCompare(currencyMeta(b).name, document.documentElement.lang || 'he');
+  });
+}
+function _sellAmountDecimals(code, value) {
+  code = String(code || 'USD').toUpperCase();
+  if (['JPY','KRW','VND','CLP','PYG','ISK','HUF','IDR'].includes(code)) return 0;
+  const abs = Math.abs(Number(value) || 0);
+  if (abs > 0 && abs < 0.01) return 6;
+  if (abs > 0 && abs < 1) return 4;
+  return 2;
+}
+function _formatSellInput(value, code) {
+  if (!Number.isFinite(Number(value))) return '';
+  return Number(value).toFixed(_sellAmountDecimals(code, value));
+}
+function _sellCurSym() { return currencyMeta(_sellCur).sym; }
+function _updateSellCurBtn() {
+  const btn = document.getElementById('sellCurToggle');
+  if (!btn) return;
+  const meta = currencyMeta(_sellCur);
+  btn.innerHTML = `<span>${meta.sym}</span><span class="sell-cur-code">${_sellCur}</span><i class="ph-thin ph-caret-down"></i>`;
+  btn.title = `${i18nGetText('בחר מטבע תמורה')}: ${meta.name}`;
+}
+function _updateSellRateHint(state = '') {
+  const el = document.getElementById('sellCurRate');
+  if (!el || !_sellCtx) return;
+  el.classList.remove('loading','error');
+  if (state === 'loading') {
+    el.classList.add('loading');
+    el.textContent = i18nGetText('טוען שערים...');
+    return;
+  }
+  const rate = convertCurrencyAmount(1, _sellCtx.nativeCur, _sellCur);
+  if (!(rate > 0)) {
+    el.classList.add('error');
+    el.textContent = `שער ${_sellCtx.nativeCur}/${_sellCur} אינו זמין כרגע`;
+    return;
+  }
+  el.textContent = `1 ${_sellCtx.nativeCur} = ${fxConvFmt(rate, _sellCur)} ${_sellCur}`;
+}
+function buildSellCurPicker(filter = '') {
+  const pop = document.getElementById('sellCurPop');
+  if (!pop) return;
+  const q = String(filter || '').trim().toLowerCase();
+  const codes = _sellCurrencyCodes().filter(code => {
+    const m = currencyMeta(code);
+    return !q || code.toLowerCase().includes(q) || String(m.name).toLowerCase().includes(q) || String(m.sym).toLowerCase().includes(q);
+  });
+  pop.innerHTML = `
+    <input class="picker-search" id="sellCurSearch" type="text" placeholder="${i18nGetText('חיפוש מטבע...')}" oninput="buildSellCurPicker(this.value)" autocomplete="off">
+    ${codes.length ? codes.map(code => {
+      const m = currencyMeta(code);
+      return `<div class="picker-opt ${code === _sellCur ? 'sel' : ''}" role="option" aria-selected="${code === _sellCur}" onclick="selectSellCurrency('${code}')">
+        <span class="po-sym">${m.sym}</span><span class="po-code">${code}</span><span class="po-name">${m.name}</span><span class="po-check"><i class="ph-thin ph-check"></i></span>
+      </div>`;
+    }).join('') : '<div class="picker-empty">לא נמצאו תוצאות</div>'}
+  `;
+  const search = document.getElementById('sellCurSearch');
+  if (search && filter) {
+    search.value = filter;
+    search.focus();
+    search.setSelectionRange(filter.length, filter.length);
+  }
+}
+async function toggleSellCurPicker(e) {
+  e?.stopPropagation();
+  const pop = document.getElementById('sellCurPop');
+  const btn = document.getElementById('sellCurToggle');
+  if (!pop || !btn) return;
+  const opening = !pop.classList.contains('open');
+  closeAllPickers();
+  if (!opening) return;
+
+  // Open immediately with cached currencies, then enrich the same list when the
+  // live world-rate table arrives. The button never feels frozen on first use.
+  buildSellCurPicker();
+  positionPickerToBody(pop, btn);
+  pop.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+  _updateSellRateHint(canConvertCurrency(_sellCtx?.nativeCur, _sellCur) ? '' : 'loading');
+  setTimeout(() => document.getElementById('sellCurSearch')?.focus(), 40);
+
+  try { await fxConvLoadRates(); } catch (_) {}
+  if (!_sellCtx || !pop.classList.contains('open')) return;
+  const filter = document.getElementById('sellCurSearch')?.value || '';
+  buildSellCurPicker(filter);
+  _updateSellRateHint();
+}
+function selectSellCurrency(code) {
+  code = String(code || '').toUpperCase();
+  if (!currencyRateToUSD(code)) return;
+  _sellCur = code;
+  _updateSellCurBtn();
+  closeAllPickers();
+  setSellQty(_sellCtx?.qty || 0);
+}
+// Backward-compatible function name from the previous two-currency implementation.
+function toggleSellCur(e) { return toggleSellCurPicker(e); }
+window.toggleSellCur = toggleSellCur;
+window.toggleSellCurPicker = toggleSellCurPicker;
+window.buildSellCurPicker = buildSellCurPicker;
+window.selectSellCurrency = selectSellCurrency;
 
 function sellAsset(key, type) {
   const isC = type === 'crypto';
@@ -11283,12 +11530,14 @@ function sellAsset(key, type) {
   const held = isC ? cQty(a) : getShares(a);
   if (!held || held <= 0) { alert(i18nGetText('אין פוזיציה למכירה')); return; }
   const unit = isC ? a.sym : 'מניות';
-  const priceUSD = isC ? (S.cp[a.id]?.usd || 0) : (S.sp[a.sym]?.price || 0);
+  const quote = isC ? S.cp[a.id] : S.sp[a.sym];
+  const priceNative = isC ? Number(quote?.usd || 0) : Number(quote?.price || 0);
+  const nativeCur = isC ? 'USD' : String(quote?.currency || 'USD').toUpperCase().replace('ILA','ILS');
 
-  _sellCtx = { key, type, held, idx, unit, priceUSD, isC, sym: a.sym };
-  // Default the proceeds currency to whatever is selected on the home screen.
-  const homeCur = (S.currency || 'ils').toUpperCase();
-  _sellCur = CURRENCIES[homeCur] ? homeCur : 'ILS';
+  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, sym:a.sym, qty:0 };
+  // Important: every new sale starts in the same currency currently selected on
+  // the home/dashboard screen. A temporary choice inside this modal is not saved.
+  _sellCur = String(S.currency || 'ils').toUpperCase();
 
   document.getElementById('sellIco').innerHTML = a.icon || '';
   document.getElementById('sellSym').textContent = a.sym;
@@ -11297,17 +11546,24 @@ function sellAsset(key, type) {
   document.getElementById('sellHeld').textContent = i18nGetText(`מתוך ${fNum(held)} ${unit} בפוזיציה`);
   const inp = document.getElementById('sellInput');
   inp.max = held;
+  _updateSellCurBtn();
   setSellQty(0);
 
   document.getElementById('sellOv').classList.add('open');
   document.body.style.overflow = 'hidden';
+  _updateSellRateHint(canConvertCurrency(nativeCur, _sellCur) ? '' : 'loading');
+  fxConvLoadRates().then(() => {
+    if (!_sellCtx || _sellCtx.key !== key || _sellCtx.type !== type) return;
+    currencyMeta(_sellCur);
+    _updateSellCurBtn();
+    setSellQty(_sellCtx.qty || 0);
+  }).catch(() => _updateSellRateHint());
 }
 window.sellAsset = sellAsset;
 
 function _isStock() { return _sellCtx?.type === 'stock'; }
 function _sellStep() {
-  if (_isStock()) return 1; // מניות — תמיד שלמות
-  // קריפטו: צעד לפי גודל הכמות
+  if (_isStock()) return 1;
   const h = _sellCtx?.held || 1;
   if (h >= 1000) return 10;
   if (h >= 100) return 1;
@@ -11317,83 +11573,9 @@ function _sellStep() {
 function _roundQ(q) {
   if (q < 0) q = 0;
   if (_sellCtx && q > _sellCtx.held) q = _sellCtx.held;
-  if (_isStock()) return Math.round(q); // מניות — שלמות בלבד
+  if (_isStock()) return Math.round(q);
   return Math.round(q * 1e6) / 1e6;
 }
-function _sellCurSym() {
-  const def = CURRENCIES[_sellCur] || CURRENCIES.ILS;
-  return def.sym || _sellCur;
-}
-function _toSellCur(ils) {
-  // ILS → selected currency (uses the app's multi-currency converter)
-  return convertFromILS(ils, _sellCur);
-}
-function _fromSellCur(v) {
-  // selected currency → ILS
-  return nativeToILS(v, _sellCur);
-}
-function _updateSellCurBtn() {
-  const btn = document.getElementById('sellCurToggle');
-  if (!btn) return;
-  btn.textContent = _sellCurSym();
-  btn.title = i18nGetText('בחר מטבע תמורה');
-}
-// Open a currency picker for the sell modal — any of the 25 currencies.
-function toggleSellCur() {
-  let pop = document.getElementById('sellCurPop');
-  if (pop && pop.classList.contains('open')) { pop.classList.remove('open'); return; }
-  if (!pop) {
-    pop = document.createElement('div');
-    pop.id = 'sellCurPop';
-    pop.className = 'picker-pop sell-cur-pop';
-    document.body.appendChild(pop);
-  }
-  // Build the list (symbol + code + name), current one checked.
-  pop.innerHTML = Object.entries(CURRENCIES).map(([code, d]) => `
-    <div class="picker-opt ${code === _sellCur ? 'sel' : ''}" onclick="pickSellCur('${code}')">
-      <span class="po-sym">${d.sym}</span>
-      <span class="po-code">${code}</span>
-      <span class="po-name">${d.name}</span>
-      <span class="po-check"><i class="ph-thin ph-check"></i></span>
-    </div>`).join('');
-  // Position under the toggle button, fixed, above the sell modal.
-  const btn = document.getElementById('sellCurToggle');
-  const r = btn.getBoundingClientRect();
-  const width = Math.min(230, window.innerWidth - 20);
-  let left = r.left + r.width / 2 - width / 2;
-  left = Math.max(10, Math.min(window.innerWidth - width - 10, left));
-  pop.style.position = 'fixed';
-  pop.style.top = (r.bottom + 6) + 'px';
-  pop.style.left = left + 'px';
-  pop.style.width = width + 'px';
-  pop.style.zIndex = '2147483647';
-  pop.style.maxHeight = '46vh';
-  pop.style.opacity = '1';
-  pop.style.pointerEvents = 'all';
-  requestAnimationFrame(() => pop.classList.add('open'));
-}
-window.toggleSellCur = toggleSellCur;
-
-function pickSellCur(code) {
-  if (!CURRENCIES[code]) return;
-  _sellCur = code;
-  const pop = document.getElementById('sellCurPop');
-  if (pop) { pop.classList.remove('open'); pop.style.opacity = '0'; pop.style.pointerEvents = 'none'; }
-  _updateSellCurBtn();
-  setSellQty(_sellCtx?.qty || 0);
-}
-window.pickSellCur = pickSellCur;
-
-// close the sell currency picker on outside click
-document.addEventListener('click', e => {
-  const pop = document.getElementById('sellCurPop');
-  if (!pop || !pop.classList.contains('open')) return;
-  if (e.target.closest('#sellCurPop') || e.target.closest('#sellCurToggle')) return;
-  pop.classList.remove('open'); pop.style.opacity = '0'; pop.style.pointerEvents = 'none';
-});
-
-let _updatingIls = false; // guard למניעת לולאה
-
 function setSellQty(q) {
   if (!_sellCtx) return;
   q = _roundQ(q);
@@ -11404,30 +11586,36 @@ function setSellQty(q) {
   inp.step = _isStock() ? '1' : 'any';
   inp.value = q || '';
   document.getElementById('sellSlider').value = pct;
-  // עדכון שדה תמורה (אלא אם מתעדכן מתוכו)
+  _updateSellCurBtn();
+
   if (!_updatingIls) {
-    const ilsInp = document.getElementById('sellIlsInput');
-    _updateSellCurBtn();
-    if (ilsInp) {
-      if (_sellCtx.priceUSD && q > 0) {
-        const ils = _sellCtx.priceUSD * q * S.fx;
-        ilsInp.value = _toSellCur(ils).toFixed(2);
+    const amountInp = document.getElementById('sellIlsInput');
+    if (amountInp) {
+      const canConvert = canConvertCurrency(_sellCtx.nativeCur, _sellCur);
+      amountInp.disabled = !canConvert;
+      amountInp.placeholder = canConvert ? '0' : i18nGetText('טוען שערים...');
+      if (_sellCtx.priceNative > 0 && q > 0 && canConvert) {
+        const nativeAmount = _sellCtx.priceNative * q;
+        const converted = convertCurrencyAmount(nativeAmount, _sellCtx.nativeCur, _sellCur);
+        amountInp.value = converted != null ? _formatSellInput(converted, _sellCur) : '';
       } else {
-        ilsInp.value = '';
+        amountInp.value = '';
       }
     }
   }
+  _updateSellRateHint(canConvertCurrency(_sellCtx.nativeCur, _sellCur) ? '' : 'loading');
   const btn = document.getElementById('sellConfirm');
-  btn.disabled = !(q > 0);
+  btn.disabled = !(q > 0 && _sellCtx.priceNative > 0);
   btn.textContent = i18nGetText((q >= held - 1e-9 && held > 0) ? 'מכור את כל הפוזיציה' : 'אישור מכירה');
   _sellCtx.qty = q;
 }
 function onSellIls(v) {
-  if (!_sellCtx || !_sellCtx.priceUSD) return;
+  if (!_sellCtx || !(_sellCtx.priceNative > 0)) return;
   const val = parseFloat(v);
-  if (!val || val <= 0) return;
-  const ils = _fromSellCur(val); // המר ממטבע נבחר → ILS
-  const qty = ils / (_sellCtx.priceUSD * S.fx);
+  if (!(val > 0)) return;
+  const nativeAmount = convertCurrencyAmount(val, _sellCur, _sellCtx.nativeCur);
+  if (!(nativeAmount > 0)) return;
+  const qty = nativeAmount / _sellCtx.priceNative;
   _updatingIls = true;
   setSellQty(qty);
   _updatingIls = false;
@@ -11441,6 +11629,7 @@ window.onSellSlider = onSellSlider; window.setSellPct = setSellPct;
 window.onSellInput = onSellInput; window.bumpSell = bumpSell;
 
 function closeSell() {
+  closeAllPickers();
   document.getElementById('sellOv').classList.remove('open');
   document.body.style.overflow = '';
   _sellCtx = null;
@@ -12548,7 +12737,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260701-tradingview-charts-v12');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260702-sell-currency-52w-v13');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
