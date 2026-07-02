@@ -1136,7 +1136,10 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-btn:hover { opacity: .88; }
 .sell-btn:active { transform: scale(.98); }
 .sell-btn i { font-size: 16px; }
-.sell-cur-toggle { background: none; border: none; cursor: pointer; font-family: var(--font-mono, monospace); font-size: 14px; font-weight: 700; color: var(--gr); padding: 0 2px; line-height: 1; transition: opacity .12s; white-space: nowrap; }
+.sell-cur-toggle { background: var(--s3); border: 1px solid var(--b1); border-radius: 7px; cursor: pointer; font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 700; color: var(--gd); padding: 4px 9px; line-height: 1; transition: all .12s; white-space: nowrap; }
+.sell-cur-toggle:hover { background: var(--s2); border-color: var(--ac); }
+.sell-cur-toggle::after { content: '▾'; font-size: 9px; margin-inline-start: 4px; opacity: .6; vertical-align: middle; }
+.sell-cur-pop { direction: rtl; }
 .sell-cur-toggle:hover { opacity: .75; }
 
 /* ── חלונית מכירה ── */
@@ -3574,7 +3577,7 @@ async function fetchYahooQuote(sym) {
 const _fundCache = {};
 async function fetchStockFundamentals(sym) {
   if (_fundCache[sym] !== undefined) return _fundCache[sym];
-  let marketCap = null, peRatio = null;
+  let marketCap = null, peRatio = null, high52w = null, low52w = null;
   try {
     // profile2 → market cap (returned in millions of USD)
     const pr = await fetch(viaProxy(`https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(sym)}`), { signal: AbortSignal.timeout(7000) });
@@ -3584,7 +3587,7 @@ async function fetchStockFundamentals(sym) {
     }
   } catch (_) {}
   try {
-    // metric → trailing P/E
+    // metric → trailing P/E + 52-week range
     const mr = await fetch(viaProxy(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(sym)}&metric=all`), { signal: AbortSignal.timeout(7000) });
     if (mr.ok) {
       const md = await mr.json();
@@ -3592,9 +3595,14 @@ async function fetchStockFundamentals(sym) {
       peRatio = m.peTTM ?? m.peBasicExclExtraTTM ?? m.peNormalizedAnnual ?? null;
       if (!(peRatio > 0)) peRatio = null;
       if (!marketCap && m.marketCapitalization > 0) marketCap = m.marketCapitalization * 1e6;
+      // Finnhub 52-week high/low live under these metric keys.
+      const h = m['52WeekHigh'] ?? m.fiftyTwoWeekHigh ?? null;
+      const l = m['52WeekLow']  ?? m.fiftyTwoWeekLow  ?? null;
+      if (h > 0) high52w = h;
+      if (l > 0) low52w  = l;
     }
   } catch (_) {}
-  const result = (marketCap || peRatio) ? { marketCap, peRatio } : null;
+  const result = (marketCap || peRatio || high52w || low52w) ? { marketCap, peRatio, high52w, low52w } : null;
   _fundCache[sym] = result;
   return result;
 }
@@ -3674,17 +3682,20 @@ async function getStocks() {
         changeAmt: q.price - q.prevClose,
         high: q.high, low: q.low, open: q.open,
         currency: q.currency,
-        high52w: q.high52w, low52w: q.low52w,
-        marketCap: q.marketCap, peRatio: q.peRatio,
+        // Keep prior 52w values if this quote source (e.g. Finnhub) didn't provide them.
+        high52w: q.high52w ?? existing?.high52w ?? null,
+        low52w:  q.low52w  ?? existing?.low52w  ?? null,
+        marketCap: q.marketCap ?? existing?.marketCap ?? null,
+        peRatio: q.peRatio ?? existing?.peRatio ?? null,
         quoteTime: incomingTime || existingTime || null,
         marketState: q.marketState ?? null,
         exchangeTimeZone: q.exchangeTimeZone ?? null,
         _source: q._source || null,
         _failCount: 0,
       };
-      // Yahoo's chart meta rarely has market cap / P-E. Backfill them from Finnhub
+      // Backfill market cap / P-E AND 52-week range from Finnhub when missing
       // (US symbols only — Finnhub's free tier doesn't cover TASE/intl).
-      if (!s.sym.includes('.') && (!S.sp[s.sym].marketCap || !S.sp[s.sym].peRatio)) {
+      if (!s.sym.includes('.') && (!S.sp[s.sym].marketCap || !S.sp[s.sym].peRatio || !S.sp[s.sym].high52w || !S.sp[s.sym].low52w)) {
         const fhSym = s.sym;
         fetchStockFundamentals(fhSym).then(f => {
           if (!f) return;
@@ -3692,6 +3703,8 @@ async function getStocks() {
           if (!cur) return;
           if (f.marketCap > 0 && !cur.marketCap) cur.marketCap = f.marketCap;
           if (f.peRatio > 0 && !cur.peRatio) cur.peRatio = f.peRatio;
+          if (f.high52w > 0 && !cur.high52w) cur.high52w = f.high52w;
+          if (f.low52w > 0 && !cur.low52w) cur.low52w = f.low52w;
           // refresh the open detail modal if it's showing this symbol
           if (S.sel === s.sym) {
             const el = document.getElementById('detContent');
@@ -11273,7 +11286,9 @@ function sellAsset(key, type) {
   const priceUSD = isC ? (S.cp[a.id]?.usd || 0) : (S.sp[a.sym]?.price || 0);
 
   _sellCtx = { key, type, held, idx, unit, priceUSD, isC, sym: a.sym };
-  _sellCur = (S.currency || 'ils').toUpperCase() === 'USD' ? 'USD' : 'ILS';
+  // Default the proceeds currency to whatever is selected on the home screen.
+  const homeCur = (S.currency || 'ils').toUpperCase();
+  _sellCur = CURRENCIES[homeCur] ? homeCur : 'ILS';
 
   document.getElementById('sellIco').innerHTML = a.icon || '';
   document.getElementById('sellSym').textContent = a.sym;
@@ -11305,30 +11320,77 @@ function _roundQ(q) {
   if (_isStock()) return Math.round(q); // מניות — שלמות בלבד
   return Math.round(q * 1e6) / 1e6;
 }
-function _sellCurSym() { return _sellCur === 'USD' ? '$' : '₪'; }
+function _sellCurSym() {
+  const def = CURRENCIES[_sellCur] || CURRENCIES.ILS;
+  return def.sym || _sellCur;
+}
 function _toSellCur(ils) {
-  // ממיר ערך ILS לכל מטבע נבחר בחלונית
-  if (_sellCur === 'USD') return ils / S.fx;
-  return ils; // ILS
+  // ILS → selected currency (uses the app's multi-currency converter)
+  return convertFromILS(ils, _sellCur);
 }
 function _fromSellCur(v) {
-  // ממיר ערך ממטבע נבחר → ILS
-  if (_sellCur === 'USD') return v * S.fx;
-  return v; // ILS
+  // selected currency → ILS
+  return nativeToILS(v, _sellCur);
 }
 function _updateSellCurBtn() {
   const btn = document.getElementById('sellCurToggle');
   if (!btn) return;
   btn.textContent = _sellCurSym();
-  btn.title = i18nGetText(_sellCur === 'ILS' ? 'עבור לדולר' : 'עבור לשקל');
+  btn.title = i18nGetText('בחר מטבע תמורה');
 }
+// Open a currency picker for the sell modal — any of the 25 currencies.
 function toggleSellCur() {
-  _sellCur = _sellCur === 'ILS' ? 'USD' : 'ILS';
-  _updateSellCurBtn();
-  // עדכן את שדה הסכום לפי הכמות הנוכחית
-  setSellQty(_sellCtx?.qty || 0);
+  let pop = document.getElementById('sellCurPop');
+  if (pop && pop.classList.contains('open')) { pop.classList.remove('open'); return; }
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'sellCurPop';
+    pop.className = 'picker-pop sell-cur-pop';
+    document.body.appendChild(pop);
+  }
+  // Build the list (symbol + code + name), current one checked.
+  pop.innerHTML = Object.entries(CURRENCIES).map(([code, d]) => `
+    <div class="picker-opt ${code === _sellCur ? 'sel' : ''}" onclick="pickSellCur('${code}')">
+      <span class="po-sym">${d.sym}</span>
+      <span class="po-code">${code}</span>
+      <span class="po-name">${d.name}</span>
+      <span class="po-check"><i class="ph-thin ph-check"></i></span>
+    </div>`).join('');
+  // Position under the toggle button, fixed, above the sell modal.
+  const btn = document.getElementById('sellCurToggle');
+  const r = btn.getBoundingClientRect();
+  const width = Math.min(230, window.innerWidth - 20);
+  let left = r.left + r.width / 2 - width / 2;
+  left = Math.max(10, Math.min(window.innerWidth - width - 10, left));
+  pop.style.position = 'fixed';
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = left + 'px';
+  pop.style.width = width + 'px';
+  pop.style.zIndex = '2147483647';
+  pop.style.maxHeight = '46vh';
+  pop.style.opacity = '1';
+  pop.style.pointerEvents = 'all';
+  requestAnimationFrame(() => pop.classList.add('open'));
 }
 window.toggleSellCur = toggleSellCur;
+
+function pickSellCur(code) {
+  if (!CURRENCIES[code]) return;
+  _sellCur = code;
+  const pop = document.getElementById('sellCurPop');
+  if (pop) { pop.classList.remove('open'); pop.style.opacity = '0'; pop.style.pointerEvents = 'none'; }
+  _updateSellCurBtn();
+  setSellQty(_sellCtx?.qty || 0);
+}
+window.pickSellCur = pickSellCur;
+
+// close the sell currency picker on outside click
+document.addEventListener('click', e => {
+  const pop = document.getElementById('sellCurPop');
+  if (!pop || !pop.classList.contains('open')) return;
+  if (e.target.closest('#sellCurPop') || e.target.closest('#sellCurToggle')) return;
+  pop.classList.remove('open'); pop.style.opacity = '0'; pop.style.pointerEvents = 'none';
+});
 
 let _updatingIls = false; // guard למניעת לולאה
 
