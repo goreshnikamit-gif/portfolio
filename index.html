@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-06-30-fast-charts-v11">
+<meta name="app-version" content="2026-07-01-tradingview-charts-v12">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-06-30-fast-charts-v11");
+console.info("Vector build: 2026-07-01-tradingview-charts-v12");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -60,7 +60,8 @@ console.info("Vector build: 2026-06-30-fast-charts-v11");
 })();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<!-- TradingView Lightweight Charts™ v5.2.0 — detailed asset charts only -->
+<script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════
    BRAND BOOK 2026 — DESIGN TOKENS
@@ -1273,6 +1274,83 @@ body.light .mkpi-v.ac { color: var(--t1); }
 .rb.active { background: var(--s1); color: var(--t1); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
 body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6px rgba(11,30,63,0.12); }
 
+/* TradingView Lightweight Charts™ — interactive asset detail chart */
+.mch { flex-wrap: wrap; gap: 8px; }
+.rbtns { max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rbtns::-webkit-scrollbar { display: none; }
+.tv-chart-shell { height: 310px; min-height: 280px; padding: 0 !important; isolation: isolate; }
+.tv-chart-host { position: relative; width: 100%; height: 100%; direction: ltr; overflow: hidden; }
+.tv-chart-host canvas { cursor: crosshair; }
+.tv-chart-legend {
+  position: absolute; top: 10px; left: 12px; z-index: 7;
+  display: flex; align-items: baseline; gap: 8px; max-width: calc(100% - 260px);
+  padding: 7px 10px; border: 1px solid var(--b1); border-radius: 10px;
+  background: color-mix(in srgb, var(--s1) 82%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18); pointer-events: none;
+  font-family: var(--font-mono); white-space: nowrap;
+}
+.tv-chart-legend-symbol { color: var(--t2); font-size: 10px; font-weight: 700; letter-spacing: .5px; }
+.tv-chart-legend-price { color: var(--t1); font-size: 14px; font-weight: 800; }
+.tv-chart-legend-change { font-size: 11px; font-weight: 800; }
+.tv-chart-legend-time { color: var(--t3); font-family: var(--font-body); font-size: 9.5px; overflow: hidden; text-overflow: ellipsis; }
+.tv-chart-toolbar {
+  position: absolute; top: 9px; right: 10px; z-index: 10;
+  display: flex; gap: 4px; padding: 4px;
+  background: color-mix(in srgb, var(--s1) 88%, transparent);
+  border: 1px solid var(--b1); border-radius: 11px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+.tv-chart-tool {
+  height: 30px; min-width: 32px; padding: 0 9px; border: 0; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: transparent; color: var(--t3); cursor: pointer;
+  font-family: var(--font-body); font-size: 10px; font-weight: 700; transition: .15s ease;
+}
+.tv-chart-tool:hover { color: var(--t1); background: var(--s3); }
+.tv-chart-tool.active { color: #fff; background: var(--ac); }
+.tv-chart-tool i { font-size: 14px; }
+.tv-chart-measure-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; touch-action: pan-y; cursor: crosshair; }
+.tv-chart-measure-layer.active { pointer-events: auto; touch-action: none; }
+.tv-chart-selection {
+  position: absolute; top: 0; bottom: 0; display: none;
+  background: color-mix(in srgb, var(--ac) 13%, transparent);
+  border-inline: 1px solid color-mix(in srgb, var(--ac) 80%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac) 9%, transparent);
+}
+.tv-chart-selection.show { display: block; }
+.tv-chart-measure-card {
+  position: absolute; left: 50%; top: 52px; z-index: 9; transform: translateX(-50%);
+  display: none; min-width: 250px; max-width: calc(100% - 24px);
+  padding: 9px 12px; border-radius: 11px;
+  background: color-mix(in srgb, var(--s1) 94%, transparent);
+  border: 1px solid var(--b2); box-shadow: 0 10px 28px rgba(0,0,0,.32);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  direction: rtl; text-align: right; pointer-events: none;
+}
+.tv-chart-measure-card.show { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 3px; }
+.tv-measure-main { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tv-measure-pct { font-family: var(--font-mono); font-size: 17px; font-weight: 900; }
+.tv-measure-delta { font-family: var(--font-mono); font-size: 12px; font-weight: 800; }
+.tv-measure-label { color: var(--t3); font-size: 9px; }
+.tv-measure-value { color: var(--t1); font-family: var(--font-mono); font-size: 10px; text-align: left; direction: ltr; }
+.tv-chart-attribution {
+  position: absolute; right: 8px; bottom: 25px; z-index: 8;
+  color: var(--t3); opacity: .62; font-size: 8px; text-decoration: none;
+  font-family: var(--font-body); direction: ltr;
+}
+.tv-chart-attribution:hover { opacity: 1; color: var(--t2); }
+@media (max-width: 640px) {
+  .tv-chart-shell { height: 290px; }
+  .tv-chart-toolbar { top: 7px; right: 7px; }
+  .tv-chart-tool { min-width: 30px; padding: 0 7px; }
+  .tv-chart-tool span { display: none; }
+  .tv-chart-legend { top: 48px; left: 8px; right: 8px; max-width: none; width: fit-content; }
+  .tv-chart-legend-time { display: none; }
+  .tv-chart-measure-card { top: 87px; min-width: 220px; }
+}
+
 /* Fast interactive stock charts */
 .mchb { position: relative; }
 .stock-chart-status {
@@ -1285,24 +1363,7 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 }
 .stock-chart-status.hidden { display: none; }
 .stock-chart-status .spinner { margin-inline-end: 7px; }
-.mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 320px; position: relative; margin-bottom: 16px; overflow: hidden; }
-@media (max-width: 640px) { .mchb { height: 260px; } }
-/* TradingView toolbar (mode switch + reset) */
-.tv-toolbar { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 5; display: flex; gap: 4px; background: color-mix(in srgb, var(--s2) 82%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--b1); border-radius: 8px; padding: 3px; }
-.tv-mode-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 6px; color: var(--t3); cursor: pointer; font-size: 15px; transition: all .12s; }
-.tv-mode-btn:hover { color: var(--t1); background: var(--s3); }
-.tv-mode-btn.active { background: var(--ac); color: #fff; }
-body.light .tv-mode-btn.active { color: #F4EFE5; }
-/* External HTML tooltip (crosshair) */
-.tv-tooltip { position: absolute; z-index: 6; pointer-events: none; display: none; background: var(--s1); border: 1px solid var(--b2); border-radius: 8px; padding: 8px 11px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--t1); box-shadow: 0 8px 24px rgba(0,0,0,.4); white-space: nowrap; }
-.tv-tooltip .tvt-date { color: var(--t3); font-size: 10.5px; margin-bottom: 2px; font-family: var(--font-body); }
-.tv-tooltip .tvt-price { font-weight: 700; font-size: 14px; }
-/* Measurement result box */
-.tv-measure-box { position: absolute; z-index: 6; pointer-events: none; display: none; background: var(--s1); border: 1px solid var(--b2); border-radius: 10px; padding: 9px 13px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; box-shadow: 0 10px 30px rgba(0,0,0,.45); white-space: nowrap; }
-.tv-measure-box .tvm-time { color: var(--t3); font-size: 11px; font-family: var(--font-body); margin-bottom: 3px; }
-.tv-measure-box .tvm-px { color: var(--t2); font-size: 12px; }
-.tv-measure-box .tvm-chg { font-weight: 800; font-size: 15px; margin-top: 2px; }
-.tv-measure-box .tvm-pos { color: var(--gd); font-size: 12px; margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--b1); }
+.mchb { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 0; height: 240px; position: relative; margin-bottom: 16px; overflow: hidden; }
 
 .man { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media(max-width: 480px) { .man { grid-template-columns: 1fr; } }
@@ -2724,7 +2785,6 @@ const S = {
   fx: 3.65,
   cp: {}, sp: {}, sparks: {}, sChg: {}, cChg: {},
   dChart: null, aC: null, sC: null, cbC: null, sbC: null,
-  tvChart: null, tvSeries: null, tvMeasureSeries: null, _tvResizeObs: null,
   sel: null, sPeriod: '1d', cPeriod: '1d', curPage: 'dash',
   crypto: loadLS('pc', DEF_C),
   stocks: loadLS('ps', DEF_S),
@@ -3015,7 +3075,7 @@ async function fetchFinnhubSeries(sym, range) {
   if (!HAS_FINNHUB || String(sym).includes('.')) return null;
   const now = Math.floor(Date.now() / 1000);
   const from = now - chartRangeLookbackDays(range) * 86400;
-  const resolution = range === '1d' ? '5' : 'D';
+  const resolution = range === '1d' ? '5' : range === '5d' ? '15' : range === '1mo' ? '60' : 'D';
   const url = viaProxy(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(sym)}&resolution=${resolution}&from=${from}&to=${now}`);
   const d = await fetchJsonFast(url, 1800);
   if (d?.s !== 'ok' || !Array.isArray(d.t) || !Array.isArray(d.c)) return null;
@@ -3029,7 +3089,11 @@ async function fetchTwelveDataSeries(sym, range) {
   if (!HAS_TWELVE) return null;
   const cfg = range === '1d'
     ? { interval:'5min', outputsize:160 }
-    : { interval:'1day', outputsize:({ '5d':10, '1mo':40, '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 40 };
+    : range === '5d'
+      ? { interval:'15min', outputsize:220 }
+      : range === '1mo'
+        ? { interval:'1h', outputsize:320 }
+        : { interval:'1day', outputsize:({ '3mo':110, '6mo':210, '1y':400, '5y':1500, 'ytd':400 })[range] || 110 };
   const url = viaProxy(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}&interval=${cfg.interval}&outputsize=${cfg.outputsize}&order=ASC&timezone=Exchange`);
   const d = await fetchJsonFast(url, 3500);
   if (d?.status === 'error' || !Array.isArray(d?.values)) return null;
@@ -3070,28 +3134,28 @@ function parseYahooChartPayload(payload, sym, intraday) {
 }
 
 async function fetchYahooSeries(sym, range) {
-  const intraday = range === '1d';
-  const interval = intraday ? '5m' : '1d';
+  const latestSessionOnly = range === '1d';
+  const interval = range === '1d' ? '5m' : range === '5d' ? '15m' : range === '1mo' ? '60m' : '1d';
   const yahooRange = range;
   const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${yahooRange}&includePrePost=false&events=div%2Csplits`;
   const candidates = [];
   const worker = String(MY_PROXY || '').replace(/\/$/, '');
   if (worker) {
-    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, intraday))());
+    candidates.push((async () => parseYahooChartPayload(await fetchJsonFast(`${worker}/?url=${encodeURIComponent(origin)}`, 2800), sym, latestSessionOnly))());
   }
   // Public fallbacks are raced rather than attempted sequentially. This changes a
   // possible 20–60 second wait into a bounded ~5 second first-load fallback.
   candidates.push(delayedTask(worker ? 250 : 0, async () => {
     const text = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
+    return parseYahooChartPayload(text, sym, latestSessionOnly);
   }));
   candidates.push(delayedTask(worker ? 350 : 100, async () => {
     const text = await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4500);
-    return parseYahooChartPayload(text, sym, intraday);
+    return parseYahooChartPayload(text, sym, latestSessionOnly);
   }));
   candidates.push(delayedTask(worker ? 500 : 200, async () => {
     const json = await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000);
-    return parseYahooChartPayload(json, sym, intraday);
+    return parseYahooChartPayload(json, sym, latestSessionOnly);
   }));
   return firstValidResult(candidates);
 }
@@ -3662,8 +3726,10 @@ async function getCryptoHist(sym, days) {
   const bs = BN[sym];
   if (bs) {
     try {
-      const interval = days <= 1 ? '1h' : days <= 7 ? '4h' : days <= 30 ? '1d' : '3d';
-      const limit    = days <= 1 ? 24   : days <= 7 ? 42   : 30;
+      // Denser intervals make the Lightweight Chart feel like a real market chart,
+      // while keeping every request comfortably below Binance's response limits.
+      const interval = days <= 1 ? '15m' : days <= 7 ? '1h' : days <= 30 ? '4h' : '12h';
+      const limit    = days <= 1 ? 96    : days <= 7 ? 168  : 180;
       const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${bs}&interval=${interval}&limit=${limit}`);
       const arr = await r.json();
       return arr.map(k => [k[0], parseFloat(k[4])]);
@@ -4381,7 +4447,7 @@ const I18N = {
   '(אופציונלי)':'(optional)','ניהול קניות':'Manage buys','מחק קנייה':'Delete buy',
 
   'התפלגות תיק הנכסים':'Portfolio Allocation','פילוח קטגוריות':'Category Breakdown','תשואה תקופתית — מניות':'Periodic Return — Stocks',
-  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','שינוי בשווי ההחזקה':'Holding value change','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
+  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
   'התראות מערכת וחריגות אלוקציה':'System alerts & allocation anomalies','הנכסים המניבים ביותר היום':'Top performing assets today',
   'המפסידים ביותר היום':'Biggest losers today','התפלגות ומשקלים בתיק':'Portfolio distribution & weights',
   'ריכוז וסיכום נתונים':'Data summary','ביצועי שוק':'Market Performance','מאזן כמותי':'Quantitative Balance',
@@ -4440,7 +4506,7 @@ const I18N = {
   // ticker
   'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
   // market status bar
-  'ת"א':'TLV','לונדון':'London','טוקיו':'Tokyo','הונג קונג':'Hong Kong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
+  'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
   'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
   // lock screen + auth
   'כניסה מאובטחת לנתונים':'Secure data access','התחבר באמצעות Google':'Sign in with Google','התחבר עם Google':'Sign in with Google',
@@ -4843,7 +4909,7 @@ const LANG_DICTS = {
   ru: {
 
     // market status bar
-    'ת"א':'ТА','לונדון':'Лондон','טוקיו':'Токио','הונג קונג':'Гонконг','שנחאי':'Шанхай','מומבאי':'Мумбаи','סיאול':'Сеул','סידני':'Сидней','שוק פתוח':'Открыт','שוק סגור':'Закрыт','נפתח בקרוב':'Скоро откр.','נסגר בעוד':'Закр. через','נפתח בעוד':'Откр. через','דק׳':'мин','ש׳':'ч',
+    'ת"א':'ТА','לונדון':'Лондон','שוק פתוח':'Открыт','שוק סגור':'Закрыт','נפתח בקרוב':'Скоро откр.','נסגר בעוד':'Закр. через','נפתח בעוד':'Откр. через','דק׳':'мин','ש׳':'ч',
     'שוק אמריקאי':'Рынок США',
     'אירופה':'Европа',
     'אסיה':'Азия',
@@ -5315,7 +5381,7 @@ const LANG_DICTS = {
   es: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londres','טוקיו':'Tokio','הונג קונג':'Hong Kong','שנחאי':'Shanghái','מומבאי':'Bombay','סיאול':'Seúl','סידני':'Sídney','שוק פתוח':'Abierto','שוק סגור':'Cerrado','נפתח בקרוב':'Abre pronto','נסגר בעוד':'Cierra en','נפתח בעוד':'Abre en','דק׳':'min','ש׳':'h',
+    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Abierto','שוק סגור':'Cerrado','נפתח בקרוב':'Abre pronto','נסגר בעוד':'Cierra en','נפתח בעוד':'Abre en','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Mercado de EE. UU.',
     'אירופה':'Europa',
     'אסיה':'Asia',
@@ -5780,7 +5846,7 @@ const LANG_DICTS = {
   fr: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londres','טוקיו':'Tokyo','הונג קונג':'Hong Kong','שנחאי':'Shanghai','מומבאי':'Bombay','סיאול':'Séoul','סידני':'Sydney','שוק פתוח':'Ouvert','שוק סגור':'Fermé','נפתח בקרוב':'Ouvre bientôt','נסגר בעוד':'Ferme dans','נפתח בעוד':'Ouvre dans','דק׳':'min','ש׳':'h',
+    'ת"א':'TLV','לונדון':'Londres','שוק פתוח':'Ouvert','שוק סגור':'Fermé','נפתח בקרוב':'Ouvre bientôt','נסגר בעוד':'Ferme dans','נפתח בעוד':'Ouvre dans','דק׳':'min','ש׳':'h',
     'שוק אמריקאי':'Marché américain',
     'אירופה':'Europe',
     'אסיה':'Asie',
@@ -6245,7 +6311,7 @@ const LANG_DICTS = {
   ar: {
 
     // market status bar
-    'ת"א':'تل أبيب','לונדון':'لندن','טוקיו':'طوكيو','הונג קונג':'هونغ كونغ','שנחאי':'شنغهاي','מומבאי':'مومباي','סיאול':'سيول','סידני':'سيدني','שוק פתוח':'مفتوح','שוק סגור':'مغلق','נפתח בקרוב':'يفتح قريباً','נסגר בעוד':'يغلق خلال','נפתח בעוד':'يفتح خلال','דק׳':'د','ש׳':'س',
+    'ת"א':'تل أبيب','לונדון':'لندن','שוק פתוח':'مفتوح','שוק סגור':'مغلق','נפתח בקרוב':'يفتح قريباً','נסגר בעוד':'يغلق خلال','נפתח בעוד':'يفتح خلال','דק׳':'د','ש׳':'س',
     'שוק אמריקאי':'السوق الأمريكي',
     'אירופה':'أوروبا',
     'אסיה':'آسيا',
@@ -6710,7 +6776,7 @@ const LANG_DICTS = {
   de: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'London','טוקיו':'Tokio','הונג קונג':'Hongkong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Offen','שוק סגור':'Geschlossen','נפתח בקרוב':'Öffnet bald','נסגר בעוד':'Schließt in','נפתח בעוד':'Öffnet in','דק׳':'Min','ש׳':'Std',
+    'ת"א':'TLV','לונדון':'London','שוק פתוח':'Offen','שוק סגור':'Geschlossen','נפתח בקרוב':'Öffnet bald','נסגר בעוד':'Schließt in','נפתח בעוד':'Öffnet in','דק׳':'Min','ש׳':'Std',
     'שוק אמריקאי':'US-Markt',
     'אירופה':'Europa',
     'אסיה':'Asien',
@@ -7175,7 +7241,7 @@ const LANG_DICTS = {
   zh: {
 
     // market status bar
-    'ת"א':'特拉维夫','לונדון':'伦敦','טוקיו':'东京','הונג קונג':'香港','שנחאי':'上海','מומבאי':'孟买','סיאול':'首尔','סידני':'悉尼','שוק פתוח':'开市','שוק סגור':'休市','נפתח בקרוב':'即将开市','נסגר בעוד':'距收市','נפתח בעוד':'距开市','דק׳':'分','ש׳':'时',
+    'ת"א':'特拉维夫','לונדון':'伦敦','שוק פתוח':'开市','שוק סגור':'休市','נפתח בקרוב':'即将开市','נסגר בעוד':'距收市','נפתח בעוד':'距开市','דק׳':'分','ש׳':'时',
     'שוק אמריקאי':'美国市场',
     'אירופה':'欧洲',
     'אסיה':'亚洲',
@@ -7640,7 +7706,7 @@ const LANG_DICTS = {
   nl: {
 
     // market status bar
-    'ת"א':'TLV','לונדון':'Londen','טוקיו':'Tokio','הונג קונג':'Hongkong','שנחאי':'Shanghai','מומבאי':'Mumbai','סיאול':'Seoul','סידני':'Sydney','שוק פתוח':'Open','שוק סגור':'Gesloten','נפתח בקרוב':'Opent snel','נסגר בעוד':'Sluit over','נפתח בעוד':'Opent over','דק׳':'min','ש׳':'u',
+    'ת"א':'TLV','לונדון':'Londen','שוק פתוח':'Open','שוק סגור':'Gesloten','נפתח בקרוב':'Opent snel','נסגר בעוד':'Sluit over','נפתח בעוד':'Opent over','דק׳':'min','ש׳':'u',
     'שוק אמריקאי':'Amerikaanse markt',
     'אירופה':'Europa',
     'אסיה':'Azië',
@@ -8537,16 +8603,10 @@ function tkStart() {
 // Each market: local trading hours (in its own timezone) + which portfolio asset
 // suffixes belong to it, so we can flag the markets the user actually holds.
 const MK_MARKETS = [
-  { key: 'us', name: 'ארה"ב',   flag: '🇺🇸', tz: 'America/New_York', open: [9,30], close: [16,0],  days: [1,2,3,4,5], suffixes: [''] },
+  { key: 'us', name: 'ארה"ב',   flag: '🇺🇸', tz: 'America/New_York', open: [9,30], close: [16,0], days: [1,2,3,4,5], suffixes: [''] },
   { key: 'il', name: 'ת"א',     flag: '🇮🇱', tz: 'Asia/Jerusalem',   open: [9,59], close: [17,15], days: [0,1,2,3,4], suffixes: ['.TA'] },
   { key: 'eu', name: 'אירופה',  flag: '🇪🇺', tz: 'Europe/Berlin',    open: [9,0],  close: [17,30], days: [1,2,3,4,5], suffixes: ['.DE','.PA','.AS','.MI','.MC','.SW','.BR','.LS','.VI','.HE'] },
   { key: 'uk', name: 'לונדון',  flag: '🇬🇧', tz: 'Europe/London',    open: [8,0],  close: [16,30], days: [1,2,3,4,5], suffixes: ['.L'] },
-  { key: 'jp', name: 'טוקיו',   flag: '🇯🇵', tz: 'Asia/Tokyo',       open: [9,0],  close: [15,0],  days: [1,2,3,4,5], suffixes: ['.T'] },
-  { key: 'hk', name: 'הונג קונג', flag: '🇭🇰', tz: 'Asia/Hong_Kong', open: [9,30], close: [16,0],  days: [1,2,3,4,5], suffixes: ['.HK'] },
-  { key: 'cn', name: 'שנחאי',   flag: '🇨🇳', tz: 'Asia/Shanghai',    open: [9,30], close: [15,0],  days: [1,2,3,4,5], suffixes: ['.SS','.SZ'] },
-  { key: 'in', name: 'מומבאי',  flag: '🇮🇳', tz: 'Asia/Kolkata',     open: [9,15], close: [15,30], days: [1,2,3,4,5], suffixes: ['.NS','.BO'] },
-  { key: 'kr', name: 'סיאול',   flag: '🇰🇷', tz: 'Asia/Seoul',       open: [9,0],  close: [15,30], days: [1,2,3,4,5], suffixes: ['.KS','.KQ'] },
-  { key: 'au', name: 'סידני',   flag: '🇦🇺', tz: 'Australia/Sydney', open: [10,0], close: [16,0],  days: [1,2,3,4,5], suffixes: ['.AX'] },
 ];
 
 // Minutes-since-midnight in a given timezone, plus weekday (0=Sun..6=Sat).
@@ -9276,7 +9336,7 @@ async function renderStocksPage(customFrom, customTo) {
   S.sbC = new Chart(document.getElementById('sBarChart'), {
     type:'bar',
     data:{labels:S.stocks.map(s=>s.sym),datasets:[{data:changes.map(c=>c??0),backgroundColor:changes.map(c=>(c||0)>=0?uc:dc),borderRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:15}},grid:{display:false}},y:{ticks:{color:ax,font:{size:14},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:10}},grid:{display:false}},y:{ticks:{color:ax,font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
   });
 }
 
@@ -9321,7 +9381,7 @@ async function renderCryptoPage() {
   S.cbC = new Chart(document.getElementById('cBarChart'), {
     type:'bar',
     data:{labels:sorted.map(x=>x.a.sym),datasets:[{data:sorted.map(x=>x.chg??0),backgroundColor:sorted.map(x=>(x.chg||0)>=0?uc:dc),borderRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:15}},grid:{display:false}},y:{ticks:{color:ax,font:{size:14},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:ax,font:{family:'JetBrains Mono',size:10}},grid:{display:false}},y:{ticks:{color:ax,font:{size:9},callback:v=>v.toFixed(1)+'%'},grid:{color:'rgba(127,127,127,0.06)'}}}}
   });
 }
 
@@ -10352,7 +10412,7 @@ async function buildHistoryTable() {
           resizeDelay: 0,
           interaction: { mode: 'index', intersect: false, axis: 'x' },
           hover: { mode: 'index', intersect: false },
-          events: ['mousemove','mousedown','mouseup','mouseout','click','touchstart','touchmove','touchend'],
+          events: ['mousemove','mouseout','click','touchstart','touchmove'],
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -10387,8 +10447,8 @@ async function buildHistoryTable() {
             },
           },
           scales: {
-            x: { ticks:{color:axisColor(),font:{size:14},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-            y: { ticks:{color:axisColor(),font:{size:14},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
+            x: { ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
+            y: { ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
           }
         },
         plugins: [{
@@ -10407,23 +10467,7 @@ async function buildHistoryTable() {
             c.moveTo(x,top); c.lineTo(x,bottom); c.stroke();
             c.restore();
           }
-        },
-        makeRangeSelectPlugin((i0, i1) => {
-          const r0 = chartRows[i0], r1 = chartRows[i1];
-          if (!r0 || !r1) return null;
-          const a = Number(r0.total), b = Number(r1.total);
-          if (!isFinite(a) || !isFinite(b)) return null;
-          const diff = convertFromILS(b - a, curCode);
-          const pct = a ? ((b - a) / a) * 100 : 0;
-          const sign = diff >= 0 ? '+' : '';
-          const d0 = fDateShort(new Date(`${r0.dateKey}T12:00:00Z`));
-          const d1 = fDateShort(new Date(`${r1.dateKey}T12:00:00Z`));
-          return {
-            text: `${sign}${curDef.sym}${Math.round(diff).toLocaleString()}  (${pct>=0?'+':''}${pct.toFixed(2)}%)`,
-            dateText: `${d0} – ${d1}`,
-            positive: diff >= 0
-          };
-        })]
+        }]
       });
       const histCanvas = document.getElementById('histChart');
       if (histCanvas) histCanvas.style.cursor = 'crosshair';
@@ -10447,16 +10491,7 @@ async function openDet(sym, type) {
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
-function closeDet() {
-  document.getElementById('detOv').classList.remove('open');
-  document.body.style.overflow = '';
-  S.sel = null;
-  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
-  if (S.tvChart) { try { S.tvChart.remove(); } catch(_){} S.tvChart = null; S.tvSeries = null; }
-  if (S._tvResizeObs) { try { S._tvResizeObs.disconnect(); } catch(_){} S._tvResizeObs = null; }
-  tvClearMeasure();
-  stopLiveChart();
-}
+function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
 
 async function renderCryptoModal(a, el) {
   const p = S.cp[a.id]; const pu = p?.usd || 0; const pi = pu * S.fx;
@@ -10491,17 +10526,7 @@ async function renderCryptoModal(a, el) {
         <button class="rb" onclick="loadCC('${a.sym}',90,this)">3M</button>
       </div>
     </div>
-    <div class="mchb" id="mchBox">
-      <div id="tvChart" style="position:absolute;inset:0;"></div>
-      <canvas id="dCanvas" style="position:relative;z-index:1;display:none"></canvas>
-      <div class="tv-toolbar" id="tvToolbar">
-        <button class="tv-mode-btn active" id="tvNavBtn" onclick="tvSetMode('nav')" title="ניווט — גרירה מזיזה את הגרף"><i class="ph-thin ph-hand"></i></button>
-        <button class="tv-mode-btn" id="tvMeasBtn" onclick="tvSetMode('measure')" title="מדידה — גרירה מסמנת טווח"><i class="ph-thin ph-ruler"></i></button>
-        <button class="tv-mode-btn" id="tvResetBtn" onclick="tvResetZoom()" title="איפוס תצוגה"><i class="ph-thin ph-arrows-in"></i></button>
-      </div>
-      <div class="tv-tooltip" id="tvTooltip"></div>
-      <div class="tv-measure-box" id="tvMeasureBox"></div>
-    </div>
+    <div class="mchb tv-chart-shell" id="mchBox"><div id="dCanvas" class="tv-chart-host" role="img" aria-label="גרף מחיר אינטראקטיבי"></div></div>
     <div class="man">
       <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מאזן כמותי</span><span class="mrv">${fNum(a.qty)}</span></div>
@@ -10540,14 +10565,8 @@ async function loadCC(sym, days, btn, silent) {
   const raw = await getCryptoHist(sym, days);
   if (box) box.classList.remove('chart-loading');
   if (!raw.length) return;
-  const prices = raw.map(([, p]) => p);
-  const labels = raw.map(([t]) => {
-    const d = new Date(t);
-    return days <= 1
-      ? d.toLocaleTimeString(_dateLocale(), { hour: '2-digit', minute: '2-digit' })
-      : fDateShort(d);
-  });
-  drawSChart(prices, labels, sym);
+  const series = raw.map(([t, p]) => ({ t:Number(t), p:Number(p) }));
+  drawSChart(series, sym, days, 'crypto');
   updateChartDate(days);
 }
 
@@ -10594,17 +10613,7 @@ function renderStockModal(s, el) {
         <button class="rb" onclick="loadSC('${s.sym}','5y',this)">5Y</button>
       </div>
     </div>
-    <div class="mchb" id="mchBox">
-      <div id="tvChart" style="position:absolute;inset:0;"></div>
-      <canvas id="dCanvas" style="position:relative;z-index:1;display:none"></canvas>
-      <div class="tv-toolbar" id="tvToolbar">
-        <button class="tv-mode-btn active" id="tvNavBtn" onclick="tvSetMode('nav')" title="ניווט — גרירה מזיזה את הגרף"><i class="ph-thin ph-hand"></i></button>
-        <button class="tv-mode-btn" id="tvMeasBtn" onclick="tvSetMode('measure')" title="מדידה — גרירה מסמנת טווח"><i class="ph-thin ph-ruler"></i></button>
-        <button class="tv-mode-btn" id="tvResetBtn" onclick="tvResetZoom()" title="איפוס תצוגה"><i class="ph-thin ph-arrows-in"></i></button>
-      </div>
-      <div class="tv-tooltip" id="tvTooltip"></div>
-      <div class="tv-measure-box" id="tvMeasureBox"></div>
-    </div>
+    <div class="mchb tv-chart-shell" id="mchBox"><div id="dCanvas" class="tv-chart-host" role="img" aria-label="גרף מחיר אינטראקטיבי"></div></div>
     <div class="man">
       <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
         <div class="mr"><span class="mrl">מספר מניות</span><span class="mrv">${sh?sh.toFixed(3):'--'}</span></div>
@@ -10674,7 +10683,7 @@ async function loadSC(sym, range, btn, silent) {
 
   // Instant paint from memory/local cache. This is what makes a click feel immediate.
   if (cached?.length >= 2) {
-    drawSChart(cached.map(d => d.p), stockChartLabels(cached, sym, range), sym);
+    drawSChart(cached, sym, range, 'stock');
     setStockChartStatus('');
     updateChartDate(range);
   } else if (!silent) {
@@ -10692,500 +10701,377 @@ async function loadSC(sym, range, btn, silent) {
     return;
   }
   if (S.sel !== sym || !document.getElementById('detOv')?.classList.contains('open')) return;
-  drawSChart(data.map(d => d.p), stockChartLabels(data, sym, range), sym);
+  drawSChart(data, sym, range, 'stock');
   setStockChartStatus('');
   updateChartDate(range);
 }
 
-// ── Reusable "drag to select a range" plugin (Google-Finance style) ──
-// Click-drag across the chart to highlight a span; a label shows the change from the
-// start point to the end point. `getRangeLabel(i0, i1)` returns { text, positive }.
-function makeRangeSelectPlugin(getRangeLabel) {
-  const st = { active: false, startX: null, endX: null, i0: null, i1: null };
-  return {
-    id: 'rangeSelect',
-    _st: st,
-    afterEvent(chart, args) {
-      const e = args.event;
-      const area = chart.chartArea;
-      const nativeType = e.type;
-      const clampX = x => Math.max(area.left, Math.min(area.right, x));
-      const xToIndex = (x) => {
-        const xs = chart.scales.x;
-        // find nearest data index for a pixel x
-        const meta = chart.getDatasetMeta(0);
-        if (!meta?.data?.length) return null;
-        let best = 0, bestD = Infinity;
-        for (let i = 0; i < meta.data.length; i++) {
-          const d = Math.abs(meta.data[i].x - x);
-          if (d < bestD) { bestD = d; best = i; }
-        }
-        return best;
-      };
-      if (nativeType === 'mousedown' || nativeType === 'touchstart') {
-        st.active = true;
-        st.startX = clampX(e.x);
-        st.endX = st.startX;
-        st.i0 = xToIndex(st.startX);
-        st.i1 = st.i0;
-        chart.draw();
-      } else if ((nativeType === 'mousemove' || nativeType === 'touchmove') && st.active) {
-        st.endX = clampX(e.x);
-        st.i1 = xToIndex(st.endX);
-        chart.draw();
-      } else if (nativeType === 'mouseup' || nativeType === 'touchend' || nativeType === 'mouseout') {
-        // Keep the selection drawn after release; a fresh click resets it.
-        if (nativeType !== 'mouseout') st.active = false;
-        // If it was just a click (no real drag), clear the selection.
-        if (st.startX != null && st.endX != null && Math.abs(st.endX - st.startX) < 4) {
-          st.startX = st.endX = st.i0 = st.i1 = null;
-        }
-        chart.draw();
-      }
+function normalizeDetailChartSeries(seriesData) {
+  if (!Array.isArray(seriesData)) return [];
+  const byTime = new Map();
+  for (const row of seriesData) {
+    const rawT = Array.isArray(row) ? row[0] : row?.t;
+    const rawP = Array.isArray(row) ? row[1] : row?.p;
+    const nT = Number(rawT), value = Number(rawP);
+    if (!Number.isFinite(nT) || !Number.isFinite(value)) continue;
+    const time = Math.floor(nT > 1e12 ? nT / 1000 : nT);
+    if (time > 0) byTime.set(time, { time, value });
+  }
+  return [...byTime.values()].sort((a,b) => a.time - b.time);
+}
+
+function detailChartCurrency(sym, type) {
+  if (type === 'crypto') return 'USD';
+  const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
+  return cur === 'ILA' ? 'ILS' : cur;
+}
+
+function detailChartCurrencySymbol(sym, type) {
+  const cur = detailChartCurrency(sym, type);
+  return (CURRENCIES[cur] || { sym: cur + ' ' }).sym;
+}
+
+function formatDetailChartPrice(value, sym, type, signed = false) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '--';
+  const digits = Math.abs(n) >= 1 ? 2 : 4;
+  const sign = signed && n > 0 ? '+' : '';
+  return `${sign}${detailChartCurrencySymbol(sym, type)}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits:digits, maximumFractionDigits:digits })}`;
+}
+
+function detailChartTimeZone(sym, type) {
+  return type === 'crypto' ? 'Asia/Jerusalem' : marketTimeZoneForSymbol(sym);
+}
+
+function formatDetailChartTime(time, sym, range, type, compact = false) {
+  const seconds = typeof time === 'number' ? time : Number(time);
+  const d = new Date(seconds * 1000);
+  const locale = _dateLocale();
+  const intraday = range === '1d' || range === 1;
+  const shortRange = range === '5d' || range === 7;
+  const opts = intraday
+    ? { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:detailChartTimeZone(sym,type) }
+    : shortRange
+      ? { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:detailChartTimeZone(sym,type) }
+      : { day:'2-digit', month:'2-digit', year: compact ? undefined : 'numeric', timeZone:detailChartTimeZone(sym,type) };
+  return new Intl.DateTimeFormat(locale, opts).format(d);
+}
+
+function detailChartHoldingQty(sym, type) {
+  if (type === 'crypto') {
+    const a = S.crypto.find(x => x.sym === sym);
+    return a ? Number(cQty(a)) || 0 : 0;
+  }
+  const s = S.stocks.find(x => x.sym === sym);
+  return s ? Number(getShares(s)) || 0 : 0;
+}
+
+function nearestDetailPoint(data, targetTime) {
+  if (!data.length || targetTime == null) return null;
+  const target = typeof targetTime === 'number' ? targetTime : Number(targetTime);
+  let lo = 0, hi = data.length - 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (data[mid].time < target) lo = mid + 1; else hi = mid;
+  }
+  if (lo === 0) return data[0];
+  const a = data[lo - 1], b = data[lo];
+  return Math.abs(a.time - target) <= Math.abs(b.time - target) ? a : b;
+}
+
+function rgbaFromHex(hex, alpha) {
+  const h = String(hex || '').trim().replace('#','');
+  if (!/^[0-9a-f]{6}$/i.test(h)) return `rgba(59,107,255,${alpha})`;
+  const n = parseInt(h,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+
+function drawSChart(seriesData, sym, range, type = 'stock') {
+  const host = document.getElementById('dCanvas');
+  const data = normalizeDetailChartSeries(seriesData);
+  if (!host || data.length < 2) return;
+  if (S.dChart) { try { S.dChart.destroy(); } catch (_) {} S.dChart = null; }
+  host.innerHTML = '';
+
+  if (!window.LightweightCharts?.createChart || !window.LightweightCharts?.AreaSeries) {
+    console.warn('[Chart] TradingView Lightweight Charts failed to load; using Chart.js fallback.');
+    drawSChartFallback(data, sym, range, type, host);
+    return;
+  }
+
+  const LWC = window.LightweightCharts;
+  const isLight = document.body.classList.contains('light');
+  const up = data[data.length - 1].value >= data[0].value;
+  const col = up ? upColor() : downColor();
+  const bg = 'transparent';
+  const textCol = isLight ? '#4A5878' : '#9aa6c4';
+  const gridCol = isLight ? 'rgba(11,30,63,0.07)' : 'rgba(241,244,251,0.055)';
+  const intraday = range === '1d' || range === 1;
+  const base = data[0].value;
+
+  const chart = LWC.createChart(host, {
+    autoSize: true,
+    layout: {
+      background: { type: LWC.ColorType.Solid, color: bg },
+      textColor: textCol,
+      fontFamily: "'Geist Mono', monospace",
+      fontSize: 10,
+      attributionLogo: true,
     },
-    afterDraw(chart) {
-      if (st.startX == null || st.endX == null || st.i0 == null || st.i1 == null) return;
-      if (st.i0 === st.i1) return;
-      const c = chart.ctx;
-      const area = chart.chartArea;
-      const x0 = Math.min(st.startX, st.endX);
-      const x1 = Math.max(st.startX, st.endX);
-      const isLight = document.body.classList.contains('light');
+    grid: {
+      vertLines: { color: gridCol, style: LWC.LineStyle.Dotted },
+      horzLines: { color: gridCol, style: LWC.LineStyle.Dotted },
+    },
+    rightPriceScale: {
+      visible: true, borderVisible: false,
+      scaleMargins: { top: .17, bottom: .12 },
+      minimumWidth: 66,
+    },
+    leftPriceScale: { visible: false },
+    timeScale: {
+      borderVisible: false,
+      timeVisible: intraday || range === '5d' || range === 7,
+      secondsVisible: false,
+      rightOffset: 2,
+      barSpacing: intraday ? 7 : 6,
+      minBarSpacing: .6,
+      fixLeftEdge: true,
+      tickMarkFormatter: time => formatDetailChartTime(time, sym, range, type, true),
+    },
+    crosshair: {
+      mode: LWC.CrosshairMode.Normal,
+      vertLine: {
+        color: isLight ? 'rgba(11,30,63,.42)' : 'rgba(241,244,251,.38)',
+        width: 1, style: LWC.LineStyle.Dashed,
+        labelBackgroundColor: col,
+      },
+      horzLine: {
+        color: isLight ? 'rgba(11,30,63,.28)' : 'rgba(241,244,251,.28)',
+        width: 1, style: LWC.LineStyle.Dashed,
+        labelBackgroundColor: col,
+      },
+    },
+    localization: {
+      locale: _dateLocale(),
+      priceFormatter: value => formatDetailChartPrice(value, sym, type),
+      timeFormatter: time => formatDetailChartTime(time, sym, range, type),
+    },
+    handleScroll: true,
+    handleScale: true,
+  });
 
-      // shaded band
-      c.save();
-      c.fillStyle = isLight ? 'rgba(11,30,63,0.08)' : 'rgba(255,255,255,0.07)';
-      c.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
-      // edges
-      c.strokeStyle = isLight ? 'rgba(11,30,63,0.28)' : 'rgba(255,255,255,0.28)';
-      c.lineWidth = 1;
-      c.beginPath(); c.moveTo(x0, area.top); c.lineTo(x0, area.bottom); c.stroke();
-      c.beginPath(); c.moveTo(x1, area.top); c.lineTo(x1, area.bottom); c.stroke();
-      c.restore();
+  const area = chart.addSeries(LWC.AreaSeries, {
+    lineColor: col,
+    lineWidth: 3,
+    topColor: rgbaFromHex(col, isLight ? .24 : .30),
+    bottomColor: rgbaFromHex(col, .015),
+    priceLineVisible: true,
+    priceLineColor: rgbaFromHex(col, .62),
+    priceLineWidth: 1,
+    lastValueVisible: true,
+    crosshairMarkerVisible: true,
+    crosshairMarkerRadius: 5,
+    crosshairMarkerBorderWidth: 2,
+    crosshairMarkerBackgroundColor: col,
+    crosshairMarkerBorderColor: isLight ? '#ffffff' : '#0A0F1F',
+    priceFormat: {
+      type: 'price',
+      precision: Math.abs(base) >= 1 ? 2 : 4,
+      minMove: Math.abs(base) >= 1 ? .01 : .0001,
+    },
+  });
+  area.setData(data);
+  chart.timeScale().fitContent();
 
-      // label with the date range + the change over the selected range
-      const lo = Math.min(st.i0, st.i1), hi = Math.max(st.i0, st.i1);
-      const info = getRangeLabel ? getRangeLabel(lo, hi) : null;
-      if (!info || !info.text) return;
-      const col = info.positive ? upColor() : downColor();
-      const dateText = info.dateText || '';
-      c.save();
+  const legend = document.createElement('div');
+  legend.className = 'tv-chart-legend';
+  host.appendChild(legend);
 
-      // Fully-opaque, theme-aware colors so the label is always readable.
-      const bgFill   = isLight ? '#FFFFFF' : '#141B2E';
-      const bdrCol   = isLight ? 'rgba(11,30,63,0.18)' : 'rgba(255,255,255,0.16)';
-      const dateCol  = isLight ? '#3A4358' : '#AEB6C6';
+  const toolbar = document.createElement('div');
+  toolbar.className = 'tv-chart-toolbar';
+  toolbar.innerHTML = `
+    <button type="button" class="tv-chart-tool active" data-mode="nav" title="גרירה להזזת הגרף וזום"><i class="ph-thin ph-hand-grabbing"></i><span>ניווט</span></button>
+    <button type="button" class="tv-chart-tool" data-mode="measure" title="לחץ וגרור למדידת שינוי"><i class="ph-thin ph-ruler"></i><span>מדידה</span></button>
+    <button type="button" class="tv-chart-tool" data-action="reset" title="איפוס זום"><i class="ph-thin ph-arrows-out-simple"></i></button>`;
+  host.appendChild(toolbar);
 
-      const dateFont   = "600 13px 'Assistant','Rubik',sans-serif";
-      const changeFont = "800 15px 'Geist Mono','Assistant',monospace";
+  const measureLayer = document.createElement('div');
+  measureLayer.className = 'tv-chart-measure-layer';
+  measureLayer.innerHTML = '<div class="tv-chart-selection"></div>';
+  host.appendChild(measureLayer);
+  const selection = measureLayer.querySelector('.tv-chart-selection');
 
-      c.font = changeFont;
-      const changeW = c.measureText(info.text).width;
-      c.font = dateFont;
-      const dateW = dateText ? c.measureText(dateText).width : 0;
+  const measureCard = document.createElement('div');
+  measureCard.className = 'tv-chart-measure-card';
+  host.appendChild(measureCard);
 
-      const padX = 12, padTop = 8, padBot = 9, lineGap = 4;
-      const dateLineH = dateText ? 17 : 0;
-      const changeLineH = 19;
-      const bw = Math.max(changeW, dateW) + padX * 2;
-      const bh = padTop + dateLineH + (dateText ? lineGap : 0) + changeLineH + padBot;
-      let bx = (x0 + x1) / 2 - bw / 2;
-      bx = Math.max(area.left + 2, Math.min(area.right - bw - 2, bx));
-      const by = area.top + 4;
+  const notice = document.createElement('a');
+  notice.className = 'tv-chart-attribution';
+  notice.href = 'https://www.tradingview.com/';
+  notice.target = '_blank';
+  notice.rel = 'noopener noreferrer';
+  notice.textContent = 'TradingView Lightweight Charts™ · © 2026 TradingView, Inc.';
+  host.appendChild(notice);
 
-      // rounded, fully opaque background + subtle shadow for separation
-      const r = 8;
-      c.shadowColor = 'rgba(0,0,0,0.28)';
-      c.shadowBlur = 10; c.shadowOffsetY = 3;
-      c.fillStyle = bgFill;
-      c.beginPath();
-      c.moveTo(bx + r, by); c.arcTo(bx + bw, by, bx + bw, by + bh, r);
-      c.arcTo(bx + bw, by + bh, bx, by + bh, r); c.arcTo(bx, by + bh, bx, by, r);
-      c.arcTo(bx, by, bx + bw, by, r); c.closePath();
-      c.fill();
-      c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
-      c.lineWidth = 1; c.strokeStyle = bdrCol; c.stroke();
+  function updateLegend(point = data[data.length - 1]) {
+    const pct = base ? ((point.value - base) / base) * 100 : 0;
+    legend.innerHTML = `
+      <span class="tv-chart-legend-symbol">${sym}</span>
+      <span class="tv-chart-legend-price">${formatDetailChartPrice(point.value, sym, type)}</span>
+      <span class="tv-chart-legend-change" style="color:${pct >= 0 ? 'var(--gr)' : 'var(--rd)'}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span>
+      <span class="tv-chart-legend-time">${formatDetailChartTime(point.time, sym, range, type)}</span>`;
+  }
+  updateLegend();
 
-      c.textAlign = 'center'; c.textBaseline = 'top';
-      const cx = bx + bw / 2;
-      let ty = by + padTop;
-      if (dateText) {
-        c.font = dateFont; c.fillStyle = dateCol;
-        c.fillText(dateText, cx, ty);
-        ty += dateLineH + lineGap;
-      }
-      c.font = changeFont; c.fillStyle = col;
-      c.fillText((info.positive ? '▲ ' : '▼ ') + info.text, cx, ty);
-      c.restore();
+  const crosshairHandler = param => {
+    if (!param?.time) { updateLegend(); return; }
+    const row = param.seriesData?.get(area);
+    const value = Number(row?.value ?? row?.close);
+    if (Number.isFinite(value)) updateLegend({ time:Number(param.time), value });
+  };
+  chart.subscribeCrosshairMove(crosshairHandler);
+
+  let mode = 'nav';
+  let dragStart = null;
+  let dragEnd = null;
+  let dragging = false;
+
+  function clearMeasurement() {
+    dragStart = dragEnd = null;
+    selection.classList.remove('show');
+    measureCard.classList.remove('show');
+  }
+
+  function renderMeasurement() {
+    if (!dragStart || !dragEnd) return;
+    const a = dragStart.time <= dragEnd.time ? dragStart : dragEnd;
+    const b = dragStart.time <= dragEnd.time ? dragEnd : dragStart;
+    const x1 = chart.timeScale().timeToCoordinate(a.time);
+    const x2 = chart.timeScale().timeToCoordinate(b.time);
+    if (x1 == null || x2 == null) return;
+    selection.style.left = `${Math.min(x1,x2)}px`;
+    selection.style.width = `${Math.max(2, Math.abs(x2-x1))}px`;
+    selection.classList.add('show');
+
+    const delta = b.value - a.value;
+    const pct = a.value ? delta / a.value * 100 : 0;
+    const qty = detailChartHoldingQty(sym, type);
+    const holdingDelta = delta * qty;
+    const signColor = pct >= 0 ? 'var(--gr)' : 'var(--rd)';
+    measureCard.innerHTML = `
+      <div class="tv-measure-main">
+        <span class="tv-measure-pct" style="color:${signColor}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span>
+        <span class="tv-measure-delta" style="color:${signColor}">${delta >= 0 ? '+' : '-'}${formatDetailChartPrice(Math.abs(delta), sym, type)}</span>
+      </div>
+      <span class="tv-measure-label">טווח</span><span class="tv-measure-value">${formatDetailChartTime(a.time,sym,range,type)} → ${formatDetailChartTime(b.time,sym,range,type)}</span>
+      <span class="tv-measure-label">מחיר</span><span class="tv-measure-value">${formatDetailChartPrice(a.value,sym,type)} → ${formatDetailChartPrice(b.value,sym,type)}</span>
+      ${qty > 0 ? `<span class="tv-measure-label">שינוי בהחזקה</span><span class="tv-measure-value" style="color:${signColor}">${holdingDelta >= 0 ? '+' : '-'}${formatDetailChartPrice(Math.abs(holdingDelta),sym,type)}</span>` : ''}`;
+    measureCard.classList.add('show');
+  }
+
+  function pointFromPointer(ev) {
+    const rect = host.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, ev.clientX - rect.left));
+    const t = chart.timeScale().coordinateToTime(x);
+    return nearestDetailPoint(data, t);
+  }
+
+  const pointerDown = ev => {
+    if (mode !== 'measure') return;
+    ev.preventDefault();
+    dragging = true;
+    measureLayer.setPointerCapture?.(ev.pointerId);
+    dragStart = pointFromPointer(ev);
+    dragEnd = dragStart;
+    renderMeasurement();
+  };
+  const pointerMove = ev => {
+    if (!dragging || mode !== 'measure') return;
+    ev.preventDefault();
+    dragEnd = pointFromPointer(ev) || dragEnd;
+    renderMeasurement();
+  };
+  const pointerUp = ev => {
+    if (!dragging) return;
+    ev.preventDefault();
+    dragging = false;
+    dragEnd = pointFromPointer(ev) || dragEnd;
+    renderMeasurement();
+    try { measureLayer.releasePointerCapture?.(ev.pointerId); } catch (_) {}
+  };
+  measureLayer.addEventListener('pointerdown', pointerDown);
+  measureLayer.addEventListener('pointermove', pointerMove);
+  measureLayer.addEventListener('pointerup', pointerUp);
+  measureLayer.addEventListener('pointercancel', pointerUp);
+
+  const toolbarClick = ev => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    if (btn.dataset.action === 'reset') {
+      chart.timeScale().fitContent();
+      clearMeasurement();
+      return;
+    }
+    const nextMode = btn.dataset.mode;
+    if (!nextMode) return;
+    mode = nextMode;
+    toolbar.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('active', x.dataset.mode === mode));
+    measureLayer.classList.toggle('active', mode === 'measure');
+    chart.applyOptions({ handleScroll: mode === 'nav', handleScale: mode === 'nav' });
+    if (mode === 'nav') clearMeasurement();
+  };
+  toolbar.addEventListener('click', toolbarClick);
+
+  S.dChart = {
+    destroy() {
+      try { chart.unsubscribeCrosshairMove(crosshairHandler); } catch (_) {}
+      measureLayer.removeEventListener('pointerdown', pointerDown);
+      measureLayer.removeEventListener('pointermove', pointerMove);
+      measureLayer.removeEventListener('pointerup', pointerUp);
+      measureLayer.removeEventListener('pointercancel', pointerUp);
+      toolbar.removeEventListener('click', toolbarClick);
+      try { chart.remove(); } catch (_) {}
+      if (host.isConnected) host.innerHTML = '';
     }
   };
 }
 
-// Dispatcher: use TradingView Lightweight Charts for the detailed asset view when the
-// library is present; otherwise fall back to the existing Chart.js renderer.
-function drawSChart(prices, labels, sym) {
-  const hasTV = typeof LightweightCharts !== 'undefined' && LightweightCharts?.createChart;
-  const tvEl = document.getElementById('tvChart');
-  const canvas = document.getElementById('dCanvas');
-  if (hasTV && tvEl) {
-    if (canvas) canvas.style.display = 'none';
-    tvEl.style.display = 'block';
-    const tb = document.getElementById('tvToolbar'); if (tb) tb.style.display = 'flex';
-    try { drawSChartTV(prices, labels, sym); return; }
-    catch (e) { console.warn('[TV] failed, falling back to Chart.js:', e?.message); }
-  }
-  // Fallback path
-  if (tvEl) tvEl.style.display = 'none';
-  const tb = document.getElementById('tvToolbar'); if (tb) tb.style.display = 'none';
-  if (canvas) canvas.style.display = 'block';
-  drawSChartCanvas(prices, labels, sym);
-}
-
-function drawSChartCanvas(prices, labels, sym) {
-  const canvas = document.getElementById('dCanvas');
-  if (!canvas || !Array.isArray(prices) || prices.length < 2) return;
-  if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
+function drawSChartFallback(data, sym, range, type, host) {
+  const canvas = document.createElement('canvas');
+  host.appendChild(canvas);
+  const prices = data.map(x => x.value);
+  const labels = data.map(x => formatDetailChartTime(x.time, sym, range, type, true));
   const up = prices[prices.length - 1] >= prices[0];
   const col = up ? upColor() : downColor();
   const isLight = document.body.classList.contains('light');
   const base = prices[0];
-
-  S.dChart = new Chart(canvas, {
+  const chart = new Chart(canvas, {
     type:'line',
     data:{ labels, datasets:[{
-      label:sym,
-      data:prices,
-      borderColor:col,
-      borderWidth:2,
-      pointRadius:0,
-      pointHitRadius:14,
-      pointHoverRadius:5,
+      label:sym, data:prices, borderColor:col, borderWidth:3,
+      pointRadius:0, pointHitRadius:14, pointHoverRadius:5,
       pointHoverBackgroundColor:col,
-      pointHoverBorderColor:isLight ? '#F4EFE5' : '#0A0F1F',
-      pointHoverBorderWidth:2,
-      tension:.16,
-      spanGaps:true,
-      fill:false,
+      pointHoverBorderColor:isLight ? '#fff' : '#0A0F1F', pointHoverBorderWidth:2,
+      tension:.16, spanGaps:true, fill:true,
+      backgroundColor:rgbaFromHex(col,.12),
     }]},
     options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      animation:false,
-      normalized:true,
-      resizeDelay:0,
-      interaction:{ mode:'index', intersect:false, axis:'x' },
-      hover:{ mode:'index', intersect:false },
-      events:['mousemove','mousedown','mouseup','mouseout','click','touchstart','touchmove','touchend'],
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          enabled:true,
-          mode:'index', intersect:false,
-          animation:false,
-          backgroundColor:isLight ? 'rgba(11,30,63,0.97)' : 'rgba(17,26,51,0.97)',
-          titleColor:'#F1F4FB', bodyColor:'#F1F4FB',
-          borderColor:col, borderWidth:1, padding:10, cornerRadius:8,
-          displayColors:false,
-          titleFont:{ family:"'Newsreader', serif", size:12, weight:'400' },
-          bodyFont:{ family:"'Geist Mono', monospace", size:13, weight:'700' },
-          callbacks:{
-            title:items => items[0]?.label || '',
-            label:ctx => {
-              const v = Number(ctx.parsed.y);
-              const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
-              const def = CURRENCIES[cur] || { sym:cur + ' ' };
-              const pct = base ? ((v - base) / base) * 100 : 0;
-              return `${def.sym}${v.toFixed(v >= 1 ? 2 : 4)}   ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
-            },
-          },
-        },
-      },
+      responsive:true, maintainAspectRatio:false, animation:false, normalized:true,
+      interaction:{mode:'index',intersect:false,axis:'x'},
+      plugins:{legend:{display:false},tooltip:{
+        enabled:true,displayColors:false,backgroundColor:isLight?'rgba(11,30,63,.97)':'rgba(17,26,51,.97)',
+        callbacks:{label:ctx=>{const v=Number(ctx.parsed.y);const pct=base?((v-base)/base)*100:0;return `${formatDetailChartPrice(v,sym,type)}   ${pct>=0?'+':''}${pct.toFixed(2)}%`;}}
+      }},
       scales:{
-        x:{ ticks:{color:axisColor(),font:{size:14},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-        y:{ ticks:{color:axisColor(),font:{size:14},callback:v=>{
-          const cur=(S.sp[sym]?.currency||'USD').toUpperCase();
-          const def=CURRENCIES[cur]||{sym:cur+' '};
-          return def.sym+(v>=1?Number(v).toFixed(2):Number(v).toFixed(4));
-        }},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left'}
+        x:{ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false}},
+        y:{position:'right',ticks:{color:axisColor(),font:{size:9},callback:v=>formatDetailChartPrice(v,sym,type)},grid:{color:'rgba(127,127,127,.06)'},border:{display:false}}
       }
-    },
-    plugins:[{
-      id:'verticalCrosshair',
-      afterDraw(chart) {
-        const active = chart.tooltip?.getActiveElements?.();
-        if (!active?.length) return;
-        const x = active[0].element.x;
-        const {top,bottom} = chart.chartArea;
-        const ctx = chart.ctx;
-        ctx.save();
-        ctx.beginPath();
-        ctx.setLineDash([4,4]);
-        ctx.strokeStyle = isLight ? 'rgba(11,30,63,0.38)' : 'rgba(241,244,251,0.34)';
-        ctx.lineWidth = 1;
-        ctx.moveTo(x,top); ctx.lineTo(x,bottom); ctx.stroke();
-        ctx.restore();
-      }
-    },
-    makeRangeSelectPlugin((i0, i1) => {
-      const a = Number(prices[i0]), b = Number(prices[i1]);
-      if (!(a > 0) || !isFinite(b)) return null;
-      const cur = (S.sp[sym]?.currency || 'USD').toUpperCase();
-      const def = CURRENCIES[cur] || { sym: cur + ' ' };
-      const diff = b - a;
-      const pct = a ? (diff / a) * 100 : 0;
-      const sign = diff >= 0 ? '+' : '';
-      const dec = Math.abs(b) >= 1 ? 2 : 4;
-      const l0 = labels?.[i0] != null ? String(labels[i0]) : '';
-      const l1 = labels?.[i1] != null ? String(labels[i1]) : '';
-      return {
-        text: `${sign}${def.sym}${diff.toFixed(dec)}  (${pct>=0?'+':''}${pct.toFixed(2)}%)`,
-        dateText: (l0 && l1) ? `${l0} – ${l1}` : '',
-        positive: diff >= 0
-      };
-    })]
-  });
-  canvas.style.cursor = 'crosshair';
-}
-
-// ── TradingView Lightweight Charts: detailed asset view ──
-let tvMode = 'nav';                       // 'nav' | 'measure'
-let tvMeasure = { active: false, from: null, to: null };
-window._tvData = [];                      // [{ time, value }]
-window._tvSym = null;
-
-function tvSetMode(mode) {
-  tvMode = mode;
-  document.getElementById('tvNavBtn')?.classList.toggle('active', mode === 'nav');
-  document.getElementById('tvMeasBtn')?.classList.toggle('active', mode === 'measure');
-  const el = document.getElementById('tvChart');
-  if (el) el.style.cursor = mode === 'measure' ? 'crosshair' : 'grab';
-  // In measure mode, disable the chart's own scroll/scale so drag = measure.
-  if (S.tvChart) {
-    const on = mode === 'nav';
-    S.tvChart.applyOptions({
-      handleScroll: on, handleScale: on,
-    });
-  }
-  tvClearMeasure();
-}
-function tvResetZoom() { try { S.tvChart?.timeScale().fitContent(); } catch(_){} }
-function tvClearMeasure() {
-  tvMeasure = { active: false, from: null, to: null };
-  const box = document.getElementById('tvMeasureBox'); if (box) box.style.display = 'none';
-  if (S.tvSeries && S.tvMeasureSeries) { try { S.tvChart.removeSeries(S.tvMeasureSeries); } catch(_){} S.tvMeasureSeries = null; }
-}
-
-function drawSChartTV(prices, labels, sym) {
-  const el = document.getElementById('tvChart');
-  if (!el || !Array.isArray(prices) || prices.length < 2) return;
-  const isLight = document.body.classList.contains('light');
-  const up = prices[prices.length - 1] >= prices[0];
-  const col = up ? upColor() : downColor();
-
-  // Build time/value pairs. Lightweight Charts wants ascending unique times (unix seconds).
-  // We synthesize an evenly-spaced timeline from index so any label set works.
-  const now = Math.floor(Date.now() / 1000);
-  const step = 3600;                       // 1h spacing (purely for ordering)
-  const startT = now - step * (prices.length - 1);
-  const data = prices.map((p, i) => ({ time: startT + i * step, value: Number(p) }))
-                     .filter(d => isFinite(d.value));
-  window._tvData = data;
-  window._tvSym = sym;
-  window._tvLabels = labels;
-
-  // If the same symbol is already charted, just update the data in place — this keeps
-  // the user's zoom/pan/measurement intact during the 30s live refresh (no flicker).
-  if (S.tvChart && S.tvSeries && window._tvSym === sym && S._tvColUp === up) {
-    try {
-      S.tvSeries.setData(data);
-      window._tvData = data; window._tvLabels = labels;
-      return;
-    } catch(_) { /* fall through to full rebuild */ }
-  }
-  S._tvColUp = up;
-
-  const cur = (S.sp[sym]?.currency || S.cp?.[sym]?.currency || 'USD').toUpperCase();
-  const curDef = CURRENCIES[cur] || { sym: cur + ' ' };
-
-  // (Re)create the chart.
-  if (S.tvChart) { try { S.tvChart.remove(); } catch(_){} S.tvChart = null; S.tvSeries = null; }
-  const textColor = isLight ? '#3A4358' : '#AEB6C6';
-  const gridColor = isLight ? 'rgba(11,30,63,0.06)' : 'rgba(255,255,255,0.05)';
-  S.tvChart = LightweightCharts.createChart(el, {
-    width: el.clientWidth, height: el.clientHeight,
-    layout: { background: { type: 'solid', color: 'transparent' }, textColor, fontSize: 12, fontFamily: "'Assistant','Rubik',sans-serif" },
-    grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
-    rightPriceScale: { borderColor: gridColor, scaleMargins: { top: 0.12, bottom: 0.12 } },
-    timeScale: { borderColor: gridColor, timeVisible: true, secondsVisible: false, fixLeftEdge: true, fixRightEdge: true },
-    crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: { color: isLight ? 'rgba(11,30,63,0.4)' : 'rgba(255,255,255,0.35)', width: 1, style: 2, labelBackgroundColor: col },
-      horzLine: { color: isLight ? 'rgba(11,30,63,0.4)' : 'rgba(255,255,255,0.35)', width: 1, style: 2, labelBackgroundColor: col },
-    },
-    handleScroll: tvMode === 'nav', handleScale: tvMode === 'nav',
-  });
-  // Area series: thick line + soft gradient fill, price axis on the right (default).
-  S.tvSeries = S.tvChart.addAreaSeries({
-    lineColor: col, lineWidth: 3,
-    topColor: (isLight ? hexToRgba(col, 0.22) : hexToRgba(col, 0.28)),
-    bottomColor: hexToRgba(col, 0.01),
-    priceLineVisible: true, priceLineColor: col, priceLineWidth: 1, priceLineStyle: 2,
-    lastValueVisible: true,
-    priceFormat: { type: 'price', precision: (Math.abs(prices[prices.length-1]) >= 1 ? 2 : 4), minMove: (Math.abs(prices[prices.length-1]) >= 1 ? 0.01 : 0.0001) },
-  });
-  S.tvSeries.setData(data);
-  S.tvChart.timeScale().fitContent();
-
-  // ── External HTML tooltip driven by the crosshair ──
-  const tooltip = document.getElementById('tvTooltip');
-  const measureBox = document.getElementById('tvMeasureBox');
-  const fmtT = (t) => {
-    const idx = data.findIndex(d => d.time === t);
-    return (idx >= 0 && labels?.[idx] != null) ? String(labels[idx]) : '';
-  };
-  const fmtPx = (v) => curDef.sym + (Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(4));
-
-  S.tvChart.subscribeCrosshairMove(param => {
-    if (!param || !param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
-      if (tooltip) tooltip.style.display = 'none';
-      if (tvMode === 'measure' && tvMeasure.active) tvUpdateMeasure(param);
-      return;
     }
-    const val = param.seriesData.get(S.tvSeries);
-    const price = val?.value ?? val;
-    if (tooltip && price != null) {
-      const base = data[0]?.value || price;
-      const pct = base ? ((price - base) / base) * 100 : 0;
-      tooltip.innerHTML = `<div class="tvt-date">${fmtT(param.time)}</div>
-        <div class="tvt-price" style="color:${col}">${fmtPx(price)}</div>
-        <div style="color:var(--t3);font-size:11px">${pct>=0?'+':''}${pct.toFixed(2)}%</div>`;
-      tooltip.style.display = 'block';
-      const box = el.getBoundingClientRect();
-      let left = param.point.x + 14;
-      if (left + tooltip.offsetWidth > box.width - 6) left = param.point.x - tooltip.offsetWidth - 14;
-      tooltip.style.left = Math.max(6, left) + 'px';
-      tooltip.style.top = Math.max(6, param.point.y - 10) + 'px';
-    }
-    if (tvMode === 'measure' && tvMeasure.active) tvUpdateMeasure(param);
   });
-
-  // ── Measure mode: press → drag → release on the chart element ──
-  tvBindMeasure(el, sym, curDef);
-
-  // keep it sized to its container
-  if (S._tvResizeObs) { try { S._tvResizeObs.disconnect(); } catch(_){} }
-  S._tvResizeObs = new ResizeObserver(() => {
-    if (S.tvChart && el.clientWidth) S.tvChart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-  });
-  S._tvResizeObs.observe(el);
-
-  tvSetMode(tvMode);   // apply current mode (cursor + scroll lock)
+  S.dChart = { destroy(){ try { chart.destroy(); } catch (_) {} if (host.isConnected) host.innerHTML=''; } };
 }
 
-function hexToRgba(hex, a) {
-  const h = String(hex).replace('#', '');
-  if (h.length !== 6) return hex;
-  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-function tvBindMeasure(el, sym, curDef) {
-  if (el._tvMeasureBound) return;
-  el._tvMeasureBound = true;
-  const getTV = () => S.tvChart, getSeries = () => S.tvSeries;
-
-  const startMeasure = (clientX, clientY) => {
-    if (tvMode !== 'measure') return;
-    const chart = getTV(), series = getSeries(); if (!chart || !series) return;
-    const box = el.getBoundingClientRect();
-    const x = clientX - box.left, y = clientY - box.top;
-    const t = chart.timeScale().coordinateToTime(x);
-    const price = series.coordinateToPrice(y);
-    if (t == null || price == null) return;
-    tvMeasure = { active: true, from: { t, price, x, y }, to: { t, price, x, y } };
-  };
-  const moveMeasure = (clientX, clientY) => {
-    if (!tvMeasure.active) return;
-    const chart = getTV(), series = getSeries(); if (!chart || !series) return;
-    const box = el.getBoundingClientRect();
-    const x = clientX - box.left, y = clientY - box.top;
-    const t = chart.timeScale().coordinateToTime(x);
-    const price = series.coordinateToPrice(y);
-    if (t == null || price == null) return;
-    tvMeasure.to = { t, price, x, y };
-    tvRenderMeasure(sym, curDef);
-  };
-  const endMeasure = () => { /* keep result visible until next press or mode change */ };
-
-  el.addEventListener('mousedown', e => { if (tvMode === 'measure') { e.preventDefault(); startMeasure(e.clientX, e.clientY); } });
-  window.addEventListener('mousemove', e => { if (tvMeasure.active) moveMeasure(e.clientX, e.clientY); });
-  window.addEventListener('mouseup', endMeasure);
-  // touch: long-press starts measure
-  let touchTimer = null;
-  el.addEventListener('touchstart', e => {
-    if (tvMode !== 'measure') return;
-    const t = e.touches[0];
-    touchTimer = setTimeout(() => startMeasure(t.clientX, t.clientY), 250);
-  }, { passive: true });
-  el.addEventListener('touchmove', e => {
-    if (tvMeasure.active) { e.preventDefault(); const t = e.touches[0]; moveMeasure(t.clientX, t.clientY); }
-  }, { passive: false });
-  el.addEventListener('touchend', () => { if (touchTimer) clearTimeout(touchTimer); endMeasure(); });
-}
-
-function tvUpdateMeasure() { /* crosshair-driven refresh handled in tvRenderMeasure */ }
-
-function tvRenderMeasure(sym, curDef) {
-  const box = document.getElementById('tvMeasureBox');
-  const el = document.getElementById('tvChart');
-  if (!box || !el || !tvMeasure.from || !tvMeasure.to) return;
-  const a = tvMeasure.from.price, b = tvMeasure.to.price;
-  if (!isFinite(a) || !isFinite(b)) return;
-  const diff = b - a;
-  const pct = a ? (diff / a) * 100 : 0;
-  const positive = diff >= 0;
-  const col = positive ? upColor() : downColor();
-  const dec = Math.abs(b) >= 1 ? 2 : 4;
-  const sym$ = curDef.sym;
-
-  // time labels from the synthesized timeline → original labels
-  const data = window._tvData || [], labels = window._tvLabels || [];
-  const idxOf = (t) => { let best = -1, bd = Infinity; for (let i=0;i<data.length;i++){const d=Math.abs(data[i].time-t); if(d<bd){bd=d;best=i;}} return best; };
-  const i0 = idxOf(tvMeasure.from.t), i1 = idxOf(tvMeasure.to.t);
-  const lo = Math.min(i0, i1), hi = Math.max(i0, i1);
-  const t0 = labels[lo] != null ? String(labels[lo]) : '';
-  const t1 = labels[hi] != null ? String(labels[hi]) : '';
-
-  // change in the user's own holding value (qty × price move, converted to ILS)
-  let posLine = '';
-  try {
-    const s = S.stocks.find(x => x.sym === sym);
-    const c = S.crypto.find(x => x.sym === sym);
-    if (s) {
-      const qty = getShares(s);
-      const ils = nativeToILS(diff * qty, S.sp[sym]?.currency || 'USD');
-      posLine = `<div class="tvm-pos">${i18nGetText('שינוי בשווי ההחזקה')}: ${ils>=0?'+':''}${fILS(ils)}</div>`;
-    } else if (c) {
-      const qty = cQty(c);
-      const ils = diff * qty * S.fx;
-      posLine = `<div class="tvm-pos">${i18nGetText('שינוי בשווי ההחזקה')}: ${ils>=0?'+':''}${fILS(ils)}</div>`;
-    }
-  } catch(_){}
-
-  box.innerHTML = `
-    <div class="tvm-time">${t0} → ${t1}</div>
-    <div class="tvm-px">${sym$}${a.toFixed(dec)} → ${sym$}${b.toFixed(dec)}</div>
-    <div class="tvm-chg" style="color:${col}">${positive?'▲ ':'▼ '}${diff>=0?'+':''}${sym$}${diff.toFixed(dec)}   ${pct>=0?'+':''}${pct.toFixed(2)}%</div>
-    ${posLine}`;
-  box.style.display = 'block';
-  // position near the top-center of the selection
-  const midX = (tvMeasure.from.x + tvMeasure.to.x) / 2;
-  let left = midX - box.offsetWidth / 2;
-  left = Math.max(6, Math.min(el.clientWidth - box.offsetWidth - 6, left));
-  box.style.left = left + 'px';
-  box.style.top = '8px';
-}
-
+// ═══════════════════════════════════════════
 // EDITOR
 // ═══════════════════════════════════════════
 let edTab = 'stock';
@@ -12600,7 +12486,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260630-fast-charts-v11');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260701-tradingview-charts-v12');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
