@@ -4576,6 +4576,16 @@ function setCurrency(cur, fromLang = false) {
   (typeof fxConvLoadRates === 'function' ? fxConvLoadRates() : Promise.resolve()).then(() => {
     updateFxKpi();
     renderDashCrypto(); renderDashStocks(); updateKPIs();
+    // Manual categories (commodities/bonds/etfs) must follow the currency too —
+    // dashboard cards, dedicated pages, and an open commodity modal.
+    if (typeof renderManualCategories === 'function') renderManualCategories();
+    if (['commodities','bonds','etfs'].includes(S.curPage) && typeof renderManualPage === 'function') renderManualPage(S.curPage);
+    if (S.sel && typeof commodityCatalogFor === 'function') {
+      const cm = (S.commodities || []).find(x => x.sym === S.sel);
+      if (cm && document.getElementById('detOv')?.classList.contains('open')) {
+        try { renderCommodityModal(cm, document.getElementById('detContent')); } catch(_){}
+      }
+    }
     // Re-render the dashboard period summary so its P&L values follow the new currency.
     if (S.curPage === 'dash' && typeof renderDashPeriod === 'function') {
       const from = document.getElementById('dashDateFrom')?.value;
@@ -11733,7 +11743,7 @@ function editFromModal(tab, sym) {
   openEditor(edTab);
   // scroll the matching asset row into view + briefly highlight it
   setTimeout(() => {
-    const list = edTab === 'crypto' ? S.crypto : S.stocks;
+    const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
     const idx = list.findIndex(x => x.sym === sym);
     if (idx >= 0) {
       const row = document.querySelectorAll('#edContent .erow')[idx];
@@ -11846,14 +11856,14 @@ function renderEd() {
             ${avg!=null ? `<div style="font-size:10px;color:var(--gd);font-family:var(--font-mono);margin-top:2px">@ ${fPriceCur(avg,2)} ממוצע</div>` : ''}
           </div>
           <input class="einput" type="number" value="${totalQty}" step="any" placeholder="${cat.unit}" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="${qtyBind}">
-          ${cat.live ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
+          ${(cat.live || edTab==='commodities') ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
           <div class="emove">
             <button class="emove-btn" title="הזז למעלה" onclick="moveAsset(${i},-1)" ${i === 0 ? 'disabled' : ''}><i class="fi fi-tr-angle-up"></i></button>
             <button class="emove-btn" title="הזז למטה" onclick="moveAsset(${i},1)" ${i === list.length - 1 ? 'disabled' : ''}><i class="fi fi-tr-angle-down"></i></button>
           </div>
           <button class="edel" onclick="delA(${i})"><i class="ph-thin ph-trash" style="font-size:13px"></i></button>
         </div>
-        ${(cat.live && expanded) ? lotsPanelHTML(i) : ''}
+        ${((cat.live || edTab==='commodities') && expanded) ? lotsPanelHTML(i) : ''}
         `;
       }).join('')}
       ${list.length === 0 ? `<div class="ed-empty-list"><i class="ph-thin ${cat.icon}"></i> אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה</div>` : ''}
@@ -12457,7 +12467,7 @@ function toggleLots(i) {
   if (!S._lotsDirty) S._lotsDirty = {};
   const key = i + '-' + edTab;
   const wasOpen = S._lotsOpen[key];
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const a = list[i];
 
   if (wasOpen) {
@@ -12499,7 +12509,7 @@ function markLotDirty(i) {
   lastLocalEdit = Date.now();
 }
 function lotsPanelHTML(i) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const a = list[i];
   if (!Array.isArray(a.lots)) a.lots = [];
   const avg = avgEntry(a);
@@ -12532,14 +12542,14 @@ function lotsPanelHTML(i) {
     </div>`;
 }
 function addLot(i) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   if (!Array.isArray(list[i].lots)) list[i].lots = [];
   list[i].lots.push({qty: 0, price: 0, date: new Date().toISOString().slice(0,10)});
   markLotDirty(i);
   renderEd();
 }
 function delLot(i, j) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   const qty = lot ? (parseFloat(lot.qty) || 0) : 0;
   const msg = qty > 0
@@ -12551,7 +12561,7 @@ function delLot(i, j) {
   renderEd();
 }
 function updateLot(i, j, field, value) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   if (!Array.isArray(list[i].lots) || !list[i].lots[j]) return;
   if (field === 'date') list[i].lots[j].date = value;
   else list[i].lots[j][field] = parseFloat(value) || 0;
@@ -12560,7 +12570,7 @@ function updateLot(i, j, field, value) {
 
 // Live-edit a lot field without re-rendering (keeps input focus).
 function stageLot(i, j, field, value) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   if (!Array.isArray(list[i].lots) || !list[i].lots[j]) return;
   if (field === 'date') list[i].lots[j].date = value;
   else list[i].lots[j][field] = parseFloat(value) || 0;
@@ -12571,7 +12581,7 @@ function stageLot(i, j, field, value) {
 // market price if the price field is still empty/zero — so they don't have to
 // look it up manually. Editing the price afterwards overrides this.
 function onLotQtyInput(i, j, value) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   if (!lot) return;
   lot.qty = parseFloat(value) || 0;
@@ -12586,7 +12596,7 @@ function onLotQtyInput(i, j, value) {
 
 // User typed a PER-UNIT price → store it directly.
 function onLotPriceInput(i, j, value) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   if (!lot) return;
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
@@ -12600,7 +12610,7 @@ window.onLotPriceInput = onLotPriceInput;
 // User picked a date → auto-fill the per-unit price with that day's closing price
 // (unless they already typed their own price).
 async function onLotDateInput(i, j, value) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   if (!lot) return;
   lot.date = value;
@@ -12614,7 +12624,7 @@ window.onLotDateInput = onLotDateInput;
 
 // Fill a lot's per-unit price from the historical close on lot.date (fallback: live price).
 async function autoFillLotPrice(i, j) {
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   const asset = list[i];
   if (!lot || !asset) return;
@@ -12675,7 +12685,7 @@ function currentMarketPrice(asset, type) {
 // Confirm button (✓): commit the edits, clear the dirty flag, and close the panel.
 function confirmLot(i, j) {
   const key = i + '-' + edTab;
-  const list = edTab === 'crypto' ? S.crypto : S.stocks;
+  const list = edList();   // generic — supports stocks/crypto/commodities/bonds/etfs
   const lot = list[i]?.lots?.[j];
   if (lot && lot.price) lot.price = Math.round(lot.price * 100) / 100;   // keep prices to 2 decimals
   const row = document.querySelector(`.lot-row[data-lot="${i}-${j}"]`);
@@ -12868,7 +12878,38 @@ function addA() {
     // Manual categories: commodities / bonds / etfs. Store per-unit price + qty.
     const cat = ED_CATS[edTab];
     const arr = S[cat.arr];
-    if (arr.find(a => a.sym === sym)) { alert('הנכס כבר קיים'); return; }
+    const existing = arr.find(a => a.sym === sym);
+    // ⚡ Commodities: adding the SAME commodity again merges as a new purchase (lot),
+    // exactly like stocks — the position grows and an average entry price is kept.
+    if (existing && edTab === 'commodities') {
+      const entry = commodityCatalogFor(sym);
+      const storedUnit = existing.unit || entry?.defaultUnit;
+      const newUnit = document.getElementById('nU')?.value || storedUnit;
+      // Convert the new purchase into the unit the position is stored in, so
+      // 120 grams added to an ounces position stays mathematically correct.
+      let qtyStored = qty, priceStored = (!isNaN(entryPrice) && entryPrice > 0) ? entryPrice : 0;
+      if (entry && newUnit !== storedUnit) {
+        const r = commodityUnitFactor(entry, newUnit) / commodityUnitFactor(entry, storedUnit);
+        qtyStored = qty * r;
+        if (priceStored > 0) priceStored = priceStored / r;   // value preserved: qty×price unchanged
+      }
+      if (!Array.isArray(existing.lots) || !existing.lots.length) {
+        existing.lots = [];
+        // Seed the history with the prior position (if it had qty+price) so the average is honest.
+        const prevQty = existing.qty || 0;
+        const prevPrice = existing.price || 0;
+        if (prevQty > 0 && prevPrice > 0) existing.lots.push({ qty: prevQty, price: prevPrice, date: existing.buyDate || buyDate });
+        else if (prevQty > 0) existing.lots.push({ qty: prevQty, price: priceStored || 0, date: existing.buyDate || buyDate });
+      }
+      existing.lots.push({ qty: qtyStored, price: Math.round((priceStored || 0) * 10000) / 10000, date: buyDate });
+      existing.qty = existing.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0);
+      saveLS();
+      renderEd();
+      getCommodities().then(() => { try { renderManualCategories?.(); updateKPIs?.(); if (S.curPage==='commodities') renderManualPage?.('commodities'); } catch(_){} });
+      document.getElementById('nQ').value = ''; document.getElementById('nP').value = '';
+      return;
+    }
+    if (existing) { alert('הנכס כבר קיים'); return; }
     const asset = {sym, name, qty, icon, color, price: (!isNaN(entryPrice) && entryPrice > 0) ? entryPrice : 0};
     // Commodities: remember the holding unit (gram/oz/barrel...) for live valuation,
     // and prefer the catalog's icon/color when the symbol is a known commodity.
