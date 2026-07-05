@@ -2462,8 +2462,6 @@ onAuthStateChanged(auth, async user => {
     </div>
   </div>
 
-</div>
-
   <div class="page" id="page-news">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i class="fi fi-tr-newspaper" style="margin-left:8px"></i>חדשות</div></div>
     <div class="news-subtabs" id="newsSubtabs">
@@ -2491,6 +2489,8 @@ onAuthStateChanged(auth, async user => {
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="etfsPageGrid"></div>
   </div>
+
+</div>
 
 <nav class="nav">
   <button class="ni active" data-p="dash" onclick="goPage('dash',this)"><span class="ni-ico"><i class="ph-thin ph-house"></i></span><span class="ni-lbl">דשבורד</span></button>
@@ -4207,21 +4207,29 @@ const widgetShown = key => S.view?.widgets?.[key] === true;
 // that converts ONE holding unit into priceUnits (e.g. 1 gram = 1/31.1035 troy oz).
 const OZT = 31.1034768;  // grams per troy ounce
 const COMMODITY_CATALOG = {
-  GOLD:      { yahoo: 'GC=F', he: 'זהב',        en: 'Gold',        aliases: ['XAU','זהב','GOLD'],      priceUnit: 'אונקיה', priceScale: 1,    icon: 'fi fi-tr-gold-bars', color: '#F2C744', defaultUnit: 'gram', units: { oz: { he: 'אונקיה', factor: 1 }, gram: { he: 'גרם', factor: 1/OZT }, kg: { he: 'ק"ג', factor: 1000/OZT } } },
-  SILVER:    { yahoo: 'SI=F', he: 'כסף',        en: 'Silver',      aliases: ['XAG','כסף','SILVER'],    priceUnit: 'אונקיה', priceScale: 1,    icon: 'fi fi-tr-coins', color: '#AEB6C6', defaultUnit: 'oz', units: { oz: { he: 'אונקיה', factor: 1 }, gram: { he: 'גרם', factor: 1/OZT }, kg: { he: 'ק"ג', factor: 1000/OZT } } },
-  PLATINUM:  { yahoo: 'PL=F', he: 'פלטינה',     en: 'Platinum',    aliases: ['XPT','פלטינה'],          priceUnit: 'אונקיה', priceScale: 1,    icon: 'fi fi-tr-ring-diamond', color: '#8FA3BF', defaultUnit: 'oz', units: { oz: { he: 'אונקיה', factor: 1 }, gram: { he: 'גרם', factor: 1/OZT } } },
-  PALLADIUM: { yahoo: 'PA=F', he: 'פלדיום',     en: 'Palladium',   aliases: ['XPD','פלדיום'],          priceUnit: 'אונקיה', priceScale: 1,    icon: 'fi fi-tr-ring', color: '#C3CBD9', defaultUnit: 'oz', units: { oz: { he: 'אונקיה', factor: 1 }, gram: { he: 'גרם', factor: 1/OZT } } },
-  OIL:       { yahoo: 'CL=F', he: 'נפט WTI',    en: 'Crude Oil WTI', aliases: ['WTI','נפט','OIL','CRUDE'], priceUnit: 'חבית', priceScale: 1,  icon: 'fi fi-tr-oil-can', color: '#3B3F4A', defaultUnit: 'barrel', units: { barrel: { he: 'חבית', factor: 1 } } },
-  BRENT:     { yahoo: 'BZ=F', he: 'נפט ברנט',   en: 'Brent Oil',   aliases: ['BRENT','ברנט'],          priceUnit: 'חבית',  priceScale: 1,    icon: 'fi fi-tr-oil-can', color: '#4A5568', defaultUnit: 'barrel', units: { barrel: { he: 'חבית', factor: 1 } } },
-  NATGAS:    { yahoo: 'NG=F', he: 'גז טבעי',    en: 'Natural Gas', aliases: ['GAS','גז','NG'],         priceUnit: 'MMBtu', priceScale: 1,    icon: 'fi fi-tr-fire-flame-simple', color: '#5B8DEF', defaultUnit: 'mmbtu', units: { mmbtu: { he: 'MMBtu', factor: 1 } } },
-  COPPER:    { yahoo: 'HG=F', he: 'נחושת',      en: 'Copper',      aliases: ['נחושת','CU'],            priceUnit: 'פאונד', priceScale: 1,    icon: 'fi fi-tr-bolt', color: '#C77A3D', defaultUnit: 'lb', units: { lb: { he: 'פאונד', factor: 1 }, kg: { he: 'ק"ג', factor: 2.20462 }, tonne: { he: 'טון', factor: 2204.62 } } },
-  WHEAT:     { yahoo: 'ZW=F', he: 'חיטה',       en: 'Wheat',       aliases: ['חיטה'],                  priceUnit: 'בושל',  priceScale: 0.01, icon: 'fi fi-tr-wheat', color: '#D9A85C', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', factor: 1 } } },
-  CORN:      { yahoo: 'ZC=F', he: 'תירס',       en: 'Corn',        aliases: ['תירס'],                  priceUnit: 'בושל',  priceScale: 0.01, icon: 'fi fi-tr-corn', color: '#E8C547', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', factor: 1 } } },
-  SOYBEAN:   { yahoo: 'ZS=F', he: 'סויה',       en: 'Soybeans',    aliases: ['סויה','SOY'],            priceUnit: 'בושל',  priceScale: 0.01, icon: 'fi fi-tr-seedling', color: '#7BB661', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', factor: 1 } } },
-  COFFEE:    { yahoo: 'KC=F', he: 'קפה',        en: 'Coffee',      aliases: ['קפה'],                   priceUnit: 'פאונד', priceScale: 0.01, icon: 'fi fi-tr-mug-hot', color: '#8B5E3C', defaultUnit: 'lb', units: { lb: { he: 'פאונד', factor: 1 }, kg: { he: 'ק"ג', factor: 2.20462 } } },
-  SUGAR:     { yahoo: 'SB=F', he: 'סוכר',       en: 'Sugar',       aliases: ['סוכר'],                  priceUnit: 'פאונד', priceScale: 0.01, icon: 'fi fi-tr-candy', color: '#EFD9E7', defaultUnit: 'lb', units: { lb: { he: 'פאונד', factor: 1 }, kg: { he: 'ק"ג', factor: 2.20462 } } },
-  COCOA:     { yahoo: 'CC=F', he: 'קקאו',       en: 'Cocoa',       aliases: ['קקאו'],                  priceUnit: 'טון',   priceScale: 1,    icon: 'fi fi-tr-candy-alt', color: '#6B4226', defaultUnit: 'tonne', units: { tonne: { he: 'טון', factor: 1 }, kg: { he: 'ק"ג', factor: 0.001 } } },
+  GOLD:      { yahoo: 'GC=F', he: 'זהב',        en: 'Gold',        aliases: ['XAU','זהב','GOLD'],      priceUnit: 'אונקיה', priceUnitEn: 'oz',     priceScale: 1,    icon: 'ph-thin ph-medal',        color: '#F2C744', defaultUnit: 'gram',   units: { oz: { he: 'אונקיה', en: 'Ounce', factor: 1 }, gram: { he: 'גרם', en: 'Gram', factor: 1/OZT }, kg: { he: 'ק"ג', en: 'Kg', factor: 1000/OZT } } },
+  SILVER:    { yahoo: 'SI=F', he: 'כסף',        en: 'Silver',      aliases: ['XAG','SILVER'],          priceUnit: 'אונקיה', priceUnitEn: 'oz',     priceScale: 1,    icon: 'ph-thin ph-coins',        color: '#AEB6C6', defaultUnit: 'oz',     units: { oz: { he: 'אונקיה', en: 'Ounce', factor: 1 }, gram: { he: 'גרם', en: 'Gram', factor: 1/OZT }, kg: { he: 'ק"ג', en: 'Kg', factor: 1000/OZT } } },
+  PLATINUM:  { yahoo: 'PL=F', he: 'פלטינה',     en: 'Platinum',    aliases: ['XPT','פלטינה'],          priceUnit: 'אונקיה', priceUnitEn: 'oz',     priceScale: 1,    icon: 'ph-thin ph-diamond',      color: '#8FA3BF', defaultUnit: 'oz',     units: { oz: { he: 'אונקיה', en: 'Ounce', factor: 1 }, gram: { he: 'גרם', en: 'Gram', factor: 1/OZT } } },
+  PALLADIUM: { yahoo: 'PA=F', he: 'פלדיום',     en: 'Palladium',   aliases: ['XPD','פלדיום'],          priceUnit: 'אונקיה', priceUnitEn: 'oz',     priceScale: 1,    icon: 'ph-thin ph-circles-three',color: '#C3CBD9', defaultUnit: 'oz',     units: { oz: { he: 'אונקיה', en: 'Ounce', factor: 1 }, gram: { he: 'גרם', en: 'Gram', factor: 1/OZT } } },
+  OIL:       { yahoo: 'CL=F', he: 'נפט WTI',    en: 'WTI Oil',     aliases: ['WTI','נפט','OIL','CRUDE'], priceUnit: 'חבית', priceUnitEn: 'barrel', priceScale: 1,  icon: 'ph-thin ph-drop',         color: '#5B8DEF', defaultUnit: 'barrel', units: { barrel: { he: 'חבית', en: 'Barrel', factor: 1 } } },
+  BRENT:     { yahoo: 'BZ=F', he: 'נפט ברנט',   en: 'Brent Oil',   aliases: ['BRENT','ברנט'],          priceUnit: 'חבית',  priceUnitEn: 'barrel', priceScale: 1,    icon: 'ph-thin ph-drop-half',    color: '#4A5568', defaultUnit: 'barrel', units: { barrel: { he: 'חבית', en: 'Barrel', factor: 1 } } },
+  NATGAS:    { yahoo: 'NG=F', he: 'גז טבעי',    en: 'Natural Gas', aliases: ['GAS','גז','NG'],         priceUnit: 'MMBtu', priceUnitEn: 'MMBtu',  priceScale: 1,    icon: 'ph-thin ph-fire',         color: '#FF7A45', defaultUnit: 'mmbtu',  units: { mmbtu: { he: 'MMBtu', en: 'MMBtu', factor: 1 } } },
+  COPPER:    { yahoo: 'HG=F', he: 'נחושת',      en: 'Copper',      aliases: ['נחושת','CU'],            priceUnit: 'פאונד', priceUnitEn: 'lb',     priceScale: 1,    icon: 'ph-thin ph-lightning',    color: '#C77A3D', defaultUnit: 'lb',     units: { lb: { he: 'פאונד', en: 'Pound', factor: 1 }, kg: { he: 'ק"ג', en: 'Kg', factor: 2.20462 }, tonne: { he: 'טון', en: 'Tonne', factor: 2204.62 } } },
+  WHEAT:     { yahoo: 'ZW=F', he: 'חיטה',       en: 'Wheat',       aliases: ['חיטה'],                  priceUnit: 'בושל',  priceUnitEn: 'bushel', priceScale: 0.01, icon: 'ph-thin ph-plant',        color: '#D9A85C', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', en: 'Bushel', factor: 1 } } },
+  CORN:      { yahoo: 'ZC=F', he: 'תירס',       en: 'Corn',        aliases: ['תירס'],                  priceUnit: 'בושל',  priceUnitEn: 'bushel', priceScale: 0.01, icon: 'ph-thin ph-leaf',         color: '#E8C547', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', en: 'Bushel', factor: 1 } } },
+  SOYBEAN:   { yahoo: 'ZS=F', he: 'סויה',       en: 'Soybeans',    aliases: ['סויה','SOY'],            priceUnit: 'בושל',  priceUnitEn: 'bushel', priceScale: 0.01, icon: 'ph-thin ph-tree',         color: '#7BB661', defaultUnit: 'bushel', units: { bushel: { he: 'בושל', en: 'Bushel', factor: 1 } } },
+  COFFEE:    { yahoo: 'KC=F', he: 'קפה',        en: 'Coffee',      aliases: ['קפה'],                   priceUnit: 'פאונד', priceUnitEn: 'lb',     priceScale: 0.01, icon: 'ph-thin ph-coffee',       color: '#8B5E3C', defaultUnit: 'lb',     units: { lb: { he: 'פאונד', en: 'Pound', factor: 1 }, kg: { he: 'ק"ג', en: 'Kg', factor: 2.20462 } } },
+  SUGAR:     { yahoo: 'SB=F', he: 'סוכר',       en: 'Sugar',       aliases: ['סוכר'],                  priceUnit: 'פאונד', priceUnitEn: 'lb',     priceScale: 0.01, icon: 'ph-thin ph-cube',         color: '#EFD9E7', defaultUnit: 'lb',     units: { lb: { he: 'פאונד', en: 'Pound', factor: 1 }, kg: { he: 'ק"ג', en: 'Kg', factor: 2.20462 } } },
+  COCOA:     { yahoo: 'CC=F', he: 'קקאו',       en: 'Cocoa',       aliases: ['קקאו'],                  priceUnit: 'טון',   priceUnitEn: 'tonne',  priceScale: 1,    icon: 'ph-thin ph-package',      color: '#6B4226', defaultUnit: 'tonne',  units: { tonne: { he: 'טון', en: 'Tonne', factor: 1 }, kg: { he: 'ק"ג', en: 'Kg', factor: 0.001 } } },
 };
+// Language-aware labels: Hebrew UI shows Hebrew, any other language shows English.
+function _cmHe() { return (typeof curLang === 'undefined') || curLang === 'he'; }
+function commodityName(entry) { return _cmHe() ? entry.he : entry.en; }
+function commodityUnitLabel(entry, unitKey) {
+  const u = entry?.units?.[unitKey] || entry?.units?.[entry?.defaultUnit];
+  return u ? (_cmHe() ? u.he : u.en) : '';
+}
+function commodityPriceUnitLabel(entry) { return _cmHe() ? entry.priceUnit : (entry.priceUnitEn || entry.priceUnit); }
 // Resolve a user-entered symbol/name to a catalog entry (GOLD / זהב / XAU all match gold).
 function commodityCatalogFor(symOrName) {
   const q = String(symOrName || '').trim().toUpperCase();
@@ -4737,7 +4745,7 @@ const I18N = {
   'חורגת ל-':'exceeds','בשוק':'in the market',
   'אלוקציית התיק מאוזנת, לא זוהו חריגות קיצוניות במדדי הסיכון.':'Portfolio allocation is balanced; no extreme risk anomalies detected.',
   // ticker
-  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
+  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','גרם':'Gram','אונקיה':'Ounce','חבית':'Barrel','פאונד':'Pound','בושל':'Bushel','מחיר שוק':'Market Price','בורסה':'Exchange','חוזה':'Contract','אות אנליטי':'Analytic Signal','החזקה ידנית':'Manual holding','יחידת מידה':'Unit of measure','בחר סחורה קודם':'Pick a commodity first','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
   // market status bar
   'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
   'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
@@ -9179,17 +9187,17 @@ function renderExtraCategories() {
         const liveQ = entry ? S.mp?.[entry.key] : null;
         const liveUSD = cat.key === 'commodities' ? commodityLiveValueUSD(a) : null;
         const valILS = liveUSD != null ? liveUSD * S.fx : (curr === '$' ? qty * price * S.fx : qty * price);
-        const unitLbl = entry ? (entry.units[a.unit || entry.defaultUnit]?.he || '') : (a.sym || '');
+        const unitLbl = entry ? commodityUnitLabel(entry, a.unit || entry.defaultUnit) : (a.sym || '');
         const chg = liveQ?.changePct;
         const chgHTML = (chg != null)
           ? `<div class="pp" style="color:${chg>=0?'var(--gr)':'var(--rd)'};font-size:11px">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`
           : `<div class="pl">${t('החזקה ידנית')}</div>`;
         const priceHTML = liveQ
-          ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${entry.priceUnit}</span>`
+          ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${commodityPriceUnitLabel(entry)}</span>`
           : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>');
-        const ico = a.icon || (entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : `<i class="ph-thin ${cat.icon}"></i>`);
+        const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${cat.icon}"></i>`);
         return `
-          <div class="card manual-card" onclick="openEditor('${cat.key}')">
+          <div class="card manual-card" onclick="${cat.key==='commodities' && entry ? `openDet('${a.sym}','commodity')` : `openEditor('${cat.key}')`}">
             <div class="cg" style="background:${a.color || entry?.color || 'var(--gd)'}"></div>
             <div class="ct" style="direction:ltr;">
               <div class="cid"><div class="ico">${ico}</div>
@@ -9232,17 +9240,17 @@ function manualCardsHTML(catKey, catIcon, catLabel) {
     const liveQ = entry ? S.mp?.[entry.key] : null;
     const liveUSD = catKey === 'commodities' ? commodityLiveValueUSD(a) : null;
     const valILS = liveUSD != null ? liveUSD * S.fx : (curr === '$' ? qty * price * S.fx : qty * price);
-    const unitLbl = entry ? (entry.units[a.unit || entry.defaultUnit]?.he || '') : (a.sym || '');
+    const unitLbl = entry ? commodityUnitLabel(entry, a.unit || entry.defaultUnit) : (a.sym || '');
     const chg = liveQ?.changePct;
     const chgHTML = (chg != null)
       ? `<div class="pp" style="color:${chg>=0?'var(--gr)':'var(--rd)'};font-size:11px">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`
       : `<div class="pl">${t('החזקה ידנית')}</div>`;
     const priceHTML = liveQ
-      ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${entry.priceUnit}</span>`
+      ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${commodityPriceUnitLabel(entry)}</span>`
       : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>');
-    const ico = a.icon || (entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : `<i class="ph-thin ${catIcon}"></i>`);
+    const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${catIcon}"></i>`);
     return `
-      <div class="card manual-card" onclick="openEditor('${catKey}')">
+      <div class="card manual-card" onclick="${catKey==='commodities' && entry ? `openDet('${a.sym}','commodity')` : `openEditor('${catKey}')`}">
         <div class="cg" style="background:${a.color || (entry ? entry.color : '') || 'var(--gd)'}"></div>
         <div class="ct" style="direction:ltr;">
           <div class="cid"><div class="ico">${ico}</div>
@@ -10653,6 +10661,7 @@ async function openDet(sym, type) {
   if (S.dChart) { S.dChart.destroy(); S.dChart = null; }
   const el = document.getElementById('detContent');
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
+  else if (type === 'commodity') { const a = (S.commodities || []).find(x => x.sym === sym); if (a) renderCommodityModal(a, el); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
 function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
@@ -10733,6 +10742,103 @@ async function loadCC(sym, days, btn, silent) {
   drawSChart(series, sym, days, 'crypto');
   updateChartDate(days);
 }
+
+// ── Commodity detail modal — same UX as the stock modal: TradingView chart,
+// range buttons, position + market-data panels. Prices come from the Yahoo
+// futures feed already used for the cards.
+function renderCommodityModal(a, el) {
+  const entry = commodityCatalogFor(a.sym);
+  if (!entry) { openEditor('commodities'); return; }
+  const q = S.mp?.[entry.key];
+  const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+  const factor = commodityUnitFactor(entry, a.unit);
+  const liveUSD = commodityLiveValueUSD(a);
+  const val = liveUSD != null ? liveUSD * S.fx : 0;
+  const chg = q?.changePct ?? null;
+  const pnl = (q?.usd > 0 && q?.prevClose > 0) ? qty * factor * (q.usd - q.prevClose) * S.fx : null;
+  const {g} = tots(); const pct = g ? val / g * 100 : 0;
+  const unitLbl = commodityUnitLabel(entry, a.unit || entry.defaultUnit);
+  const puLbl = commodityPriceUnitLabel(entry);
+  const avg = avgEntry(a);
+  const exch = ['GOLD','SILVER','PLATINUM','PALLADIUM','COPPER'].includes(entry.key) ? 'COMEX / NYMEX'
+             : ['OIL','NATGAS'].includes(entry.key) ? 'NYMEX'
+             : ['BRENT','COFFEE','SUGAR','COCOA'].includes(entry.key) ? 'ICE'
+             : 'CBOT · Chicago';
+  const sig = chg == null ? 'hold' : chg > 1.5 ? 'buy' : chg < -1.5 ? 'sell' : 'hold';
+  const sigTxt = sig==='buy'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);vertical-align:middle;margin-inline-end:5px"></span>מומנטום חיובי מובהק':sig==='sell'?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rd);vertical-align:middle;margin-inline-end:5px"></span>לחץ מימוש':'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gd);vertical-align:middle;margin-inline-end:5px"></span>פוזיציה נייטרלית';
+
+  el.innerHTML = `
+    <div class="mh"><div class="mico"><i class="${entry.icon}" style="color:${entry.color};font-size:22px"></i></div><div class="mh-titles"><h2>${a.sym}</h2><p>${commodityName(entry)} · ${exch}</p></div>
+      <div class="mh-actions">
+        <button class="mh-btn" onclick="editFromModal('commodities','${a.sym}')" title="עריכה"><i class="ph-thin ph-pencil-simple"></i></button>
+        <button class="mh-btn" onclick="getCommodities().then(()=>{const x=(S.commodities||[]).find(y=>y.sym==='${a.sym}');if(x&&S.sel==='${a.sym}')renderCommodityModal(x,document.getElementById('detContent'))})" title="רענון"><i class="ph-thin ph-arrows-clockwise"></i></button>
+      </div></div>
+    <div class="mkpis">
+      <div class="mkpi"><div class="mkpi-l">שווי נומינלי</div><div class="mkpi-v ac">${fILS(val)}</div></div>
+      <div class="mkpi"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${q?.usd ? '$'+fP(q.usd) : '--'}<span style="font-size:10px;color:var(--t3)"> / ${puLbl}</span></div></div>
+      <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
+      <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
+      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">$${fP(avg)}</div></div>` : ''}
+    </div>
+    <div class="mch">
+      <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
+      <div class="mch-date" id="chartDate"></div>
+      <div class="rbtns">
+        <button class="rb active" onclick="loadMC('${entry.key}','1d',this)">1D</button>
+        <button class="rb" onclick="loadMC('${entry.key}','5d',this)">5D</button>
+        <button class="rb" onclick="loadMC('${entry.key}','1mo',this)">1M</button>
+        <button class="rb" onclick="loadMC('${entry.key}','3mo',this)">3M</button>
+        <button class="rb" onclick="loadMC('${entry.key}','1y',this)">1Y</button>
+        <button class="rb" onclick="loadMC('${entry.key}','5y',this)">5Y</button>
+      </div>
+    </div>
+    <div class="mchb tv-chart-shell" id="mchBox"><div id="dCanvas" class="tv-chart-host" role="img" aria-label="גרף מחיר אינטראקטיבי"></div></div>
+    <div class="man">
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-bar" style="margin-inline-end:5px"></i>פוזיציית החזקה</div>
+        <div class="mr"><span class="mrl">כמות</span><span class="mrv">${fNum(qty)} ${unitLbl}</span></div>
+        <div class="mr"><span class="mrl">שווי כולל</span><span class="mrv">${liveUSD!=null?'$'+fP(liveUSD):'--'}</span></div>
+        <div class="mr"><span class="mrl">נתח בתיק</span><span class="mrv gd">${pct.toFixed(1)}%</span></div>
+      </div>
+      <div class="manc"><div class="mant"><i class="ph-thin ph-chart-line" style="margin-inline-end:5px"></i>נתוני מסחר</div>
+        <div class="mr"><span class="mrl">שינוי יומי</span><span class="mrv ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</span></div>
+        <div class="mr"><span class="mrl">סגירה קודמת</span><span class="mrv">${q?.prevClose?'$'+fP(q.prevClose):'--'}</span></div>
+        <div class="mr"><span class="mrl">בורסה</span><span class="mrv">${exch}</span></div>
+        <div class="mr"><span class="mrl">חוזה</span><span class="mrv" style="font-family:var(--font-mono)">${entry.yahoo}</span></div>
+      </div>
+      <div class="manc"><div class="mant"><i class="ph-thin ph-brain" style="margin-inline-end:5px"></i>אות אנליטי</div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.6;padding-top:2px">${sigTxt}</div>
+      </div>
+    </div>`;
+  loadMC(entry.key, '1d', null, true);
+  document.querySelector('#detContent .rb')?.classList.add('active');
+}
+
+// Load a commodity price series (Yahoo futures symbol) and draw with the same
+// TradingView experience as stocks. Applies priceScale so cents-quoted grains
+// display real dollars.
+async function loadMC(key, range, btn, silent) {
+  const entry = COMMODITY_CATALOG[key];
+  if (!entry) return;
+  if (!silent) {
+    document.querySelectorAll('#detContent .rb').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+  const box = document.getElementById('mchBox');
+  if (box) box.classList.add('chart-loading');
+  setStockChartStatus('טוען גרף שוק...', true);
+  let data = null;
+  try { data = await getStockHist(entry.yahoo, range); } catch(_) {}
+  if (box) box.classList.remove('chart-loading');
+  if (!data?.length) { setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.'); return; }
+  const holder = (S.commodities || []).find(x => commodityCatalogFor(x.sym)?.key === key);
+  if (!holder || S.sel !== holder.sym || !document.getElementById('detOv')?.classList.contains('open')) return;
+  const scale = entry.priceScale || 1;
+  const scaled = scale === 1 ? data : data.map(d => ({ ...d, p: (d.p ?? d.value) * scale, value: (d.value ?? d.p) * scale }));
+  drawSChart(scaled, key, range, 'commodity');
+  setStockChartStatus('');
+  updateChartDate(range);
+}
+window.loadMC = loadMC;
 
 function renderStockModal(s, el) {
   const p = S.sp[s.sym]; const val = sv(s); const chg = p?.change ?? null; const pnl = spnl(s);
@@ -10926,6 +11032,15 @@ function detailChartHoldingQty(sym, type) {
   if (type === 'crypto') {
     const a = S.crypto.find(x => x.sym === sym);
     return a ? Number(cQty(a)) || 0 : 0;
+  }
+  if (type === 'commodity') {
+    // sym here is the catalog KEY; convert the holding into priceUnits so the
+    // measured price delta × qty gives a correct holding-change figure.
+    const holder = (S.commodities || []).find(x => commodityCatalogFor(x.sym)?.key === sym);
+    if (!holder) return 0;
+    const entry = commodityCatalogFor(holder.sym);
+    const qty = holder.lots?.length ? holder.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (holder.qty || 0);
+    return qty * commodityUnitFactor(entry, holder.unit);
   }
   const s = S.stocks.find(x => x.sym === sym);
   return s ? Number(getShares(s)) || 0 : 0;
@@ -11678,8 +11793,8 @@ function renderEd() {
     <div class="ed-manual-note" style="border-color:color-mix(in srgb, var(--gr) 30%, transparent)"><i class="ph-thin ph-broadcast" style="color:var(--gr)"></i> סחורות נתמכות מקבלות מחיר חי מהשוק העולמי. בחר סחורה:</div>
     <div class="commodity-chips">
       ${Object.entries(COMMODITY_CATALOG).map(([key, c]) => `
-        <button type="button" class="commodity-chip" onclick="pickCommodity('${key}')" title="${c.en} — $ / ${c.priceUnit}">
-          <i class="${c.icon}" style="color:${c.color}"></i> ${c.he}
+        <button type="button" class="commodity-chip" onclick="pickCommodity('${key}')" title="${c.en} — $ / ${commodityPriceUnitLabel(c)}">
+          <i class="${c.icon}" style="color:${c.color}"></i> ${commodityName(c)}
         </button>`).join('')}
     </div>` : (isManual ? `<div class="ed-manual-note"><i class="ph-thin ph-info"></i> קטגוריה זו מנוהלת ידנית — אין עדיין מחירים חיים. הזן סימבול, כמות ועלות.</div>` : '')}
     <div class="alist">
@@ -11742,16 +11857,73 @@ function pickCommodity(key) {
   const c = COMMODITY_CATALOG[key];
   if (!c) return;
   const nS = document.getElementById('nS'); if (nS) nS.value = key;
-  const nN = document.getElementById('nN'); if (nN) nN.value = c.he;
+  const nN = document.getElementById('nN'); if (nN) nN.value = commodityName(c);
   const nU = document.getElementById('nU');
   if (nU) {
     nU.innerHTML = Object.entries(c.units).map(([uk, u]) =>
-      `<option value="${uk}"${uk === c.defaultUnit ? ' selected' : ''}>${u.he}</option>`).join('');
+      `<option value="${uk}"${uk === c.defaultUnit ? ' selected' : ''}>${_cmHe() ? u.he : u.en}</option>`).join('');
+    nU.onchange = () => fillCommodityPrice(key);
   }
+  // ⚡ Auto-fill the buy price with the LIVE price per the selected unit.
+  fillCommodityPrice(key);
   // Focus the qty field so the flow is: pick → type amount → add.
   document.getElementById('nQ')?.focus();
 }
 window.pickCommodity = pickCommodity;
+
+// Fetch (if needed) the live quote for a commodity and fill the buy-price field with
+// the price PER SELECTED UNIT. Re-runs whenever the unit selector changes, so switching
+// gram ↔ ounce updates the price accordingly.
+async function fillCommodityPrice(key) {
+  const c = COMMODITY_CATALOG[key];
+  if (!c) return;
+  const nP = document.getElementById('nP');
+  const nPCur = document.getElementById('nPCur');
+  if (!nP) return;
+  // Respect a manually-typed price — don't overwrite the user's own number.
+  if (nP.dataset.manual === '1') return;
+  S.mp = S.mp || {};
+  // Fetch this commodity's quote if we don't have it yet (it may not be held).
+  if (!(S.mp[key]?.usd > 0)) {
+    nP.placeholder = '...';
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(c.yahoo)}?interval=1d&range=5d`;
+      const worker = String(MY_PROXY || '').replace(/\/$/, '');
+      let txt = null;
+      if (worker) { try { txt = await fetchTextFast(`${worker}/?url=${encodeURIComponent(url)}`, 3500); } catch(_){} }
+      if (!txt) { try { txt = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 4500); } catch(_){} }
+      if (txt) {
+        const meta = JSON.parse(txt)?.chart?.result?.[0]?.meta;
+        const raw = Number(meta?.regularMarketPrice);
+        const prevRaw = Number(meta?.chartPreviousClose ?? meta?.previousClose);
+        if (raw > 0) {
+          const scale = c.priceScale || 1;
+          S.mp[key] = { usd: raw * scale, prevClose: prevRaw > 0 ? prevRaw * scale : null,
+                        changePct: prevRaw > 0 ? ((raw - prevRaw) / prevRaw) * 100 : null,
+                        quoteTime: normalizeEpochMs(meta?.regularMarketTime) || Date.now() };
+        }
+      }
+    } catch (_) {}
+    nP.placeholder = '0.00';
+  }
+  const q = S.mp[key];
+  if (!(q?.usd > 0)) return;
+  // Bail if the user picked a different commodity while we were fetching.
+  const curSym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
+  if (curSym && curSym !== key) return;
+  const unit = document.getElementById('nU')?.value || c.defaultUnit;
+  const perUnitUSD = q.usd * commodityUnitFactor({ ...c, key }, unit);
+  // Show in the currency currently picked (default USD); convert if needed.
+  const pickedCur = nPCur?.value || 'USD';
+  let val = perUnitUSD;
+  if (pickedCur !== 'USD' && typeof convertCurrencyAmount === 'function') {
+    const conv = convertCurrencyAmount(perUnitUSD, 'USD', pickedCur);
+    if (conv > 0) val = conv;
+  }
+  nP.value = val >= 1 ? val.toFixed(2) : val.toFixed(4);
+  nP.classList.add('lot-autofilled');
+}
+window.fillCommodityPrice = fillCommodityPrice;
 // Re-render dashboards + KPIs after a manual-category change.
 function refreshAllCategoryViews() {
   try { renderDashCrypto(); renderDashStocks(); if (typeof renderManualCategories==='function') renderManualCategories(); updateKPIs(); } catch(_) {}
