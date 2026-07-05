@@ -4590,7 +4590,7 @@ const I18N = {
   '(אופציונלי)':'(optional)','ניהול קניות':'Manage buys','מחק קנייה':'Delete buy',
 
   'התפלגות תיק הנכסים':'Portfolio Allocation','פילוח קטגוריות':'Category Breakdown','תשואה תקופתית — מניות':'Periodic Return — Stocks',
-  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
+  'שינוי 24 שעות — קריפטו':'24h Change — Crypto','היסטוריית ביצועים ו-P&L':'Performance History & P&L','שווי תיק':'Portfolio value','גררו לתנועה · גלגלת לזום':'Drag to pan · scroll to zoom',
   'התראות מערכת וחריגות אלוקציה':'System alerts & allocation anomalies','הנכסים המניבים ביותר היום':'Top performing assets today',
   'המפסידים ביותר היום':'Biggest losers today','התפלגות ומשקלים בתיק':'Portfolio distribution & weights',
   'ריכוז וסיכום נתונים':'Data summary','ביצועי שוק':'Market Performance','מאזן כמותי':'Quantitative Balance',
@@ -10487,9 +10487,7 @@ async function buildHistoryTable() {
       .join(' + ');
 
     let html = `
-      <div class="mchb" style="height:240px;margin-bottom:12px">
-        <canvas id="histChart"></canvas>
-      </div>
+      <div class="mchb tv-chart-shell" style="height:300px;margin-bottom:12px"><div id="histChart" class="tv-chart-host" role="img" aria-label="גרף היסטוריית תיק אינטראקטיבי"></div></div>
       <div style="font-size:14.5px;color:var(--t3);margin-bottom:12px;text-align:center">${i18nGetText('מניות')} + ${i18nGetText('קריפטו')}${anyManual?' + '+manualLabel:''} = P&L ${i18nGetText('יומי')} · ${i18nGetText('יום קלנדרי')} (${tzCityLabel()}) 00:00–00:00</div>
       <div style="overflow-x:auto">
       <table style="width:100%;min-width:${anyManual?'860':'760'}px">
@@ -10525,100 +10523,7 @@ async function buildHistoryTable() {
     html += '</tbody></table></div>';
     el.innerHTML = html;
 
-    const ctx = document.getElementById('histChart')?.getContext('2d');
-    if (ctx && window.Chart) {
-      if (S.histChart) { try { S.histChart.destroy(); } catch (_) {} }
-      const isLight = document.body.classList.contains('light');
-      // Color by overall direction over the visible window, like the asset chart.
-      const up = chartData[chartData.length - 1] >= chartData[0];
-      const col = up ? upColor() : downColor();
-      const curCode = (S.currency || 'ils').toUpperCase();
-      const curDef = CURRENCIES[curCode] || CURRENCIES.ILS;
-      S.histChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: chartLabels, datasets: [{
-          label: 'P&L',
-          data: chartData,
-          borderColor: col,
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHitRadius: 14,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: col,
-          pointHoverBorderColor: isLight ? '#F4EFE5' : '#0A0F1F',
-          pointHoverBorderWidth: 2,
-          tension: .16,
-          spanGaps: true,
-          fill: false,
-        }]},
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          normalized: true,
-          resizeDelay: 0,
-          interaction: { mode: 'index', intersect: false, axis: 'x' },
-          hover: { mode: 'index', intersect: false },
-          events: ['mousemove','mouseout','click','touchstart','touchmove'],
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: true,
-              mode: 'index', intersect: false,
-              animation: false,
-              backgroundColor: isLight ? 'rgba(11,30,63,0.97)' : 'rgba(17,26,51,0.97)',
-              titleColor: '#F1F4FB', bodyColor: '#F1F4FB',
-              borderColor: col, borderWidth: 1, padding: 10, cornerRadius: 8,
-              displayColors: false,
-              titleFont: { family: "'Newsreader', serif", size: 12, weight: '400' },
-              bodyFont: { family: "'Geist Mono', monospace", size: 13, weight: '700' },
-              callbacks: {
-                title: (items) => {
-                  const idx = items[0]?.dataIndex ?? 0;
-                  const r = chartRows[idx];
-                  return r ? fDateShort(new Date(`${r.dateKey}T12:00:00Z`)) : (items[0]?.label || '');
-                },
-                label: (item) => {
-                  const r = chartRows[item.dataIndex];
-                  if (!r) return '';
-                  const total = convertFromILS(r.total, curCode);
-                  const pnl = convertFromILS(r.pnl, curCode);
-                  const pct = r.prevTotal ? (r.pnl / r.prevTotal * 100) : 0;
-                  const sign = r.pnl >= 0 ? '+' : '';
-                  return [
-                    `${curDef.sym}${total.toLocaleString(undefined,{maximumFractionDigits:0})}`,
-                    `${sign}${curDef.sym}${pnl.toLocaleString(undefined,{maximumFractionDigits:0})}   ${pct>=0?'+':''}${pct.toFixed(2)}%`,
-                  ];
-                },
-              },
-            },
-          },
-          scales: {
-            x: { ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false} },
-            y: { ticks:{color:axisColor(),font:{size:9},callback:v=>{const cur=(S.currency||'ils').toUpperCase();const def=CURRENCIES[cur]||CURRENCIES.ILS;return def.sym+(convertFromILS(v,cur)/1000).toFixed(0)+'K';}},grid:{color:'rgba(127,127,127,0.06)',drawTicks:false},border:{display:false},position:'left' }
-          }
-        },
-        plugins: [{
-          id: 'histVerticalCrosshair',
-          afterDraw(chart) {
-            const active = chart.tooltip?.getActiveElements?.();
-            if (!active?.length) return;
-            const x = active[0].element.x;
-            const {top,bottom} = chart.chartArea;
-            const c = chart.ctx;
-            c.save();
-            c.beginPath();
-            c.setLineDash([4,4]);
-            c.strokeStyle = isLight ? 'rgba(11,30,63,0.38)' : 'rgba(241,244,251,0.34)';
-            c.lineWidth = 1;
-            c.moveTo(x,top); c.lineTo(x,bottom); c.stroke();
-            c.restore();
-          }
-        }]
-      });
-      const histCanvas = document.getElementById('histChart');
-      if (histCanvas) histCanvas.style.cursor = 'crosshair';
-    }
+    drawHistChartTV(chartRows);
   } catch (e) {
     console.error('[History] calculation failed:', e);
     el.innerHTML = `<div style="color:var(--t3);font-size:11px;padding:8px">כשל בקריאה אנליטית: ${String(e?.message || e)}</div>`;
@@ -11217,6 +11122,319 @@ function drawSChartFallback(data, sym, range, type, host) {
     }
   });
   S.dChart = { destroy(){ try { chart.destroy(); } catch (_) {} if (host.isConnected) host.innerHTML=''; } };
+}
+
+// ── TradingView chart for the insights "היסטוריית ביצועים ו-P&L" — mirrors drawSChart:
+// same nav/measure toolbar, crosshair, legend and measurement card, but the series is
+// the total portfolio value (ILS→display currency) per calendar day.
+function drawHistChartTV(chartRows) {
+  const host = document.getElementById('histChart');
+  if (!host || !Array.isArray(chartRows) || chartRows.length < 2) return;
+  if (S.histChart) { try { S.histChart.destroy(); } catch (_) {} S.histChart = null; }
+  host.innerHTML = '';
+
+  const curCode = (S.currency || 'ils').toUpperCase();
+  const curDef = CURRENCIES[curCode] || CURRENCIES.ILS;
+  const fmtVal = v => `${curDef.sym}${Math.round(convertFromILS(Number(v) || 0, curCode)).toLocaleString()}`;
+  const fmtDate = t => {
+    // t is 'YYYY-MM-DD' (business day) — format like the table dates.
+    try { return fDateShort(new Date(`${t}T12:00:00Z`)); } catch (_) { return String(t); }
+  };
+
+  // Build LWC business-day data: time = 'YYYY-MM-DD', value = total (kept in ILS; formatted on axis).
+  const data = chartRows
+    .map(r => ({ time: r.dateKey, value: Number(r.total), pnl: Number(r.pnl), prevTotal: Number(r.prevTotal) }))
+    .filter(d => Number.isFinite(d.value));
+  if (data.length < 2) return;
+
+  if (!window.LightweightCharts?.createChart || !window.LightweightCharts?.AreaSeries) {
+    console.warn('[HistChart] TradingView unavailable; using Chart.js fallback.');
+    drawHistChartFallback(data, host, fmtVal, fmtDate);
+    return;
+  }
+
+  const LWC = window.LightweightCharts;
+  const isLight = document.body.classList.contains('light');
+  const up = data[data.length - 1].value >= data[0].value;
+  const col = up ? upColor() : downColor();
+  const textCol = isLight ? '#4A5878' : '#9aa6c4';
+  const gridCol = isLight ? 'rgba(11,30,63,0.07)' : 'rgba(241,244,251,0.055)';
+  const base = data[0].value;
+
+  const chart = LWC.createChart(host, {
+    autoSize: true,
+    layout: {
+      background: { type: LWC.ColorType.Solid, color: 'transparent' },
+      textColor: textCol,
+      fontFamily: "'Geist Mono', monospace",
+      fontSize: 10,
+      attributionLogo: true,
+    },
+    grid: {
+      vertLines: { color: gridCol, style: LWC.LineStyle.Dotted },
+      horzLines: { color: gridCol, style: LWC.LineStyle.Dotted },
+    },
+    rightPriceScale: {
+      visible: true, borderVisible: false,
+      scaleMargins: { top: .17, bottom: .12 },
+      minimumWidth: 72,
+    },
+    leftPriceScale: { visible: false },
+    timeScale: {
+      borderVisible: false,
+      timeVisible: false,
+      secondsVisible: false,
+      rightOffset: 2,
+      barSpacing: 6,
+      minBarSpacing: .6,
+      fixLeftEdge: true,
+    },
+    crosshair: {
+      mode: LWC.CrosshairMode.Normal,
+      vertLine: {
+        color: isLight ? 'rgba(11,30,63,.42)' : 'rgba(241,244,251,.38)',
+        width: 1, style: LWC.LineStyle.Dashed,
+        labelBackgroundColor: col,
+      },
+      horzLine: {
+        color: isLight ? 'rgba(11,30,63,.28)' : 'rgba(241,244,251,.28)',
+        width: 1, style: LWC.LineStyle.Dashed,
+        labelBackgroundColor: col,
+      },
+    },
+    localization: {
+      locale: _dateLocale(),
+      priceFormatter: value => fmtVal(value),
+    },
+    handleScroll: true,
+    handleScale: true,
+  });
+
+  const area = chart.addSeries(LWC.AreaSeries, {
+    lineColor: col,
+    lineWidth: 3,
+    topColor: rgbaFromHex(col, isLight ? .24 : .30),
+    bottomColor: rgbaFromHex(col, .015),
+    priceLineVisible: true,
+    priceLineColor: rgbaFromHex(col, .62),
+    priceLineWidth: 1,
+    lastValueVisible: true,
+    crosshairMarkerVisible: true,
+    crosshairMarkerRadius: 5,
+    crosshairMarkerBorderWidth: 2,
+    crosshairMarkerBackgroundColor: col,
+    crosshairMarkerBorderColor: isLight ? '#ffffff' : '#0A0F1F',
+    priceFormat: { type: 'price', precision: 0, minMove: 1 },
+  });
+  area.setData(data.map(d => ({ time: d.time, value: d.value })));
+  chart.timeScale().fitContent();
+
+  const legend = document.createElement('div');
+  legend.className = 'tv-chart-legend';
+  host.appendChild(legend);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'tv-chart-toolbar';
+  toolbar.innerHTML = `
+    <button type="button" class="tv-chart-tool active" data-mode="nav" title="גרירה להזזת הגרף וזום"><i class="ph-thin ph-hand-grabbing"></i><span>ניווט</span></button>
+    <button type="button" class="tv-chart-tool" data-mode="measure" title="לחץ וגרור למדידת שינוי"><i class="ph-thin ph-ruler"></i><span>מדידה</span></button>
+    <button type="button" class="tv-chart-tool" data-action="reset" title="איפוס זום"><i class="ph-thin ph-arrows-out-simple"></i></button>`;
+  host.appendChild(toolbar);
+
+  const measureLayer = document.createElement('div');
+  measureLayer.className = 'tv-chart-measure-layer';
+  measureLayer.innerHTML = '<div class="tv-chart-selection"></div>';
+  host.appendChild(measureLayer);
+  const selection = measureLayer.querySelector('.tv-chart-selection');
+
+  const measureCard = document.createElement('div');
+  measureCard.className = 'tv-chart-measure-card';
+  host.appendChild(measureCard);
+
+  const notice = document.createElement('a');
+  notice.className = 'tv-chart-attribution';
+  notice.href = 'https://www.tradingview.com/';
+  notice.target = '_blank';
+  notice.rel = 'noopener noreferrer';
+  notice.textContent = 'TradingView Lightweight Charts™ · © 2026 TradingView, Inc.';
+  host.appendChild(notice);
+
+  function updateLegend(point = data[data.length - 1]) {
+    const pct = base ? ((point.value - base) / base) * 100 : 0;
+    legend.innerHTML = `
+      <span class="tv-chart-legend-symbol">${i18nGetText('שווי תיק')}</span>
+      <span class="tv-chart-legend-price">${fmtVal(point.value)}</span>
+      <span class="tv-chart-legend-change" style="color:${pct >= 0 ? 'var(--gr)' : 'var(--rd)'}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span>
+      <span class="tv-chart-legend-time">${fmtDate(point.time)}</span>`;
+  }
+  updateLegend();
+
+  // Convert LWC business-day time objects back to 'YYYY-MM-DD' keys for lookups.
+  const timeKey = t => {
+    if (typeof t === 'string') return t;
+    if (t && typeof t === 'object' && t.year) return `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
+    return String(t);
+  };
+  const byKey = new Map(data.map(d => [d.time, d]));
+
+  const crosshairHandler = param => {
+    if (!param?.time) { updateLegend(); return; }
+    const row = param.seriesData?.get(area);
+    const value = Number(row?.value ?? row?.close);
+    if (Number.isFinite(value)) updateLegend({ time: timeKey(param.time), value });
+  };
+  chart.subscribeCrosshairMove(crosshairHandler);
+
+  let mode = 'nav';
+  let dragStart = null;
+  let dragEnd = null;
+  let dragging = false;
+
+  function clearMeasurement() {
+    dragStart = dragEnd = null;
+    selection.classList.remove('show');
+    measureCard.classList.remove('show');
+  }
+
+  // nearest data point by x-coordinate (dateKey ordering)
+  function nearestHistPoint(t) {
+    const key = timeKey(t);
+    if (byKey.has(key)) return byKey.get(key);
+    // fallback: nearest by string compare (dates are ISO — lexicographic works)
+    let best = null;
+    for (const d of data) {
+      if (!best || Math.abs(new Date(d.time) - new Date(key)) < Math.abs(new Date(best.time) - new Date(key))) best = d;
+    }
+    return best;
+  }
+
+  function renderMeasurement() {
+    if (!dragStart || !dragEnd) return;
+    const aFirst = String(dragStart.time) <= String(dragEnd.time);
+    const a = aFirst ? dragStart : dragEnd;
+    const b = aFirst ? dragEnd : dragStart;
+    const x1 = chart.timeScale().timeToCoordinate(a.time);
+    const x2 = chart.timeScale().timeToCoordinate(b.time);
+    if (x1 == null || x2 == null) return;
+    selection.style.left = `${Math.min(x1,x2)}px`;
+    selection.style.width = `${Math.max(2, Math.abs(x2-x1))}px`;
+    selection.classList.add('show');
+
+    const delta = b.value - a.value;
+    const pct = a.value ? delta / a.value * 100 : 0;
+    const signColor = pct >= 0 ? 'var(--gr)' : 'var(--rd)';
+    measureCard.innerHTML = `
+      <div class="tv-measure-main">
+        <span class="tv-measure-pct" style="color:${signColor}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span>
+        <span class="tv-measure-delta" style="color:${signColor}">${delta >= 0 ? '+' : '-'}${fmtVal(Math.abs(delta))}</span>
+      </div>
+      <span class="tv-measure-label">טווח</span><span class="tv-measure-value">${fmtDate(a.time)} → ${fmtDate(b.time)}</span>
+      <span class="tv-measure-label">שווי</span><span class="tv-measure-value">${fmtVal(a.value)} → ${fmtVal(b.value)}</span>`;
+    measureCard.classList.add('show');
+  }
+
+  function pointFromPointer(ev) {
+    const rect = host.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, ev.clientX - rect.left));
+    const t = chart.timeScale().coordinateToTime(x);
+    if (t == null) return null;
+    return nearestHistPoint(t);
+  }
+
+  const pointerDown = ev => {
+    if (mode !== 'measure') return;
+    ev.preventDefault();
+    dragging = true;
+    measureLayer.setPointerCapture?.(ev.pointerId);
+    dragStart = pointFromPointer(ev);
+    dragEnd = dragStart;
+    renderMeasurement();
+  };
+  const pointerMove = ev => {
+    if (!dragging || mode !== 'measure') return;
+    ev.preventDefault();
+    dragEnd = pointFromPointer(ev) || dragEnd;
+    renderMeasurement();
+  };
+  const pointerUp = ev => {
+    if (!dragging) return;
+    ev.preventDefault();
+    dragging = false;
+    dragEnd = pointFromPointer(ev) || dragEnd;
+    renderMeasurement();
+    try { measureLayer.releasePointerCapture?.(ev.pointerId); } catch (_) {}
+  };
+  measureLayer.addEventListener('pointerdown', pointerDown);
+  measureLayer.addEventListener('pointermove', pointerMove);
+  measureLayer.addEventListener('pointerup', pointerUp);
+  measureLayer.addEventListener('pointercancel', pointerUp);
+
+  const toolbarClick = ev => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    if (btn.dataset.action === 'reset') {
+      chart.timeScale().fitContent();
+      clearMeasurement();
+      return;
+    }
+    const nextMode = btn.dataset.mode;
+    if (!nextMode) return;
+    mode = nextMode;
+    toolbar.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('active', x.dataset.mode === mode));
+    measureLayer.classList.toggle('active', mode === 'measure');
+    chart.applyOptions({ handleScroll: mode === 'nav', handleScale: mode === 'nav' });
+    if (mode === 'nav') clearMeasurement();
+  };
+  toolbar.addEventListener('click', toolbarClick);
+
+  S.histChart = {
+    destroy() {
+      try { chart.unsubscribeCrosshairMove(crosshairHandler); } catch (_) {}
+      measureLayer.removeEventListener('pointerdown', pointerDown);
+      measureLayer.removeEventListener('pointermove', pointerMove);
+      measureLayer.removeEventListener('pointerup', pointerUp);
+      measureLayer.removeEventListener('pointercancel', pointerUp);
+      toolbar.removeEventListener('click', toolbarClick);
+      try { chart.remove(); } catch (_) {}
+      if (host.isConnected) host.innerHTML = '';
+    }
+  };
+}
+
+// Chart.js fallback for the history chart (if TradingView fails to load).
+function drawHistChartFallback(data, host, fmtVal, fmtDate) {
+  const canvas = document.createElement('canvas');
+  host.appendChild(canvas);
+  const values = data.map(d => d.value);
+  const labels = data.map(d => fmtDate(d.time));
+  const up = values[values.length - 1] >= values[0];
+  const col = up ? upColor() : downColor();
+  const isLight = document.body.classList.contains('light');
+  const base = values[0];
+  const chart = new Chart(canvas, {
+    type:'line',
+    data:{ labels, datasets:[{
+      data:values, borderColor:col, borderWidth:3,
+      pointRadius:0, pointHitRadius:14, pointHoverRadius:5,
+      pointHoverBackgroundColor:col,
+      pointHoverBorderColor:isLight ? '#fff' : '#0A0F1F', pointHoverBorderWidth:2,
+      tension:.16, spanGaps:true, fill:true,
+      backgroundColor:rgbaFromHex(col,.12),
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false, normalized:true,
+      interaction:{mode:'index',intersect:false,axis:'x'},
+      plugins:{legend:{display:false},tooltip:{
+        enabled:true,displayColors:false,backgroundColor:isLight?'rgba(11,30,63,.97)':'rgba(17,26,51,.97)',
+        callbacks:{label:ctx=>{const v=Number(ctx.parsed.y);const pct=base?((v-base)/base)*100:0;return `${fmtVal(v)}   ${pct>=0?'+':''}${pct.toFixed(2)}%`;}}
+      }},
+      scales:{
+        x:{ticks:{color:axisColor(),font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false},border:{display:false}},
+        y:{position:'right',ticks:{color:axisColor(),font:{size:9},callback:v=>fmtVal(v)},grid:{color:'rgba(127,127,127,.06)'},border:{display:false}}
+      }
+    }
+  });
+  S.histChart = { destroy(){ try { chart.destroy(); } catch (_) {} if (host.isConnected) host.innerHTML=''; } };
 }
 
 // ═══════════════════════════════════════════
