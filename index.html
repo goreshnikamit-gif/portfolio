@@ -1406,6 +1406,16 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 .commodity-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--s3); border: 1px solid var(--b1); border-radius: 999px; padding: 6px 12px; font-family: var(--font-body); font-size: 12px; color: var(--t1); cursor: pointer; transition: all .12s; }
 .commodity-chip:hover { border-color: var(--ac); background: var(--s2); transform: translateY(-1px); }
 .commodity-chip i { font-size: 14px; }
+/* Icon preview inside the symbol field when a known commodity is detected */
+.ns-icon { position: absolute; inset-inline-end: 10px; bottom: 9px; font-size: 17px; pointer-events: none; line-height: 1; }
+/* Live total row: qty × live price, updates on every keystroke */
+.cm-total { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; background: color-mix(in srgb, var(--gr) 8%, transparent); border: 1px solid color-mix(in srgb, var(--gr) 26%, transparent); border-radius: var(--radius-sm); padding: 10px 13px; margin-bottom: 12px; font-size: 13px; }
+.cm-total i { font-size: 16px; }
+.cm-total .cmt-l { color: var(--t3); font-size: 12px; }
+.cm-total .cmt-v { font-family: var(--font-mono); font-weight: 800; color: var(--t1); font-size: 14.5px; }
+.cm-total .cmt-ils { color: var(--gr); }
+.cm-total .cmt-sep { color: var(--t3); }
+.cm-total .cmt-sub { color: var(--t3); font-size: 11px; font-family: var(--font-mono); margin-inline-start: auto; }
 .ed-manual-note i { font-size: 15px; flex-shrink: 0; }
 .ed-empty-list { text-align: center; color: var(--t3); font-size: 13px; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .ed-empty-list i { font-size: 28px; color: var(--ac); }
@@ -3143,7 +3153,7 @@ function parseYahooChartPayload(payload, sym, intraday) {
     t:Number(ts) * 1000,
     p:Number(c[i]) / divisor,
     o:Number(q?.open?.[i] ?? c[i]) / divisor,
-  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p));
+  })).filter(x => Number.isFinite(x.t) && Number.isFinite(x.p) && x.p > 0);   // p>0: Yahoo sends null candles during trading breaks (Number(null)=0) — a real price is never 0
   if (intraday) data = latestTradingSessionOnly(data, sym) || [];
   return validStockSeries(data) ? data : null;
 }
@@ -4745,7 +4755,7 @@ const I18N = {
   'חורגת ל-':'exceeds','בשוק':'in the market',
   'אלוקציית התיק מאוזנת, לא זוהו חריגות קיצוניות במדדי הסיכון.':'Portfolio allocation is balanced; no extreme risk anomalies detected.',
   // ticker
-  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','גרם':'Gram','אונקיה':'Ounce','חבית':'Barrel','פאונד':'Pound','בושל':'Bushel','מחיר שוק':'Market Price','בורסה':'Exchange','חוזה':'Contract','אות אנליטי':'Analytic Signal','החזקה ידנית':'Manual holding','יחידת מידה':'Unit of measure','בחר סחורה קודם':'Pick a commodity first','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
+  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','גרם':'Gram','אונקיה':'Ounce','חבית':'Barrel','פאונד':'Pound','בושל':'Bushel','מחיר שוק':'Market Price','בורסה':'Exchange','חוזה':'Contract','אות אנליטי':'Analytic Signal','החזקה ידנית':'Manual holding','יחידת מידה':'Unit of measure','בחר סחורה קודם':'Pick a commodity first','סה"כ שווי':'Total value','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
   // market status bar
   'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
   'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
@@ -10816,6 +10826,20 @@ function renderCommodityModal(a, el) {
 // Load a commodity price series (Yahoo futures symbol) and draw with the same
 // TradingView experience as stocks. Applies priceScale so cents-quoted grains
 // display real dollars.
+// 1D note: futures trade ~23h/day with breaks, and around weekends/holidays Yahoo's
+// range=1d often returns almost nothing. So for 1D we fetch 5 days at 5-minute
+// resolution and trim to the latest trading session — always a full, smooth day.
+async function fetchCommoditySeries1D(entry) {
+  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(entry.yahoo)}?interval=5m&range=5d&includePrePost=false`;
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  let txt = null;
+  if (worker) { try { txt = await fetchTextFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3500); } catch(_){} }
+  if (!txt) { try { txt = await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4500); } catch(_){} }
+  if (!txt) return null;
+  // parseYahooChartPayload with intraday=true trims to the latest trading session.
+  return parseYahooChartPayload(txt, entry.yahoo, true);
+}
+
 async function loadMC(key, range, btn, silent) {
   const entry = COMMODITY_CATALOG[key];
   if (!entry) return;
@@ -10827,9 +10851,16 @@ async function loadMC(key, range, btn, silent) {
   if (box) box.classList.add('chart-loading');
   setStockChartStatus('טוען גרף שוק...', true);
   let data = null;
-  try { data = await getStockHist(entry.yahoo, range); } catch(_) {}
+  if (range === '1d') {
+    try { data = await fetchCommoditySeries1D(entry); } catch(_) {}
+    if (!data?.length) { try { data = await getStockHist(entry.yahoo, '1d'); } catch(_) {} }
+  } else {
+    try { data = await getStockHist(entry.yahoo, range); } catch(_) {}
+  }
   if (box) box.classList.remove('chart-loading');
-  if (!data?.length) { setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.'); return; }
+  // Drop any zero/null candles (defense in depth — also covers stale cached series).
+  if (Array.isArray(data)) data = data.filter(d => (d.p ?? d.value) > 0);
+  if (!data || data.length < 2) { setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.'); return; }
   const holder = (S.commodities || []).find(x => commodityCatalogFor(x.sym)?.key === key);
   if (!holder || S.sel !== holder.sym || !document.getElementById('detOv')?.classList.contains('open')) return;
   const scale = entry.priceScale || 1;
@@ -11830,18 +11861,19 @@ function renderEd() {
     <div class="aform">
       <div class="af-t">+ הוספת נכס חדש</div>
       <div class="fg">
-        <div class="ff"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency()" ${cat.live?'onfocus="edAC(this.value)"':''}><div class="ac-box" id="acBox"></div></div>
+        <div class="ff" style="position:relative"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency();${edTab==='commodities'?'commoditySymInput(this.value);':''}" ${cat.live?'onfocus="edAC(this.value)"':''}><span class="ns-icon" id="nSIcon"></span><div class="ac-box" id="acBox"></div></div>
         <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}"></div>
         <div class="ff"><label>${cat.unit==='מניות'?'כמות מניות':'כמות החזקה'}</label><input id="nQ" type="number" placeholder="${iC?'0.5':'10.5'}" step="any" oninput="onNewQtyInput()"></div>
         ${edTab==='commodities' ? `<div class="ff"><label>יחידת מידה</label><select id="nU" class="cur-select" style="width:100%"><option value="">בחר סחורה קודם</option></select></div>` : ''}
         <div class="ff"><label>שער קנייה <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label>
           <div class="cur-input-wrap">
             <select id="nPCur" class="cur-select" onchange="this.dataset.manualCur='1';fillNewUnitPrice()">${CUR_OPTION_LIST.map(c=>`<option value="${c}"${c==='USD'?' selected':''}>${CUR_SYM_MAP[c]} ${c}</option>`).join('')}</select>
-            <input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled')">
+            <input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled');if(typeof updateCommodityTotal==='function'&&edTab==='commodities')updateCommodityTotal()">
           </div>
         </div>
         <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}" onchange="onNewDateInput()"></div>
       </div>
+      ${edTab==='commodities' ? '<div class="cm-total" id="cmTotal" style="display:none"></div>' : ''}
       <button class="fadd" onclick="addA()"><i class="ph-thin ph-plus"></i> הוסף לרשימת המעקב</button>
     </div>
     <button class="fsave" onclick="saveClose()"><i class="ph-thin ph-floppy-disk"></i> שמור שינויים ורענן</button>
@@ -11857,6 +11889,9 @@ function pickCommodity(key) {
   const c = COMMODITY_CATALOG[key];
   if (!c) return;
   const nS = document.getElementById('nS'); if (nS) nS.value = key;
+  _cmLastDetected = key;
+  const icoEl = document.getElementById('nSIcon');
+  if (icoEl) icoEl.innerHTML = `<i class="${c.icon}" style="color:${c.color}"></i>`;
   const nN = document.getElementById('nN'); if (nN) nN.value = commodityName(c);
   const nU = document.getElementById('nU');
   if (nU) {
@@ -11870,6 +11905,73 @@ function pickCommodity(key) {
   document.getElementById('nQ')?.focus();
 }
 window.pickCommodity = pickCommodity;
+
+// Typing in the symbol field auto-detects a known commodity (GOLD / זהב / XAU...) —
+// same effect as clicking its chip: icon preview, name, units and live price.
+let _cmLastDetected = null;
+function commoditySymInput(v) {
+  const entry = commodityCatalogFor(v);
+  const icoEl = document.getElementById('nSIcon');
+  const nU = document.getElementById('nU');
+  const nN = document.getElementById('nN');
+  if (!entry) {
+    _cmLastDetected = null;
+    if (icoEl) icoEl.innerHTML = '';
+    if (nU) nU.innerHTML = `<option value="">${i18nGetText('בחר סחורה קודם')}</option>`;
+    updateCommodityTotal();
+    return;
+  }
+  // Same commodity as before? Don't reset the user's unit choice.
+  const isNew = _cmLastDetected !== entry.key;
+  _cmLastDetected = entry.key;
+  if (icoEl) icoEl.innerHTML = `<i class="${entry.icon}" style="color:${entry.color}"></i>`;
+  if (nN && (isNew || !nN.value.trim())) nN.value = commodityName(entry);
+  if (nU && isNew) {
+    nU.innerHTML = Object.entries(entry.units).map(([uk, u]) =>
+      `<option value="${uk}"${uk === entry.defaultUnit ? ' selected' : ''}>${_cmHe() ? u.he : u.en}</option>`).join('');
+    nU.onchange = () => fillCommodityPrice(entry.key);
+  }
+  if (isNew) fillCommodityPrice(entry.key);
+  else updateCommodityTotal();
+}
+window.commoditySymInput = commoditySymInput;
+
+// Live total: qty × price-per-unit, shown in $ and ₪, updates on every keystroke.
+function updateCommodityTotal() {
+  const el = document.getElementById('cmTotal');
+  if (!el) return;
+  const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
+  const entry = commodityCatalogFor(sym);
+  const qty = parseFloat(document.getElementById('nQ')?.value);
+  // Per-unit price: prefer whatever is in the price field (respects manual typing +
+  // the picked currency), fall back to the live quote × unit factor.
+  let perUnit = parseFloat(document.getElementById('nP')?.value);
+  let perUnitCur = document.getElementById('nPCur')?.value || 'USD';
+  if (!(perUnit > 0) && entry && S.mp?.[entry.key]?.usd > 0) {
+    const unit = document.getElementById('nU')?.value || entry.defaultUnit;
+    perUnit = S.mp[entry.key].usd * commodityUnitFactor(entry, unit);
+    perUnitCur = 'USD';
+  }
+  if (!entry || !(qty > 0) || !(perUnit > 0)) { el.style.display = 'none'; return; }
+  // Convert the per-unit price to USD if it was typed in another currency.
+  let perUnitUSD = perUnit;
+  if (perUnitCur !== 'USD' && typeof convertCurrencyAmount === 'function') {
+    const conv = convertCurrencyAmount(perUnit, perUnitCur, 'USD');
+    if (conv > 0) perUnitUSD = conv;
+  }
+  const totalUSD = qty * perUnitUSD;
+  const totalILS = totalUSD * S.fx;
+  const unitLbl = commodityUnitLabel(entry, document.getElementById('nU')?.value || entry.defaultUnit);
+  el.style.display = '';
+  el.innerHTML = `
+    <i class="${entry.icon}" style="color:${entry.color}"></i>
+    <span class="cmt-l">${i18nGetText('סה"כ שווי')}:</span>
+    <span class="cmt-v">$${totalUSD.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
+    <span class="cmt-sep">≈</span>
+    <span class="cmt-v cmt-ils">${fILS(totalILS)}</span>
+    <span class="cmt-sub">(${fNum(qty)} ${unitLbl} × $${perUnitUSD>=1?perUnitUSD.toFixed(2):perUnitUSD.toFixed(4)})</span>`;
+}
+window.updateCommodityTotal = updateCommodityTotal;
 
 // Fetch (if needed) the live quote for a commodity and fill the buy-price field with
 // the price PER SELECTED UNIT. Re-runs whenever the unit selector changes, so switching
@@ -11922,6 +12024,7 @@ async function fillCommodityPrice(key) {
   }
   nP.value = val >= 1 ? val.toFixed(2) : val.toFixed(4);
   nP.classList.add('lot-autofilled');
+  if (typeof updateCommodityTotal === 'function') updateCommodityTotal();
 }
 window.fillCommodityPrice = fillCommodityPrice;
 // Re-render dashboards + KPIs after a manual-category change.
@@ -12593,6 +12696,8 @@ window.confirmLot = confirmLot;
 // Auto-fill entry price in the "add new asset" form when a quantity is typed.
 // Updates on every keystroke. If the price isn't known locally yet, fetch it live (once).
 async function onNewQtyInput() {
+  // Commodities: recompute the live total on every keystroke (cheap, no fetch).
+  if (edTab === 'commodities' && typeof updateCommodityTotal === 'function') updateCommodityTotal();
   // Quantity changed — debounce the price autofill so rapid typing of a
   // multi-digit quantity doesn't fire a fetch per keystroke.
   clearTimeout(window._newQtyDebounce);
