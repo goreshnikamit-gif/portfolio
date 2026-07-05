@@ -1183,9 +1183,9 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-stepper input:focus { border-color: color-mix(in srgb, var(--rd) 45%, transparent); }
 .sell-proceeds { text-align: center; font-size: 12px; color: var(--t3); min-height: 18px; margin-bottom: 16px; }
 .sell-proceeds b { color: var(--gr); font-family: var(--font-mono, monospace); }
-.sell-proceeds-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; }
-.sell-proceeds-lbl { font-size: 12px; color: var(--t3); white-space: nowrap; }
-.sell-proceeds-inp-wrap { display: flex; align-items: center; flex: 1; background: var(--s3); border: 1px solid var(--b1); border-radius: 10px; padding: 0 10px; gap: 5px; transition: border-color .12s; }
+.sell-proceeds-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 10px; min-width: 0; }
+.sell-proceeds-lbl { font-size: 12px; color: var(--t3); white-space: nowrap; flex-shrink: 0; }
+.sell-proceeds-inp-wrap { display: flex; align-items: center; flex: 1; min-width: 0; overflow: hidden; background: var(--s3); border: 1px solid var(--b1); border-radius: 10px; padding: 0 10px; gap: 5px; transition: border-color .12s; }
 .sell-proceeds-inp-wrap:focus-within { border-color: color-mix(in srgb, var(--gr) 50%, transparent); }
 .sell-proceeds-cur { font-family: var(--font-mono, monospace); font-size: 14px; color: var(--gr); font-weight: 700; }
 .sell-proceeds-inp-wrap input { flex: 1; border: none; background: transparent; color: var(--t1); font-family: var(--font-mono, monospace); font-size: 14px; font-weight: 600; padding: 10px 0; outline: none; text-align: left; direction: ltr; min-width: 0; }
@@ -2843,7 +2843,7 @@ async function getCrypto() {
   const syms = [...new Set(S.crypto.map(a => BN[a.sym]).filter(Boolean))];
   if (!syms.length) return;
   try {
-    const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(syms))}`);
+    const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(syms))}`, { signal: AbortSignal.timeout(10000) });
     const arr = await r.json();
     const m = {}; arr.forEach(t => m[t.symbol] = t);
     S.crypto.forEach(a => {
@@ -11508,7 +11508,12 @@ async function toggleSellCurPicker(e) {
 }
 function selectSellCurrency(code) {
   code = String(code || '').toUpperCase();
-  if (!currencyRateToUSD(code)) return;
+  if (!currencyRateToUSD(code)) {
+    // Rate not loaded yet — tell the user instead of silently ignoring the click.
+    const el = document.getElementById('sellCurRate');
+    if (el) { el.classList.add('error'); el.textContent = `שער ${code} אינו זמין כרגע — נסו שוב בעוד רגע`; }
+    return;
+  }
   _sellCur = code;
   _updateSellCurBtn();
   closeAllPickers();
