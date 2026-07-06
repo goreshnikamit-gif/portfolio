@@ -153,6 +153,46 @@ body.light::before { opacity: 0; }
 /* ── TOPBAR ── */
 .topbar { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--b1); display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; padding-top: calc(13px + env(safe-area-inset-top, 0px)); }
 .logo { display: flex; align-items: center; gap: 9px; }
+/* ── PRO button (removes ads) ── */
+.pro-btn { background: linear-gradient(135deg, color-mix(in srgb, var(--gd) 18%, transparent), color-mix(in srgb, var(--gd) 6%, transparent)); border: 1px solid color-mix(in srgb, var(--gd) 45%, transparent); color: var(--gd); font-family: var(--font-mono); font-size: 10px; font-weight: 800; letter-spacing: .12em; border-radius: 999px; padding: 4px 11px; cursor: pointer; transition: all .15s; line-height: 1; }
+.pro-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--gd) 25%, transparent); }
+.pro-btn.on { background: var(--gd); color: #0A0F1F; border-color: var(--gd); }
+.pro-btn.on::after { content: ' ✓'; }
+/* ── Ad card (inside asset grids) ── */
+.ad-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 200px; height: 100%; align-self: stretch; background: linear-gradient(145deg, color-mix(in srgb, var(--ac) 7%, var(--s3)), var(--s3)); border: 1px dashed color-mix(in srgb, var(--ac) 40%, var(--b1)); border-radius: var(--radius); padding: 20px; text-align: center; overflow: hidden; box-sizing: border-box; }
+/* Mobile: asset cards are compact single rows — the ad matches that shape */
+@media (max-width: 640px) {
+  .ad-card { min-height: 0; flex-direction: row; justify-content: flex-start; text-align: start; padding: 12px 14px; gap: 12px; }
+  .ad-card .ad-ico { font-size: 20px; }
+  .ad-card .ad-t { font-size: 12.5px; }
+  .ad-card .ad-s { display: none; }
+  .ad-card .ad-cta { margin-inline-start: auto; font-size: 10px; }
+  .ad-card .ad-badge { position: static; order: -1; }
+}
+.ad-card .ad-badge { position: absolute; top: 8px; inset-inline-start: 8px; font-size: 9px; letter-spacing: .1em; color: var(--t3); border: 1px solid var(--b1); border-radius: 4px; padding: 2px 6px; background: var(--s2); font-family: var(--font-mono); }
+.ad-card .ad-ico { font-size: 26px; color: color-mix(in srgb, var(--ac) 75%, var(--t3)); }
+.ad-card .ad-t { font-size: 13px; font-weight: 700; color: var(--t2); }
+.ad-card .ad-s { font-size: 11px; color: var(--t3); }
+.ad-card .ad-cta { font-size: 10.5px; color: var(--gd); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+/* ── Interstitial (full-screen ad after login) ── */
+.ad-inter { position: fixed; inset: 0; z-index: 900; display: none; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bg, #070B18) 78%, transparent); backdrop-filter: blur(14px); }
+.ad-inter.show { display: flex; }
+.ad-inter-box { position: relative; width: min(420px, 90vw); background: var(--s2); border: 1px solid var(--b2); border-radius: 22px; padding: 34px 26px 26px; text-align: center; box-shadow: 0 40px 100px rgba(0,0,0,.6); }
+.ad-inter-x { position: absolute; top: 10px; inset-inline-end: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--s3); border: 1px solid var(--b1); border-radius: 50%; color: var(--t2); cursor: pointer; font-size: 15px; transition: all .12s; }
+.ad-inter-x:hover { color: var(--t1); border-color: var(--ac); }
+.ad-inter-slot { display: flex; flex-direction: column; align-items: center; gap: 10px; background: linear-gradient(145deg, color-mix(in srgb, var(--ac) 9%, var(--s3)), var(--s3)); border: 1px dashed color-mix(in srgb, var(--ac) 40%, var(--b1)); border-radius: 14px; padding: 34px 18px; margin-bottom: 14px; }
+.ad-inter-slot i { font-size: 34px; color: color-mix(in srgb, var(--ac) 75%, var(--t3)); }
+.ad-inter-slot .t { font-size: 15px; font-weight: 800; color: var(--t1); }
+.ad-inter-slot .s { font-size: 12px; color: var(--t3); }
+.ad-inter-pro { font-size: 12px; color: var(--t3); }
+.ad-inter-pro b { color: var(--gd); cursor: pointer; }
+/* ── News mid-list ad row ── */
+.an-row-ad { display: flex; align-items: center; gap: 12px; background: linear-gradient(120deg, color-mix(in srgb, var(--ac) 6%, var(--s3)), var(--s3)); border: 1px dashed color-mix(in srgb, var(--ac) 38%, var(--b1)); border-radius: var(--radius-sm); padding: 12px 14px; }
+.an-row-ad .an-ad-ico { width: 56px; height: 56px; flex: 0 0 56px; display: flex; align-items: center; justify-content: center; background: var(--s2); border-radius: 10px; font-size: 22px; color: color-mix(in srgb, var(--ac) 70%, var(--t3)); }
+.an-row-ad .an-ad-t { font-size: 13px; font-weight: 700; color: var(--t2); }
+.an-row-ad .an-ad-s { font-size: 11px; color: var(--t3); margin-top: 2px; }
+.an-row-ad .ad-badge { margin-inline-start: auto; font-size: 9px; letter-spacing: .1em; color: var(--t3); border: 1px solid var(--b1); border-radius: 4px; padding: 2px 6px; background: var(--s2); font-family: var(--font-mono); align-self: flex-start; }
+body.pro-mode .ad-card, body.pro-mode .an-row-ad, body.pro-mode .an-ad, body.pro-mode .ad-inter { display: none !important; }
 /* Vector glyph: Roman V + decimal dot, solid voltage square (brand: never outline-only) */
 .logo-m { width: 34px; height: 34px; border-radius: 9px; background: var(--ac); display: flex; align-items: center; justify-content: center; font-family: var(--font-logo); font-style: normal; font-weight: 400; font-size: 22px; line-height: 1; color: #F1F4FB; letter-spacing: -1px; }
 body.light .logo-m { border-radius: 50%; background: var(--ac); color: var(--bg); font-style: normal; }
@@ -1199,6 +1239,20 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 
 /* ── VIEW SETTINGS (modular display control) ── */
 .view-toolbar { display: flex; justify-content: flex-start; margin-bottom: 10px; }
+/* View button now lives INSIDE the total-value card, above its label */
+.total-view-row { display: flex; justify-content: flex-start; margin-bottom: 10px; }   /* start = right in RTL (he/ar), left in LTR — always aligned with the text */
+.total-view-row .view-toggle-btn { font-size: 12px; padding: 6px 12px; }
+/* Top ad banner in the old button spot — MOBILE ONLY (desktop has the side ad slot) */
+.ad-banner-top { display: flex; position: relative; align-items: center; gap: 10px; width: 100%; min-height: 96px; background: linear-gradient(120deg, color-mix(in srgb, var(--ac) 8%, var(--s3)), var(--s3)); border: 1px dashed color-mix(in srgb, var(--ac) 38%, var(--b1)); border-radius: var(--radius-sm); padding: 18px 20px; margin-bottom: 14px; }
+.ad-banner-top .ad-badge { position: absolute; top: 6px; inset-inline-start: 8px; font-size: 9px; letter-spacing: .1em; color: var(--t3); border: 1px solid var(--b1); border-radius: 4px; padding: 1px 5px; background: var(--s2); font-family: var(--font-mono); }
+.ad-banner-top .ad-banner-body { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: center; }
+.ad-banner-top .ad-banner-body > i { font-size: 22px; color: color-mix(in srgb, var(--ac) 70%, var(--t3)); }
+.ad-banner-top .ad-banner-t { font-size: 13px; font-weight: 700; color: var(--t2); }
+.ad-banner-top .ad-banner-s { font-size: 11px; color: var(--t3); }
+.ad-banner-top .ad-banner-body > i { font-size: 30px; }
+.ad-banner-top .ad-banner-t { font-size: 15px; }
+.ad-banner-top .ad-banner-s { font-size: 12.5px; }
+body.pro-mode .ad-banner-top { display: none !important; }
 .view-toggle-btn {
   display: inline-flex; align-items: center; gap: 7px;
   font-family: var(--font-body); font-size: 13px; font-weight: 700;
@@ -1736,6 +1790,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
   <div class="logo">
     <div class="logo-m" id="logoMark">V·</div>
     <div class="logo-t" id="logoText">Vector<span> · Equities</span></div>
+    <button class="pro-btn" id="proBtn" onclick="togglePro()" title="מצב PRO — ללא פרסומות">PRO</button>
   </div>
   <div class="topbar-r">
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()" title="רענן נתונים">
@@ -2318,13 +2373,23 @@ onAuthStateChanged(auth, async user => {
 <div id="app" style="display:none">
 
   <div class="page active" id="page-dash">
-    <div class="view-toolbar">
-      <button class="view-toggle-btn" onclick="openViewModal()">
-        <i class="ph-thin ph-sliders-horizontal"></i> שינוי תצוגה
-      </button>
+    <div class="ad-banner-top" id="adBannerTop">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
     </div>
     <div class="hero-block">
       <div class="total">
+        <div class="total-view-row">
+          <button class="view-toggle-btn" onclick="openViewModal()">
+            <i class="ph-thin ph-sliders-horizontal"></i> שינוי תצוגה
+          </button>
+        </div>
         <div class="t-lbl">שווי שוק כולל — נכסים</div>
         <div class="t-val"><span id="grandNumWrap"><span id="grandNum">---</span></span><span class="sym" id="grandSym">ILS</span></div>
         <div class="t-meta">
@@ -2397,12 +2462,22 @@ onAuthStateChanged(auth, async user => {
     <div class="sec" id="secEtfs"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="dEtfsGrid"></div>
 
-    <div class="sec" style="margin-top:14px"><div class="sec-t"><i class="ph-thin ph-newspaper" style="margin-inline-end:8px"></i>כתבות על הנכסים שלי</div></div>
+    <div class="sec" style="margin-top:14px"><div class="sec-t"><i></i>כתבות על הנכסים שלי</div></div>
     <div class="an-filter" id="anFilter"></div>
     <div id="assetNews" class="asset-news"></div>
   </div>
 
   <div class="page" id="page-stocks">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מניות ומדדים</div><button class="add-b" onclick="openEditor('stock')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף מניה</button></div>
     <div class="prow" id="sPeriodRow" style="display:none">
       <button class="pb2 active" onclick="setSP('1d',this)">1D</button>
@@ -2425,6 +2500,16 @@ onAuthStateChanged(auth, async user => {
   </div>
 
   <div class="page" id="page-crypto">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מטבעות דיגיטליים</div><button class="add-b" onclick="openEditor('crypto')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף מטבע</button></div>
     <div class="prow" id="cPeriodRow" style="display:none">
       <button class="pb2 active" onclick="setCP('1d',this)">1D</button>
@@ -2440,6 +2525,16 @@ onAuthStateChanged(auth, async user => {
   </div>
 
   <div class="page" id="page-insights">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מנוע תובנות אנליטי</div></div>
     <div class="ins-card">
       <div class="ins-title"><i class="ph-thin ph-calendar-blank ph-sm"></i> היסטוריית ביצועים ו-P&L</div>
@@ -2462,6 +2557,16 @@ onAuthStateChanged(auth, async user => {
       <div id="pnlHistory"><div style="color:var(--t3);font-size:12px;padding:8px;text-align:center"><i class="fi fi-tr-hourglass fi-spin" style="vertical-align:-2px;margin-left:6px"></i>טוען היסטוריית שוק ומחירי סגירה...</div></div>
     </div>
     <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-warning ph-sm"></i> התראות מערכת וחריגות אלוקציה</div><div id="insTips"></div></div>
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="ins-row">
       <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trophy ph-sm"></i> הנכסים המניבים ביותר היום</div><div id="insTop"></div></div>
       <div class="ins-card"><div class="ins-title"><i class="ph-thin ph-trend-down ph-sm"></i> המפסידים ביותר היום</div><div id="insBot"></div></div>
@@ -2486,16 +2591,46 @@ onAuthStateChanged(auth, async user => {
   </div>
 
   <div class="page" id="page-commodities">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>סחורות</div><button class="add-b" onclick="openEditor('commodities')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="commoditiesPageGrid"></div>
   </div>
 
   <div class="page" id="page-bonds">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>אג"ח</div><button class="add-b" onclick="openEditor('bonds')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="bondsPageGrid"></div>
   </div>
 
   <div class="page" id="page-etfs">
+    <div class="ad-banner-top">
+      <span class="ad-badge">פרסומת</span>
+      <div class="ad-banner-body">
+        <i class="ph-thin ph-megaphone"></i>
+        <div>
+          <div class="ad-banner-t">המקום של המותג שלך</div>
+          <div class="ad-banner-s">שטח פרסומת — המודעה שלך כאן</div>
+        </div>
+      </div>
+    </div>
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
     <div class="grid" id="etfsPageGrid"></div>
   </div>
@@ -2506,6 +2641,9 @@ onAuthStateChanged(auth, async user => {
   <button class="ni active" data-p="dash" onclick="goPage('dash',this)"><span class="ni-ico"><i class="ph-thin ph-house"></i></span><span class="ni-lbl">דשבורד</span></button>
   <button class="ni" data-p="stocks" onclick="goPage('stocks',this)"><span class="ni-ico"><i class="ph-thin ph-chart-line-up"></i></span><span class="ni-lbl">מניות</span></button>
   <button class="ni" data-p="crypto" onclick="goPage('crypto',this)"><span class="ni-ico"><i class="ph-thin ph-coins"></i></span><span class="ni-lbl">קריפטו</span></button>
+  <button class="ni" id="navCommoditiesM" data-p="commodities" onclick="goPage('commodities',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-medal"></i></span><span class="ni-lbl">סחורות</span></button>
+  <button class="ni" id="navBondsM" data-p="bonds" onclick="goPage('bonds',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-bank"></i></span><span class="ni-lbl">אג"ח</span></button>
+  <button class="ni" id="navEtfsM" data-p="etfs" onclick="goPage('etfs',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-briefcase"></i></span><span class="ni-lbl">תעודות סל</span></button>
   <button class="ni" data-p="news" onclick="goPage('news',this)"><span class="ni-ico"><i class="fi fi-tr-newspaper" style="font-size:18px"></i></span><span class="ni-lbl">חדשות</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
 </nav>
@@ -4765,7 +4903,7 @@ const I18N = {
   'חורגת ל-':'exceeds','בשוק':'in the market',
   'אלוקציית התיק מאוזנת, לא זוהו חריגות קיצוניות במדדי הסיכון.':'Portfolio allocation is balanced; no extreme risk anomalies detected.',
   // ticker
-  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','גרם':'Gram','אונקיה':'Ounce','חבית':'Barrel','פאונד':'Pound','בושל':'Bushel','מחיר שוק':'Market Price','בורסה':'Exchange','חוזה':'Contract','אות אנליטי':'Analytic Signal','החזקה ידנית':'Manual holding','יחידת מידה':'Unit of measure','בחר סחורה קודם':'Pick a commodity first','סה"כ שווי':'Total value','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
+  'שוק אמריקאי':'US Market','שוק ישראלי':'Israeli Market','גרם':'Gram','אונקיה':'Ounce','חבית':'Barrel','פאונד':'Pound','בושל':'Bushel','מחיר שוק':'Market Price','בורסה':'Exchange','חוזה':'Contract','אות אנליטי':'Analytic Signal','החזקה ידנית':'Manual holding','יחידת מידה':'Unit of measure','בחר סחורה קודם':'Pick a commodity first','פרסומת':'Ad','המקום של המותג שלך':'Your brand belongs here','שטח פרסומת — המודעה שלך כאן':'Ad space — your ad here','הסר פרסומות עם PRO':'Remove ads with PRO','שטח פרסומת':'Ad space','רוצים בלי פרסומות?':'Want an ad-free experience?','עברו ל-PRO':'Go PRO','סה"כ שווי':'Total value','ארה"ב':'US','ישראל':'Israel','קריפטו':'Crypto','מניות':'Stocks',
   // market status bar
   'ת"א':'TLV','לונדון':'London','שוק פתוח':'Open','שוק סגור':'Closed','נפתח בקרוב':'Opens soon',
   'נסגר בעוד':'Closes in','נפתח בעוד':'Opens in','דק׳':'m','ש׳':'h',
@@ -8985,6 +9123,7 @@ function mkStart() {
 // ROUTING
 // ═══════════════════════════════════════════
 function goPage(id, btn) {
+  const _prevPage = S.curPage;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.ni, .nit').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -8995,10 +9134,10 @@ function goPage(id, btn) {
   document.getElementById('tickerBar').classList.add('show');   // always-on across pages
   document.getElementById('marketBar')?.classList.add('show');  // market status bar — always-on too
   document.getElementById('app').scrollTop = 0;
-  if (id === 'dash')     { scheduleDashPeriodRefresh(true); renderAssetNews(); }
+  if (id === 'dash')     { scheduleDashPeriodRefresh(true); renderAssetNews(); if (_prevPage && _prevPage !== 'dash') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
-  if (id === 'insights') { renderInsights(); buildHistoryTable(); }
+  if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'news') { renderNews(); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
 }
@@ -9113,7 +9252,6 @@ function cardHTML(o) {
     </div>
     <div class="cf">
       <div class="pi">${priceStr}</div>
-      ${priceUSD && type !== 'crypto' ?`<div class="pi">USD <span>${fP(priceUSD)}</span></div>`:''}
     </div>
 </div>`;
 }
@@ -9298,12 +9436,101 @@ function renderManualPage(catKey) {
   const grid = document.getElementById(cfg.grid);
   if (grid) grid.innerHTML = manualCardsHTML(catKey, cfg.icon, cfg.label);
 }
-// Show/hide the desktop nav tabs for the manual categories based on the view config.
+// ═══════════════════════════════════════════
+// ADS SYSTEM + PRO MODE
+// ═══════════════════════════════════════════
+// Placeholder ad units across the app. The PRO button (next to the logo) turns
+// everything off instantly via body.pro-mode CSS + skips future injection.
+function isPro() { return localStorage.getItem('vecPro') === '1'; }
+function togglePro() {
+  const on = !isPro();
+  localStorage.setItem('vecPro', on ? '1' : '0');
+  applyProState();
+  if (!on) injectAdCards();   // ads back on → repopulate
+}
+window.togglePro = togglePro;
+function applyProState() {
+  const on = isPro();
+  document.body.classList.toggle('pro-mode', on);
+  const btn = document.getElementById('proBtn');
+  if (btn) { btn.classList.toggle('on', on); btn.title = on ? 'PRO פעיל — ללא פרסומות' : 'מצב PRO — ללא פרסומות'; }
+  if (on) document.querySelectorAll('.ad-card, .an-row-ad').forEach(el => el.remove());
+}
+
+// One ad card, styled like an asset card. Appended to grids that have real content.
+function adCardHTML() {
+  return `<div class="ad-card">
+    <span class="ad-badge">${i18nGetText('פרסומת')}</span>
+    <i class="ph-thin ph-megaphone ad-ico"></i>
+    <div class="ad-t">${i18nGetText('המקום של המותג שלך')}</div>
+    <div class="ad-s">${i18nGetText('שטח פרסומת — המודעה שלך כאן')}</div>
+    <span class="ad-cta" onclick="togglePro()">${i18nGetText('הסר פרסומות עם PRO')}</span>
+  </div>`;
+}
+
+// Append one ad card to each target grid that has at least one REAL card and no ad yet.
+// Runs periodically because refreshes rebuild grid innerHTML (which removes the ad).
+// Note: the stocks/crypto pages render into #sPageList/#cPageList with an INNER .grid
+// wrapper — the injector resolves that automatically.
+const AD_GRID_IDS = ['dSGrid','dCGrid','dCommoditiesGrid','dBondsGrid','dEtfsGrid','sPageList','cPageList','commoditiesPageGrid','bondsPageGrid','etfsPageGrid'];
+function injectAdCards() {
+  if (isPro()) return;
+  AD_GRID_IDS.forEach(id => {
+    const host = document.getElementById(id);
+    if (!host) return;
+    // If the container wraps its cards in an inner .grid (stocks/crypto pages), use it.
+    const grid = host.classList.contains('grid') ? host : (host.querySelector(':scope > .grid') || host);
+    const realCards = grid.querySelectorAll('.card:not(.ad-card)').length;
+    const hasAd = !!grid.querySelector('.ad-card');
+    if (realCards >= 1 && !hasAd) grid.insertAdjacentHTML('beforeend', adCardHTML());
+    if (realCards === 0 && hasAd) grid.querySelector('.ad-card')?.remove();
+  });
+}
+// Keep ads present across re-renders (grids get innerHTML-rebuilt on every refresh).
+setInterval(() => { try { injectAdCards(); } catch(_){} }, 2500);
+
+// ── Interstitial: full-screen ad shown once per session right after login/app open ──
+function maybeShowInterstitial(sessionKey = null) {
+  // sessionKey null → show EVERY time it's called. With a key → once per tab session.
+  if (isPro()) return;
+  if (sessionKey) {
+    if (sessionStorage.getItem(sessionKey) === '1') return;
+    sessionStorage.setItem(sessionKey, '1');
+  }
+  let ov = document.getElementById('adInter');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'adInter';
+    ov.className = 'ad-inter';
+    ov.innerHTML = `
+      <div class="ad-inter-box">
+        <button class="ad-inter-x" onclick="document.getElementById('adInter').classList.remove('show')" aria-label="סגור"><i class="ph-thin ph-x"></i></button>
+        <div class="ad-inter-slot">
+          <i class="ph-thin ph-megaphone"></i>
+          <div class="t">${i18nGetText('שטח פרסומת')}</div>
+          <div class="s">${i18nGetText('המקום של המותג שלך')} — 420×320</div>
+        </div>
+        <div class="ad-inter-pro">${i18nGetText('רוצים בלי פרסומות?')} <b onclick="togglePro();document.getElementById('adInter').classList.remove('show')">${i18nGetText('עברו ל-PRO')}</b></div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('show'); });
+  }
+  requestAnimationFrame(() => ov.classList.add('show'));
+}
+
+// Show/hide the nav tabs (desktop top + mobile bottom) for the manual categories
+// based on the view config.
 function applyViewNav() {
-  const map = { commodities: 'navCommodities', bonds: 'navBonds', etfs: 'navEtfs' };
-  Object.entries(map).forEach(([key, id]) => {
-    const btn = document.getElementById(id);
-    if (btn) btn.style.display = catShown(key) ? '' : 'none';
+  const map = {
+    commodities: ['navCommodities', 'navCommoditiesM'],
+    bonds:       ['navBonds', 'navBondsM'],
+    etfs:        ['navEtfs', 'navEtfsM'],
+  };
+  Object.entries(map).forEach(([key, ids]) => {
+    ids.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.style.display = catShown(key) ? '' : 'none';
+    });
   });
   // If the current page is a manual category that just got hidden, fall back to dash.
   if (['commodities','bonds','etfs'].includes(S.curPage) && !catShown(S.curPage)) {
@@ -10054,6 +10281,16 @@ function renderAssetNewsList() {
     return;
   }
   const list = assetNewsFilter ? items.slice(0, 8) : pickBalanced(items, 8);
+  // Mid-list ad row: injected at the middle of the articles (hidden in PRO mode).
+  const adRow = (typeof isPro === 'function' && !isPro()) ? `
+    <div class="an-row-ad">
+      <div class="an-ad-ico"><i class="ph-thin ph-megaphone"></i></div>
+      <div>
+        <div class="an-ad-t">${i18nGetText('המקום של המותג שלך')}</div>
+        <div class="an-ad-s">${i18nGetText('שטח פרסומת — המודעה שלך כאן')}</div>
+      </div>
+      <span class="ad-badge">${i18nGetText('פרסומת')}</span>
+    </div>` : '';
   const rows = list.map(n => {
     const ago = newsTimeAgo(n.pubDate);
     const tag = n.tagSym ? `<span class="an-tag">${newsEscape(n.tagSym)}</span>` : '';
@@ -10067,10 +10304,13 @@ function renderAssetNewsList() {
         <div class="an-meta">${tag}<span class="an-src">${newsEscape(n.src || '')}</span><span class="an-dot">·</span><span class="an-ago">${ago}</span></div>
       </div>
     </a>`;
-  }).join('');
+  });
+  // Insert the ad row in the MIDDLE of the article list.
+  if (adRow && rows.length >= 2) rows.splice(Math.floor(rows.length / 2), 0, adRow);
+  const rowsHTML = rows.join('');
   host.innerHTML = `
     <div class="an-layout">
-      <div class="an-list">${rows}</div>
+      <div class="an-list">${rowsHTML}</div>
       <aside class="an-ad" aria-hidden="true">
         <div class="an-ad-slot"><span>שטח לפרסומת</span></div>
       </aside>
@@ -10580,14 +10820,15 @@ async function buildHistoryTable() {
       // when the user has enabled them in the dashboard "view settings".
       let manualVal = 0;
       const manualCats = ['commodities','bonds','etfs'].filter(k => typeof catInTotal === 'function' && catInTotal(k));
-      manualCats.forEach(k => { try { manualVal += manualCatValueILS(k) || 0; } catch(_){} });
+      const manualByCat = {};
+      manualCats.forEach(k => { try { const v = manualCatValueILS(k) || 0; manualByCat[k] = v; manualVal += v; } catch(_){ manualByCat[k] = 0; } });
 
       const prevTotal = stockStart + cryptoStart + manualVal;
       const pnl = stockPnl + cryptoPnl;
       const total = prevTotal + pnl;
       if (prevTotal > 0 || total > 0) {
         rows.push({
-          dateKey, prevTotal, total, stockPnl, cryptoPnl, pnl, manualVal, manualCats,
+          dateKey, prevTotal, total, stockPnl, cryptoPnl, pnl, manualVal, manualCats, manualByCat,
           hasTrading: stockHasData || cryptoHasData,
           stockHasData, cryptoHasData,
         });
@@ -10620,24 +10861,23 @@ async function buildHistoryTable() {
     };
 
     // Are any manual categories enabled? If so, show an extra column for them.
-    const anyManual = ['commodities','bonds','etfs'].some(k => typeof catInTotal === 'function' && catInTotal(k));
-    const manualLabel = ['commodities','bonds','etfs']
-      .filter(k => typeof catInTotal === 'function' && catInTotal(k))
-      .map(k => i18nGetText(k === 'commodities' ? 'סחורות' : k === 'bonds' ? 'אג"ח' : 'תעודות סל'))
-      .join(' + ');
+    const enabledManualCats = ['commodities','bonds','etfs'].filter(k => typeof catInTotal === 'function' && catInTotal(k));
+    const anyManual = enabledManualCats.length > 0;
+    const manualCatLabel = k => i18nGetText(k === 'commodities' ? 'סחורות' : k === 'bonds' ? 'אג"ח' : 'תעודות סל');
+    const manualLabel = enabledManualCats.map(manualCatLabel).join(' + ');
 
     let html = `
       <div class="mchb tv-chart-shell" style="height:300px;margin-bottom:12px"><div id="histChart" class="tv-chart-host" role="img" aria-label="גרף היסטוריית תיק אינטראקטיבי"></div></div>
       <div style="font-size:14.5px;color:var(--t3);margin-bottom:12px;text-align:center">${i18nGetText('מניות')} + ${i18nGetText('קריפטו')}${anyManual?' + '+manualLabel:''} = P&L ${i18nGetText('יומי')} · ${i18nGetText('יום קלנדרי')} (${tzCityLabel()}) 00:00–00:00</div>
       <div style="overflow-x:auto">
-      <table style="width:100%;min-width:${anyManual?'860':'760'}px">
+      <table style="width:100%;min-width:${760 + enabledManualCats.length * 100}px">
         <thead><tr style="color:var(--t3);text-align:right;">
           <th style="padding:6px 4px">תאריך</th>
           <th style="padding:6px 4px;text-align:left">ערך בסיס קודם</th>
           <th style="padding:6px 4px;text-align:left">ערך נוכחי</th>
           <th style="padding:6px 4px;text-align:left">מניות</th>
           <th style="padding:6px 4px;text-align:left">קריפטו</th>
-          ${anyManual?`<th style="padding:6px 4px;text-align:left">${manualLabel}</th>`:''}
+          ${enabledManualCats.map(k=>`<th style="padding:6px 4px;text-align:left">${manualCatLabel(k)}</th>`).join('')}
           <th style="padding:6px 4px;text-align:left">P&L יומי</th>
         </tr></thead><tbody>`;
 
@@ -10656,7 +10896,7 @@ async function buildHistoryTable() {
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>
-        ${anyManual?`<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${row.manualVal>0?`<span style="color:var(--t2)">${fILS(row.manualVal)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`:''}
+        ${enabledManualCats.map(k=>{const v=row.manualByCat?.[k]||0;return `<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${v>0?`<span style="color:var(--t2)">${fILS(v)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`;}).join('')}
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
@@ -11732,6 +11972,9 @@ function openEditor(tab) {
   if (!enabled.includes(edTab)) edTab = enabled[0] || 'stock';
   document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd();
   setTimeout(() => { if (typeof syncStatusRefresh === 'function') syncStatusRefresh(); }, 0);
+  // Interstitial ad on every editor open — regardless of where it was opened from
+  // (dashboard button, FAB, category pages, modal edit, etc.).
+  setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 350);
 }
 
 // From the asset detail modal: jump straight to the editor for this asset.
@@ -13579,6 +13822,9 @@ window.proceedToApp = async function() {
   if (appStarted) return;
   appStarted = true;
   tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
+  applyProState();                                    // PRO button state + hide ads if PRO
+  setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 900);   // interstitial ad — every app open
+  setTimeout(() => { try { injectAdCards(); } catch(_){} }, 1500);
 
   // ⚡ SPEED: kick off market-price fetching IMMEDIATELY, in parallel with Firebase.
   // Previously prices waited for firebaseAuthReady + cloud load to finish first (3-4s
