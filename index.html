@@ -10673,12 +10673,39 @@ async function buildHistoryTable() {
           if (key && item.p > 0) map[key] = Number(item.p);
         });
         const live = S.sp[s.sym];
-        if (live?.price > 0) map[todayKey] = Number(live.price);
+        // Only stamp today's close with the live price when the quote is really from today.
+        if (live?.price > 0 && live.quoteTime && dateKeyInTimeZone(live.quoteTime, APP_TIME_ZONE) === todayKey) map[todayKey] = Number(live.price);
         if (Object.keys(map).length) stockHistLoadedAny = true;
         stockHist[s.sym] = map;
       } catch (_) { stockHist[s.sym] = {}; }
     }));
     window.__stockHistLoadedAny = stockHistLoadedAny;
+
+    // ── Commodities: daily closes from the SAME Yahoo pipeline (futures symbols) so the
+    // history table can show a real per-day P&L for gold/oil/etc, not a static value.
+    const commodityHist = {};   // catalog key → { dateKey: USD (priceScale applied) }
+    const heldCommodities = (typeof catInTotal === 'function' && catInTotal('commodities'))
+      ? (S.commodities || []).filter(a => typeof commodityCatalogFor === 'function' && commodityCatalogFor(a.sym))
+      : [];
+    if (heldCommodities.length) {
+      setLoadMsg('טוען נתוני סחורות...');
+      const uniqEntries = [...new Map(heldCommodities.map(a => { const e = commodityCatalogFor(a.sym); return [e.key, e]; })).values()];
+      const cRange = days <= 55 ? '3mo' : days <= 160 ? '6mo' : days <= 350 ? '1y' : '2y';
+      await Promise.all(uniqEntries.map(async entry => {
+        try {
+          const data = await fetchYahooCandles(entry.yahoo, cRange);
+          const scale = entry.priceScale || 1;
+          const map = {};
+          (data || []).forEach(item => {
+            const key = dateKeyInTimeZone(item.t, APP_TIME_ZONE);
+            if (key && item.p > 0) map[key] = Number(item.p) * scale;
+          });
+          const liveQ = S.mp?.[entry.key];
+          if (liveQ?.usd > 0 && liveQ.quoteTime && dateKeyInTimeZone(liveQ.quoteTime, APP_TIME_ZONE) === todayKey) map[todayKey] = liveQ.usd;
+          commodityHist[entry.key] = map;
+        } catch (_) { commodityHist[entry.key] = {}; }
+      }));
+    }
     setLoadMsg('טוען נתוני קריפטו...');
 
     // Crypto: hourly candles are sampled exactly at 00:00 in the user's local timezone.
@@ -10754,9 +10781,12 @@ async function buildHistoryTable() {
         }
         const live = S.sp[s.sym];
         // For TODAY (or the latest row when markets data is live): the live quote is
-        // authoritative. Derive prevClose from change% if the field is missing.
+        // authoritative — but ONLY if the quote actually comes from that calendar day.
+        // On weekends/holidays the "live" quote still carries the LAST session's move,
+        // and applying it here would duplicate that session's P&L onto a non-trading day.
+        const liveQuoteKey = live?.quoteTime ? dateKeyInTimeZone(live.quoteTime, APP_TIME_ZONE) : null;
         const isLatestDay = dateKey === todayKey || dateKey === allDays[allDays.length - 1];
-        if (isLatestDay && live?.price > 0) {
+        if (isLatestDay && live?.price > 0 && liveQuoteKey === dateKey) {
           let lp = live.prevClose;
           if (!(lp > 0) && Number.isFinite(live.change) && live.change !== 0) {
             lp = live.price / (1 + live.change / 100);
@@ -10821,10 +10851,43 @@ async function buildHistoryTable() {
       let manualVal = 0;
       const manualCats = ['commodities','bonds','etfs'].filter(k => typeof catInTotal === 'function' && catInTotal(k));
       const manualByCat = {};
-      manualCats.forEach(k => { try { const v = manualCatValueILS(k) || 0; manualByCat[k] = v; manualVal += v; } catch(_){ manualByCat[k] = 0; } });
+      let commodityPnlDay = 0;
+      manualCats.forEach(k => {
+        try {
+          if (k === 'commodities' && heldCommodities.length) {
+            // Real daily P&L per commodity: close[day] vs the previous available close,
+            // exactly like stocks. Non-trading days naturally yield 0.
+            let cStartV = 0, cEndV = 0, cHasData = false;
+            for (const a of S.commodities || []) {
+              const entry = commodityCatalogFor(a.sym);
+              if (!entry) { const q0 = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty||0); cStartV += q0 * (a.price||0); cEndV += q0 * (a.price||0); continue; }
+              const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+              const qtyPU = qty * commodityUnitFactor(entry, a.unit);
+              const map = commodityHist[entry.key] || {};
+              const keys = Object.keys(map).sort();
+              let prevC = null, sessC = null;
+              for (const kk of keys) { if (kk < dateKey) prevC = map[kk]; else if (kk === dateKey) sessC = map[kk]; else break; }
+              const endP = sessC > 0 ? sessC : (prevC > 0 ? prevC : null);
+              if (!(endP > 0)) { const lv = commodityLiveValueUSD(a); if (lv != null) { cStartV += lv * fx; cEndV += lv * fx; } continue; }
+              const startP = prevC > 0 ? prevC : endP;
+              cStartV += startP * qtyPU * fx;
+              cEndV   += endP  * qtyPU * fx;
+              if (sessC > 0) cHasData = true;
+            }
+            const cPnl = cEndV - cStartV;
+            commodityPnlDay += cPnl;
+            manualByCat[k] = { v: cEndV, pnl: cPnl, live: true, hasData: cHasData };
+            manualVal += cStartV;      // start-of-day value goes into the base
+          } else {
+            const v = manualCatValueILS(k) || 0;
+            manualByCat[k] = { v, pnl: 0, live: false };
+            manualVal += v;
+          }
+        } catch (_) { manualByCat[k] = { v: 0, pnl: 0, live: false }; }
+      });
 
       const prevTotal = stockStart + cryptoStart + manualVal;
-      const pnl = stockPnl + cryptoPnl;
+      const pnl = stockPnl + cryptoPnl + commodityPnlDay;
       const total = prevTotal + pnl;
       if (prevTotal > 0 || total > 0) {
         rows.push({
@@ -10896,7 +10959,7 @@ async function buildHistoryTable() {
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>
-        ${enabledManualCats.map(k=>{const v=row.manualByCat?.[k]||0;return `<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${v>0?`<span style="color:var(--t2)">${fILS(v)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`;}).join('')}
+        ${enabledManualCats.map(k=>{const e=row.manualByCat?.[k];const isLive=e&&typeof e==='object'&&e.live;const v=e&&typeof e==='object'?e.v:(e||0);const cp=e&&typeof e==='object'?e.pnl:0;if(isLive){const up=cp>=0;return `<td style="padding:8px 4px;text-align:left;white-space:nowrap;color:${cp===0?'var(--t3)':(up?'var(--gr)':'var(--rd)')}" title="P&L יומי — סחורות">${cp===0?fILS(0):(up?'+':'')+fILS(cp)}</td>`;}return `<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${v>0?`<span style="color:var(--t2)">${fILS(v)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`;}).join('')}
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
@@ -11068,7 +11131,8 @@ function renderCommodityModal(a, el) {
       <div class="manc"><div class="mant"><i class="ph-thin ph-brain" style="margin-inline-end:5px"></i>אות אנליטי</div>
         <div style="font-size:12px;color:var(--t2);line-height:1.6;padding-top:2px">${sigTxt}</div>
       </div>
-    </div>`;
+    </div>
+    <button class="sell-btn" onclick="sellAsset('${a.sym}','commodity')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
   loadMC(entry.key, '1d', null, true);
   document.querySelector('#detContent .rb')?.classList.add('active');
 }
@@ -11714,8 +11778,9 @@ function drawHistChartTV(chartRows) {
       locale: _dateLocale(),
       priceFormatter: value => fmtVal(value),
     },
-    handleScroll: true,
-    handleScale: true,
+    // Frozen: page scrolling over the chart must scroll the PAGE, not zoom the chart.
+    handleScroll: false,
+    handleScale: false,
   });
 
   const area = chart.addSeries(LWC.AreaSeries, {
@@ -11890,7 +11955,7 @@ function drawHistChartTV(chartRows) {
     mode = nextMode;
     toolbar.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('active', x.dataset.mode === mode));
     measureLayer.classList.toggle('active', mode === 'measure');
-    chart.applyOptions({ handleScroll: mode === 'nav', handleScale: mode === 'nav' });
+    chart.applyOptions({ handleScroll: false, handleScale: false });   // stays frozen in every mode
     if (mode === 'nav') clearMeasurement();
   };
   toolbar.addEventListener('click', toolbarClick);
@@ -12410,18 +12475,25 @@ window.selectSellCurrency = selectSellCurrency;
 
 function sellAsset(key, type) {
   const isC = type === 'crypto';
-  const list = isC ? S.crypto : S.stocks;
+  const isM = type === 'commodity';   // commodities sell exactly like stocks
+  const list = isC ? S.crypto : (isM ? S.commodities : S.stocks);
   const idx = isC ? list.findIndex(a => a.id === key) : list.findIndex(s => s.sym === key);
   if (idx < 0) return;
   const a = list[idx];
-  const held = isC ? cQty(a) : getShares(a);
+  const held = isC ? cQty(a)
+             : isM ? (a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0))
+             : getShares(a);
   if (!held || held <= 0) { alert(i18nGetText('אין פוזיציה למכירה')); return; }
-  const unit = isC ? a.sym : 'מניות';
-  const quote = isC ? S.cp[a.id] : S.sp[a.sym];
-  const priceNative = isC ? Number(quote?.usd || 0) : Number(quote?.price || 0);
-  const nativeCur = isC ? 'USD' : String(quote?.currency || 'USD').toUpperCase().replace('ILA','ILS');
+  const mEntry = isM ? commodityCatalogFor(a.sym) : null;
+  const unit = isC ? a.sym : (isM ? (mEntry ? commodityUnitLabel(mEntry, a.unit) : a.sym) : 'מניות');
+  const quote = isC ? S.cp[a.id] : (isM ? S.mp?.[mEntry?.key] : S.sp[a.sym]);
+  // Commodity price per HOLDING unit (e.g. $/gram when the position is in grams).
+  const priceNative = isC ? Number(quote?.usd || 0)
+                    : isM ? (quote?.usd > 0 && mEntry ? quote.usd * commodityUnitFactor(mEntry, a.unit) : Number(a.price || 0))
+                    : Number(quote?.price || 0);
+  const nativeCur = (isC || isM) ? 'USD' : String(quote?.currency || 'USD').toUpperCase().replace('ILA','ILS');
 
-  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, sym:a.sym, qty:0 };
+  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, isM, sym:a.sym, qty:0 };
   // Important: every new sale starts in the same currency currently selected on
   // the home/dashboard screen. A temporary choice inside this modal is not saved.
   _sellCur = String(S.currency || 'ils').toUpperCase();
@@ -12525,12 +12597,14 @@ window.closeSell = closeSell;
 
 function confirmSell() {
   if (!_sellCtx) return;
-  const { isC, idx } = _sellCtx;
+  const { isC, isM, idx } = _sellCtx;
   let sold = _roundQ(_sellCtx.qty || 0);
-  const list = isC ? S.crypto : S.stocks;
+  const list = isC ? S.crypto : (isM ? S.commodities : S.stocks);
   const a = list[idx];
   if (!a || sold <= 0) return;
-  const held = isC ? cQty(a) : getShares(a);
+  const held = isC ? cQty(a)
+             : isM ? (a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0))
+             : getShares(a);
   const sellAll = sold >= held - 1e-9;
 
   if (sellAll) {
@@ -12545,9 +12619,11 @@ function confirmSell() {
       remaining -= take;
     }
     a.lots = a.lots.filter(l => (parseFloat(l.qty) || 0) > 1e-9);
-    if (isC) a.qty = cQty(a); else a.shares = getShares(a);
+    if (isC) a.qty = cQty(a);
+    else if (isM) a.qty = a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0);
+    else a.shares = getShares(a);
   } else {
-    if (isC) a.qty = held - sold; else a.shares = held - sold;
+    if (isC || isM) a.qty = held - sold; else a.shares = held - sold;
   }
 
   saveLS();
@@ -13252,6 +13328,8 @@ function dashPortfolioSignature() {
     u: window.firebaseUser?.uid || 'local',
     s: S.stocks.map(a => ({x:a.sym,q:getShares(a),b:Number(a.baseILS)||0,l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
     c: S.crypto.map(a => ({x:a.sym,q:cQty(a),l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
+    m: (S.commodities || []).map(a => ({x:a.sym,q:(a.lots?.length?a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0):(a.qty||0)),u:a.unit||'',l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
+    mc: (typeof catInTotal === 'function' && catInTotal('commodities')) ? 1 : 0,
   };
   return dashHash(payload);
 }
@@ -13497,13 +13575,66 @@ async function dashComputePeriod(range){
   const fxMap=await dashGetFxMap(range,lotDates);
   const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
+  // 'היום' כשהשוק עוד לא נסחר: הציטוט ה"חי" של מניה עדיין נושא את התנועה של יום
+  // המסחר האחרון. אם הציטוט אינו מהיום — ה-P&L של היום הוא 0 (כמו שבת).
+  const _todayK = todayLocalDateKey();
+  if (range.fromKey === range.endKey && range.endKey === _todayK) {
+    for (const it of items) {
+      if (it.type !== 'stock') continue;
+      const q = S.sp[it.sym];
+      const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null;
+      if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; }
+    }
+  }
+  // סחורות: P&L חי לתקופה (זהב, נפט...) — מצטרף לפירוט, לקוביות ולסה"כ.
+  if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
+    const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
+    cItems.filter(Boolean).forEach(x => items.push(x));
+  }
   const group=type=>{
     const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
     return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
   };
-  const stocks=group('stock'),crypto=group('crypto');
-  const startValue=stocks.startValue+crypto.startValue,endValue=stocks.endValue+crypto.endValue;
-  return {range,items,stocks,crypto,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+  const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity');
+  const startValue=stocks.startValue+crypto.startValue+commodities.startValue,endValue=stocks.endValue+crypto.endValue+commodities.endValue;
+  return {range,items,stocks,crypto,commodities,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+}
+
+// P&L של סחורה בודדת לתקופה: 'היום' — מהציטוט החי (רק אם הוא מהיום),
+// טווחים ארוכים — מנרות יומיים של Yahoo (אותו מקור כמו הגרפים).
+async function dashComputeCommodity(a, range) {
+  try {
+    const entry = typeof commodityCatalogFor === 'function' ? commodityCatalogFor(a.sym) : null;
+    const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+    if (!(qty > 0)) return null;
+    const icon = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || '');
+    const flat = v => ({ type:'commodity', sym:a.sym, name:a.name || (entry ? commodityName(entry) : ''), icon, startValue:v, endValue:v, pnl:0, pct:0, basis:'range' });
+    if (!entry) { const v = qty * (a.price || 0) * S.fx; return flat(v); }
+    const qtyPU = qty * commodityUnitFactor(entry, a.unit);
+    const scale = entry.priceScale || 1;
+    const todayK = todayLocalDateKey();
+    const liveQ = S.mp?.[entry.key];
+    const liveKey = liveQ?.quoteTime ? dateKeyInTimeZone(liveQ.quoteTime, APP_TIME_ZONE) : null;
+    let startP = null, endP = null;
+    if (range.fromKey === range.endKey && range.endKey === todayK) {
+      // היום: שינוי חי מול סגירה קודמת — רק אם הציטוט באמת מהיום.
+      if (liveQ?.usd > 0 && liveKey === todayK && liveQ.prevClose > 0) { startP = liveQ.prevClose; endP = liveQ.usd; }
+      else { const lv = commodityLiveValueUSD(a); return flat((lv != null ? lv : qty * (a.price || 0)) * S.fx); }
+    } else {
+      const spanDays = Math.max(2, Math.round((new Date(range.endKey) - new Date(range.fromKey)) / 86400000) + 3);
+      const cRange = spanDays <= 55 ? '3mo' : spanDays <= 160 ? '6mo' : spanDays <= 350 ? '1y' : spanDays <= 730 ? '2y' : '5y';
+      const data = await fetchYahooCandles(entry.yahoo, cRange);
+      const map = {};
+      (data || []).forEach(it => { const k = dateKeyInTimeZone(it.t, APP_TIME_ZONE); if (k && it.p > 0) map[k] = it.p * scale; });
+      const keys = Object.keys(map).sort();
+      for (const k of keys) { if (k < range.fromKey) startP = map[k]; if (k <= range.endKey) endP = map[k]; }
+      if (!(startP > 0)) { const firstIn = keys.find(k => k >= range.fromKey && k <= range.endKey); if (firstIn) startP = map[firstIn]; }
+      if (range.endKey === todayK && liveQ?.usd > 0 && liveKey === todayK) endP = liveQ.usd;
+      if (!(startP > 0) || !(endP > 0)) { const lv = commodityLiveValueUSD(a); return flat((lv != null ? lv : qty * (a.price || 0)) * S.fx); }
+    }
+    const startValue = startP * qtyPU * S.fx, endValue = endP * qtyPU * S.fx;
+    return { type:'commodity', sym:a.sym, name:a.name || commodityName(entry), icon, startValue, endValue, pnl:endValue-startValue, pct:startValue?(endValue-startValue)/startValue*100:0, basis:'range' };
+  } catch (_) { return null; }
 }
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
 function dashSummaryCell(label,g,primary){const up=g.pnl>=0;return `<div class="period-summary-cell${primary?' is-primary':''}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
@@ -13516,7 +13647,7 @@ function dashRenderPeriodData(data,{cached=false}={}){
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}${data.commodities&&data.commodities.count?dashSummaryCell('סחורות',data.commodities):''}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
   const cardsBlock = cards
     ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
     : '';
