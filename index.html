@@ -9690,9 +9690,14 @@ function updateKPIs() {
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
   // Daily P&L only sums categories that are included in the total.
-  const pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
+  let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
                  + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
-  const pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
+  let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
+  // ⚡ Single source of truth: when the "סיכום ביצועים לפי תקופה" engine has a FRESH
+  // result for TODAY, the hero shows the exact same number — no more mismatched totals
+  // between the header and the period summary (they used different fx/crypto windows).
+  const tp = S._todayPeriod;
+  if (tp && Date.now() - tp.ts < 6 * 60 * 1000) { pnlTotal = tp.pnl; pnlPct = tp.pct; }
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
@@ -13639,6 +13644,14 @@ async function dashComputeCommodity(a, range) {
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
 function dashSummaryCell(label,g,primary){const up=g.pnl>=0;return `<div class="period-summary-cell${primary?' is-primary':''}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
 function dashRenderPeriodData(data,{cached=false}={}){
+  // Publish today's result so the hero header shows the SAME number as this summary.
+  try {
+    const tk = todayLocalDateKey();
+    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk && data.total) {
+      S._todayPeriod = { pnl: data.total.pnl, pct: data.total.pct, ts: Date.now() };
+      updateKPIs?.();
+    }
+  } catch(_){}
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   // מיון פירוט הנכסים לפי רווח/הפסד בכסף (₪) — מהרווח הגבוה לנמוך
   const sortedItems=[...(data.items||[])].sort((a,b)=>(b.pnl||0)-(a.pnl||0));
