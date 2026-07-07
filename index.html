@@ -9478,6 +9478,39 @@ function togglePro() {
   if (!on) injectAdCards();   // ads back on → repopulate
 }
 window.togglePro = togglePro;
+// One-time cleanup: known ETF symbols that were added to the stocks list move to the
+// ETF category automatically (only when that category is enabled), keeping lots intact.
+function migrateEtfsFromStocks() {
+  try {
+    if (typeof catShown !== 'function' || !catShown('etfs')) return;
+    if (!Array.isArray(S.stocks) || !S.stocks.length) return;
+    const moved = [];
+    S.etfs = S.etfs || [];
+    S.stocks = S.stocks.filter(s => {
+      const symU = String(s.sym || '').toUpperCase();
+      if (!KNOWN_ETFS.has(symU)) return true;
+      const existing = S.etfs.find(a => a.sym === s.sym);
+      if (existing) {
+        // Merge into the existing ETF position as purchase lots.
+        if (!Array.isArray(existing.lots)) existing.lots = [];
+        if (Array.isArray(s.lots) && s.lots.length) existing.lots.push(...s.lots);
+        else if (getShares(s) > 0) existing.lots.push({ qty: getShares(s), price: 0, date: new Date().toISOString().slice(0,10) });
+        existing.qty = existing.lots.reduce((t,l)=>t+(parseFloat(l.qty)||0),0);
+      } else {
+        const asset = { sym: s.sym, name: s.name, qty: getShares(s), icon: s.icon, color: s.color, price: 0 };
+        if (Array.isArray(s.lots) && s.lots.length) asset.lots = s.lots;
+        S.etfs.push(asset);
+      }
+      moved.push(s.sym);
+      return false;
+    });
+    if (moved.length) {
+      saveLS();
+      console.log('[Vector] הועברו לתעודות סל:', moved.join(', '));
+    }
+  } catch (_) {}
+}
+
 function applyProState() {
   const on = isPro();
   document.body.classList.toggle('pro-mode', on);
@@ -12739,6 +12772,7 @@ let edPickedId = null;
 let acTimer = null, acSeq = 0;
 
 function edAC(q) {
+  edPickedType = null;   // typing invalidates the last pick's security type
   clearTimeout(acTimer);
   const box = document.getElementById('acBox');
   if (!box) return;
@@ -12782,7 +12816,7 @@ async function acFetch(q) {
           const dot = x.symbol.lastIndexOf('.');
           const suffix = dot >= 0 ? x.symbol.slice(dot + 1) : '';
           const exch = suffix ? (EXCHANGES[suffix.toUpperCase()] || suffix.toUpperCase()) : 'US';
-          return { sym: x.symbol, name: x.description, id: null, thumb: null, exch };
+          return { sym: x.symbol, name: x.description, id: null, thumb: null, exch, secType: x.type || '' };
         });
     }
     if (seq !== acSeq || !box) return;            // a newer search already ran
@@ -12796,7 +12830,7 @@ async function acFetch(q) {
       row.className = 'ac-item';
       row.addEventListener('mousedown', event => {
         event.preventDefault();
-        edPick(String(it.sym || ''), String(it.name || ''), it.id || null);
+        edPick(String(it.sym || ''), String(it.name || ''), it.id || null, String(it.secType || ''));
       });
       if (it.thumb) {
         const img = document.createElement('img');
@@ -12815,8 +12849,13 @@ async function acFetch(q) {
   }
 }
 
-function edPick(sym, name, id) {
+// Well-known ETF symbols — fallback detection when the user types a symbol without
+// picking it from the autocomplete (which carries the exact security type).
+const KNOWN_ETFS = new Set(['QQQ','QQQM','SPY','VOO','IVV','VTI','DIA','IWM','TLT','AGG','GLD','SLV','XLK','XLF','XLE','XLV','XLY','XLI','XLP','XLU','SMH','SOXX','ARKK','EEM','EFA','VEA','VWO','BND','LQD','HYG','SCHD','JEPI','VIG','VYM','RSP']);
+let edPickedType = null;   // Finnhub security type of the last autocomplete pick ("ETP" = ETF)
+function edPick(sym, name, id, secType) {
   edPickedId = id;
+  edPickedType = secType || null;
   const nS = document.getElementById('nS'), nN = document.getElementById('nN');
   if (nS) nS.value = sym;
   if (nN && name) nN.value = name.replace(/\b\w+/g, w => w.length > 3 ? w[0] + w.slice(1).toLowerCase() : w);
@@ -13281,10 +13320,23 @@ function addA() {
     S.crypto.push(asset);
     edPickedId = null;
   } else if (edTab === 'stock') {
-    if (S.stocks.find(s => s.sym === sym)) { alert('המנייה כבר קיימת'); return; }
-    const asset = {sym, name, shares: qty, icon, color};
-    if (lots) asset.lots = lots;
-    S.stocks.push(asset);
+    // ⚡ Auto-detect ETFs added from the stocks tab: route them to the ETF category
+    // (when it's enabled) so the portfolio allocation stays honest. Detection uses the
+    // autocomplete's security type (Finnhub "ETP") with a known-symbols fallback.
+    const looksEtf = (typeof edPickedType === 'string' && /ETP|ETF/i.test(edPickedType || '')) || KNOWN_ETFS.has(sym);
+    if (looksEtf && typeof catShown === 'function' && catShown('etfs')) {
+      S.etfs = S.etfs || [];
+      if (S.etfs.find(a => a.sym === sym)) { alert('הנכס כבר קיים בתעודות סל'); return; }
+      const asset = {sym, name, qty, icon, color, price: (!isNaN(entryPrice) && entryPrice > 0) ? entryPrice : 0};
+      if (lots) asset.lots = lots;
+      S.etfs.push(asset);
+      setTimeout(() => alert(`${sym} זוהה כתעודת סל ונוסף ללשונית "תעודות סל" ✓`), 150);
+    } else {
+      if (S.stocks.find(s => s.sym === sym)) { alert('המנייה כבר קיימת'); return; }
+      const asset = {sym, name, shares: qty, icon, color};
+      if (lots) asset.lots = lots;
+      S.stocks.push(asset);
+    }
   } else {
     // Manual categories: commodities / bonds / etfs. Store per-unit price + qty.
     const cat = ED_CATS[edTab];
@@ -14069,6 +14121,7 @@ window.proceedToApp = async function() {
   appStarted = true;
   tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
   applyProState();                                    // PRO button state + hide ads if PRO
+  migrateEtfsFromStocks();                            // QQQ & friends move from stocks → ETFs
   setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 900);   // interstitial ad — every app open
   setTimeout(() => { try { injectAdCards(); } catch(_){} }, 1500);
 
