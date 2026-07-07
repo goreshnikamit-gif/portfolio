@@ -3878,7 +3878,15 @@ async function getStocks() {
     return a;
   };
 
-  await Promise.all(S.stocks.map(async s => {
+  // ⚡ ETFs and tradable bonds ride the exact same quote pipeline as stocks —
+  // their symbols (SPY, QQQ, TLT, corporate .TA bonds...) are served by the same
+  // Yahoo/Finnhub endpoints. Quotes land in S.sp[sym] like any stock.
+  const stockLikeList = [
+    ...S.stocks,
+    ...((typeof catShown === 'function' && catShown('etfs'))  ? (S.etfs  || []) : []),
+    ...((typeof catShown === 'function' && catShown('bonds')) ? (S.bonds || []) : []),
+  ];
+  await Promise.all(stockLikeList.map(async s => {
     let q = null;
     const hasSuffix = s.sym.includes('.');
 
@@ -4439,18 +4447,29 @@ function manualCatValueILS(catKey) {
   const arr = S[catKey] || [];
   const usd = (ED_CATS[catKey]?.curr === '$');
   let v = 0;
+  let liveILS = 0;
   arr.forEach(a => {
     // ⚡ Commodities with a live quote use the real market price; others fall back to
     // the manually-entered price.
     if (catKey === 'commodities') {
       const live = commodityLiveValueUSD(a);
-      if (live != null) { v += live; return; }
+      if (live != null) { liveILS += live * S.fx; return; }
+    }
+    // ⚡ ETFs / tradable bonds: when the symbol has a live quote (fetched through the
+    // stock pipeline), value = qty × live price in the asset's native currency.
+    if ((catKey === 'etfs' || catKey === 'bonds')) {
+      const q = S.sp?.[a.sym];
+      if (q?.price > 0) {
+        const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+        liveILS += nativeToILS(qty * q.price, q.currency || 'USD');
+        return;
+      }
     }
     const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
     const price = a.lots?.length ? (avgEntry(a) || 0) : (a.price || 0);
     v += qty * price;
   });
-  return usd ? v * S.fx : v;
+  return liveILS + (usd ? v * S.fx : v);
 }
 const tots = () => {
   let c = 0, st = 0;
@@ -9344,18 +9363,23 @@ function renderExtraCategories() {
         const entry = cat.key === 'commodities' ? commodityCatalogFor(a.sym) : null;
         const liveQ = entry ? S.mp?.[entry.key] : null;
         const liveUSD = cat.key === 'commodities' ? commodityLiveValueUSD(a) : null;
-        const valILS = liveUSD != null ? liveUSD * S.fx : (curr === '$' ? qty * price * S.fx : qty * price);
+        // ⚡ ETFs / tradable bonds with a live stock-pipeline quote
+        const spq = (cat.key === 'etfs' || cat.key === 'bonds') ? S.sp?.[a.sym] : null;
+        const valILS = liveUSD != null ? liveUSD * S.fx
+                     : (spq?.price > 0 ? nativeToILS(qty * spq.price, spq.currency || 'USD')
+                     : (curr === '$' ? qty * price * S.fx : qty * price));
         const unitLbl = entry ? commodityUnitLabel(entry, a.unit || entry.defaultUnit) : (a.sym || '');
-        const chg = liveQ?.changePct;
+        const chg = liveQ?.changePct ?? (spq && Number.isFinite(spq.change) && timestampIsTodayLocal(spq.quoteTime) ? spq.change : (spq ? 0 : null));
         const chgHTML = (chg != null)
           ? `<div class="pp" style="color:${chg>=0?'var(--gr)':'var(--rd)'};font-size:11px">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`
           : `<div class="pl">${t('החזקה ידנית')}</div>`;
         const priceHTML = liveQ
           ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${commodityPriceUnitLabel(entry)}</span>`
-          : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>');
+          : (spq?.price > 0 ? `${fPriceNative(spq.price, spq.currency, 2)}`
+          : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>'));
         const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${cat.icon}"></i>`);
         return `
-          <div class="card manual-card" onclick="${cat.key==='commodities' && entry ? `openDet('${a.sym}','commodity')` : `openEditor('${cat.key}')`}">
+          <div class="card manual-card" onclick="${cat.key==='commodities' && entry ? `openDet('${a.sym}','commodity')` : ((cat.key==='etfs'||cat.key==='bonds') && spq?.price>0 ? `openDet('${a.sym}','${cat.key}')` : `openEditor('${cat.key}')`)}">
             <div class="cg" style="background:${a.color || entry?.color || 'var(--gd)'}"></div>
             <div class="ct" style="direction:ltr;">
               <div class="cid"><div class="ico">${ico}</div>
@@ -9397,18 +9421,23 @@ function manualCardsHTML(catKey, catIcon, catLabel) {
     const entry = catKey === 'commodities' ? commodityCatalogFor(a.sym) : null;
     const liveQ = entry ? S.mp?.[entry.key] : null;
     const liveUSD = catKey === 'commodities' ? commodityLiveValueUSD(a) : null;
-    const valILS = liveUSD != null ? liveUSD * S.fx : (curr === '$' ? qty * price * S.fx : qty * price);
+    // ⚡ ETFs / tradable bonds with a live stock-pipeline quote
+    const spq = (catKey === 'etfs' || catKey === 'bonds') ? S.sp?.[a.sym] : null;
+    const valILS = liveUSD != null ? liveUSD * S.fx
+                 : (spq?.price > 0 ? nativeToILS(qty * spq.price, spq.currency || 'USD')
+                 : (curr === '$' ? qty * price * S.fx : qty * price));
     const unitLbl = entry ? commodityUnitLabel(entry, a.unit || entry.defaultUnit) : (a.sym || '');
-    const chg = liveQ?.changePct;
+    const chg = liveQ?.changePct ?? (spq && Number.isFinite(spq.change) && timestampIsTodayLocal(spq.quoteTime) ? spq.change : (spq ? 0 : null));
     const chgHTML = (chg != null)
       ? `<div class="pp" style="color:${chg>=0?'var(--gr)':'var(--rd)'};font-size:11px">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`
       : `<div class="pl">${t('החזקה ידנית')}</div>`;
     const priceHTML = liveQ
       ? `$${fP(liveQ.usd)} <span style="color:var(--t3);font-size:9px">/ ${commodityPriceUnitLabel(entry)}</span>`
-      : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>');
+      : (spq?.price > 0 ? `${fPriceNative(spq.price, spq.currency, 2)}`
+      : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>'));
     const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${catIcon}"></i>`);
     return `
-      <div class="card manual-card" onclick="${catKey==='commodities' && entry ? `openDet('${a.sym}','commodity')` : `openEditor('${catKey}')`}">
+      <div class="card manual-card" onclick="${catKey==='commodities' && entry ? `openDet('${a.sym}','commodity')` : ((catKey==='etfs'||catKey==='bonds') && spq?.price>0 ? `openDet('${a.sym}','${catKey}')` : `openEditor('${catKey}')`)}">
         <div class="cg" style="background:${a.color || (entry ? entry.color : '') || 'var(--gd)'}"></div>
         <div class="ct" style="direction:ltr;">
           <div class="cid"><div class="ico">${ico}</div>
@@ -10711,6 +10740,29 @@ async function buildHistoryTable() {
         } catch (_) { commodityHist[entry.key] = {}; }
       }));
     }
+    // ── ETFs / tradable bonds: daily candle maps (native currency) for real per-day P&L.
+    const stockLikeHist = {};   // sym → { dateKey: native close }
+    const liveExtraAssets = ['etfs','bonds']
+      .filter(k => typeof catInTotal === 'function' && catInTotal(k))
+      .flatMap(k => (S[k] || []).filter(a => S.sp?.[a.sym]?.price > 0).map(a => a.sym));
+    if (liveExtraAssets.length) {
+      setLoadMsg('טוען נתוני תעודות סל ואג"ח...');
+      const uniqSyms = [...new Set(liveExtraAssets)];
+      const eRange = days <= 55 ? '3mo' : days <= 160 ? '6mo' : days <= 350 ? '1y' : '2y';
+      await Promise.all(uniqSyms.map(async sym => {
+        try {
+          const data = await fetchYahooCandles(sym, eRange);
+          const map = {};
+          (data || []).forEach(item => {
+            const key = dateKeyInTimeZone(item.t, APP_TIME_ZONE);
+            if (key && item.p > 0) map[key] = Number(item.p);
+          });
+          const lq = S.sp[sym];
+          if (lq?.price > 0 && lq.quoteTime && dateKeyInTimeZone(lq.quoteTime, APP_TIME_ZONE) === todayKey) map[todayKey] = Number(lq.price);
+          stockLikeHist[sym] = map;
+        } catch (_) { stockLikeHist[sym] = {}; }
+      }));
+    }
     setLoadMsg('טוען נתוני קריפטו...');
 
     // Crypto: hourly candles are sampled exactly at 00:00 in the user's local timezone.
@@ -10883,6 +10935,34 @@ async function buildHistoryTable() {
             commodityPnlDay += cPnl;
             manualByCat[k] = { v: cEndV, pnl: cPnl, live: true, hasData: cHasData };
             manualVal += cStartV;      // start-of-day value goes into the base
+          } else if ((k === 'etfs' || k === 'bonds') && liveExtraAssets.length && (S[k] || []).some(a => stockLikeHist[a.sym])) {
+            // ETFs / tradable bonds: per-day P&L from daily closes, like stocks.
+            let eStartV = 0, eEndV = 0, eHasData = false;
+            for (const a of S[k] || []) {
+              const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+              if (!(qty > 0)) continue;
+              const map = stockLikeHist[a.sym];
+              if (!map || !Object.keys(map).length) {
+                // no live series — static value both sides (0 daily P&L)
+                const q = S.sp?.[a.sym];
+                const v = q?.price > 0 ? nativeToILS(qty * q.price, q.currency || 'USD') : qty * (a.price || 0);
+                eStartV += v; eEndV += v; continue;
+              }
+              const cur = S.sp?.[a.sym]?.currency || 'USD';
+              const keys = Object.keys(map).sort();
+              let prevC = null, sessC = null;
+              for (const kk of keys) { if (kk < dateKey) prevC = map[kk]; else if (kk === dateKey) sessC = map[kk]; else break; }
+              const endP = sessC > 0 ? sessC : (prevC > 0 ? prevC : null);
+              if (!(endP > 0)) continue;
+              const startP = prevC > 0 ? prevC : endP;
+              eStartV += nativeToILS(startP * qty, cur);
+              eEndV   += nativeToILS(endP  * qty, cur);
+              if (sessC > 0) eHasData = true;
+            }
+            const ePnl = eEndV - eStartV;
+            commodityPnlDay += ePnl;   // rides the same "extra live P&L" bucket in the totals
+            manualByCat[k] = { v: eEndV, pnl: ePnl, live: true, hasData: eHasData };
+            manualVal += eStartV;
           } else {
             const v = manualCatValueILS(k) || 0;
             manualByCat[k] = { v, pnl: 0, live: false };
@@ -10964,7 +11044,7 @@ async function buildHistoryTable() {
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${fILS(row.total)}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${stockCell}</td>
         <td style="padding:8px 4px;text-align:left;white-space:nowrap">${row.cryptoHasData?pnlCell(row.cryptoPnl):`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>
-        ${enabledManualCats.map(k=>{const e=row.manualByCat?.[k];const isLive=e&&typeof e==='object'&&e.live;const v=e&&typeof e==='object'?e.v:(e||0);const cp=e&&typeof e==='object'?e.pnl:0;if(isLive){const up=cp>=0;return `<td style="padding:8px 4px;text-align:left;white-space:nowrap;color:${cp===0?'var(--t3)':(up?'var(--gr)':'var(--rd)')}" title="P&L יומי — סחורות">${cp===0?fILS(0):(up?'+':'')+fILS(cp)}</td>`;}return `<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${v>0?`<span style="color:var(--t2)">${fILS(v)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`;}).join('')}
+        ${enabledManualCats.map(k=>{const e=row.manualByCat?.[k];const isLive=e&&typeof e==='object'&&e.live;const v=e&&typeof e==='object'?e.v:(e||0);const cp=e&&typeof e==='object'?e.pnl:0;if(isLive){const up=cp>=0;return `<td style="padding:8px 4px;text-align:left;white-space:nowrap;color:${cp===0?'var(--t3)':(up?'var(--gr)':'var(--rd)')}" title="P&L יומי">${cp===0?fILS(0):(up?'+':'')+fILS(cp)}</td>`;}return `<td style="padding:8px 4px;text-align:left;white-space:nowrap" title="נכסים ידניים — ללא שינוי יומי">${v>0?`<span style="color:var(--t2)">${fILS(v)}</span>`:`<span style="color:var(--t3)">${fILS(0)}</span>`}</td>`;}).join('')}
         <td style="padding:8px 4px;text-align:left;white-space:nowrap;font-weight:700;color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(row.pnl)} (${fPct(pct)})</td>
       </tr>`;
     }
@@ -10990,6 +11070,7 @@ async function openDet(sym, type) {
   const el = document.getElementById('detContent');
   if (type === 'crypto') { const a = S.crypto.find(x => x.sym === sym); if (a) await renderCryptoModal(a, el); }
   else if (type === 'commodity') { const a = (S.commodities || []).find(x => x.sym === sym); if (a) renderCommodityModal(a, el); }
+  else if (type === 'etfs' || type === 'bonds') { const a = (S[type] || []).find(x => x.sym === sym); if (a) renderStockModal(a, el, type); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
 }
 function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
@@ -11190,7 +11271,9 @@ async function loadMC(key, range, btn, silent) {
 }
 window.loadMC = loadMC;
 
-function renderStockModal(s, el) {
+function renderStockModal(s, el, assetType = 'stock') {
+  // assetType: 'stock' | 'etfs' | 'bonds' — ETFs and tradable bonds reuse this exact
+  // modal (same quotes, same TradingView chart); only edit/sell route to their list.
   const p = S.sp[s.sym]; const val = sv(s); const chg = p?.change ?? null; const pnl = spnl(s);
   const pu = p?.price; const {g} = tots(); const pct = g ? val / g * 100 : 0; const sh = getShares(s);
   const sig = chg == null ? 'hold' : chg > 2 ? 'buy' : chg < -2 ? 'sell' : 'hold';
@@ -11210,7 +11293,7 @@ function renderStockModal(s, el) {
         return c + ' Exchange';
       })()}</p></div>
       <div class="mh-actions">
-        <button class="mh-btn" onclick="editFromModal('stock','${s.sym}')" title="עריכה"><i class="ph-thin ph-pencil-simple"></i></button>
+        <button class="mh-btn" onclick="editFromModal('${assetType==='stock'?'stock':assetType}','${s.sym}')" title="עריכה"><i class="ph-thin ph-pencil-simple"></i></button>
         <button class="mh-btn" onclick="refreshFromModal('stock','${s.sym}',this)" title="רענון"><i class="ph-thin ph-arrows-clockwise"></i></button>
       </div></div>
     <div class="mkpis">
@@ -11257,7 +11340,7 @@ function renderStockModal(s, el) {
       <div class="fund-cell"><div class="fund-l">שפל 52ש</div><div class="fund-v dn" id="stock52Low" style="color:var(--rd)">${p?.low52w>0?fPriceNative(p.low52w,p?.currency,2):'טוען…'}</div></div>
     </div>
     ${lotsHistoryHTML(s, pu || 0, 'stock')}
-    <button class="sell-btn" onclick="sellAsset('${s.sym}','stock')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
+    <button class="sell-btn" onclick="sellAsset('${s.sym}','${assetType}')"><i class="ph-thin ph-hand-coins"></i> מכירה</button>`;
   ensureStock52Week(s.sym).catch(() => patchStock52WeekUI(s.sym));
   loadSC(s.sym, '1d', el.querySelector('.rb.active'));
 }
@@ -11392,7 +11475,9 @@ function detailChartHoldingQty(sym, type) {
     const qty = holder.lots?.length ? holder.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (holder.qty || 0);
     return qty * commodityUnitFactor(entry, holder.unit);
   }
-  const s = S.stocks.find(x => x.sym === sym);
+  const s = S.stocks.find(x => x.sym === sym)
+         || (S.etfs || []).find(x => x.sym === sym)
+         || (S.bonds || []).find(x => x.sym === sym);
   return s ? Number(getShares(s)) || 0 : 0;
 }
 
@@ -12184,7 +12269,7 @@ function renderEd() {
     <div class="aform">
       <div class="af-t">+ הוספת נכס חדש</div>
       <div class="fg">
-        <div class="ff" style="position:relative"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${cat.live?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency();${edTab==='commodities'?'commoditySymInput(this.value);':''}" ${cat.live?'onfocus="edAC(this.value)"':''}><span class="ns-icon" id="nSIcon"></span><div class="ac-box" id="acBox"></div></div>
+        <div class="ff" style="position:relative"><label>סימבול מזהה</label><input id="nS" type="text" autocomplete="off" placeholder="${cat.phSym}" oninput="this.value=this.value.toUpperCase();edPickedId=null;${(cat.live||edTab==='etfs'||edTab==='bonds')?'edAC(this.value);':''}var p=document.getElementById('nP');if(p){p.dataset.manual='';p.classList.remove('lot-autofilled');}updateNewPriceCurrency();${edTab==='commodities'?'commoditySymInput(this.value);':''}" ${(cat.live||edTab==='etfs'||edTab==='bonds')?'onfocus="edAC(this.value)"':''}><span class="ns-icon" id="nSIcon"></span><div class="ac-box" id="acBox"></div></div>
         <div class="ff"><label>שם הנכס</label><input id="nN" type="text" placeholder="${cat.phName}"></div>
         <div class="ff"><label>${cat.unit==='מניות'?'כמות מניות':'כמות החזקה'}</label><input id="nQ" type="number" placeholder="${iC?'0.5':'10.5'}" step="any" oninput="onNewQtyInput()"></div>
         ${edTab==='commodities' ? `<div class="ff"><label>יחידת מידה</label><select id="nU" class="cur-select" style="width:100%"><option value="">בחר סחורה קודם</option></select></div>` : ''}
@@ -12481,7 +12566,8 @@ window.selectSellCurrency = selectSellCurrency;
 function sellAsset(key, type) {
   const isC = type === 'crypto';
   const isM = type === 'commodity';   // commodities sell exactly like stocks
-  const list = isC ? S.crypto : (isM ? S.commodities : S.stocks);
+  const isE = type === 'etfs' || type === 'bonds';   // ETFs/bonds too — quotes via S.sp
+  const list = isC ? S.crypto : (isM ? S.commodities : (isE ? S[type] : S.stocks));
   const idx = isC ? list.findIndex(a => a.id === key) : list.findIndex(s => s.sym === key);
   if (idx < 0) return;
   const a = list[idx];
@@ -12490,7 +12576,7 @@ function sellAsset(key, type) {
              : getShares(a);
   if (!held || held <= 0) { alert(i18nGetText('אין פוזיציה למכירה')); return; }
   const mEntry = isM ? commodityCatalogFor(a.sym) : null;
-  const unit = isC ? a.sym : (isM ? (mEntry ? commodityUnitLabel(mEntry, a.unit) : a.sym) : 'מניות');
+  const unit = isC ? a.sym : (isM ? (mEntry ? commodityUnitLabel(mEntry, a.unit) : a.sym) : (isE ? 'יחידות' : 'מניות'));
   const quote = isC ? S.cp[a.id] : (isM ? S.mp?.[mEntry?.key] : S.sp[a.sym]);
   // Commodity price per HOLDING unit (e.g. $/gram when the position is in grams).
   const priceNative = isC ? Number(quote?.usd || 0)
@@ -12498,7 +12584,7 @@ function sellAsset(key, type) {
                     : Number(quote?.price || 0);
   const nativeCur = (isC || isM) ? 'USD' : String(quote?.currency || 'USD').toUpperCase().replace('ILA','ILS');
 
-  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, isM, sym:a.sym, qty:0 };
+  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, isM, isE, sym:a.sym, qty:0 };
   // Important: every new sale starts in the same currency currently selected on
   // the home/dashboard screen. A temporary choice inside this modal is not saved.
   _sellCur = String(S.currency || 'ils').toUpperCase();
@@ -12602,9 +12688,10 @@ window.closeSell = closeSell;
 
 function confirmSell() {
   if (!_sellCtx) return;
-  const { isC, isM, idx } = _sellCtx;
+  const { isC, isM, isE, type } = _sellCtx;
+  const idx = _sellCtx.idx;
   let sold = _roundQ(_sellCtx.qty || 0);
-  const list = isC ? S.crypto : (isM ? S.commodities : S.stocks);
+  const list = isC ? S.crypto : (isM ? S.commodities : (isE ? S[type] : S.stocks));
   const a = list[idx];
   if (!a || sold <= 0) return;
   const held = isC ? cQty(a)
@@ -12625,10 +12712,10 @@ function confirmSell() {
     }
     a.lots = a.lots.filter(l => (parseFloat(l.qty) || 0) > 1e-9);
     if (isC) a.qty = cQty(a);
-    else if (isM) a.qty = a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0);
+    else if (isM || isE) a.qty = a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0);
     else a.shares = getShares(a);
   } else {
-    if (isC || isM) a.qty = held - sold; else a.shares = held - sold;
+    if (isC || isM || isE) a.qty = held - sold; else a.shares = held - sold;
   }
 
   saveLS();
@@ -13335,6 +13422,8 @@ function dashPortfolioSignature() {
     c: S.crypto.map(a => ({x:a.sym,q:cQty(a),l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
     m: (S.commodities || []).map(a => ({x:a.sym,q:(a.lots?.length?a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0):(a.qty||0)),u:a.unit||'',l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
     mc: (typeof catInTotal === 'function' && catInTotal('commodities')) ? 1 : 0,
+    e: (S.etfs || []).map(a => ({x:a.sym,q:getShares(a),l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
+    b: (S.bonds || []).map(a => ({x:a.sym,q:getShares(a),l:cleanLots(a)})).sort((a,b)=>a.x.localeCompare(b.x)),
   };
   return dashHash(payload);
 }
@@ -13596,13 +13685,26 @@ async function dashComputePeriod(range){
     const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
     cItems.filter(Boolean).forEach(x => items.push(x));
   }
+  // תעודות סל / אג"ח סחירות: אותו מנוע חישוב של מניות (יש להן ציטוט וסדרות זהות),
+  // רק מסומנות בסוג משלהן — כך הן מקבלות קובייה נפרדת ולא מתערבבות עם המניות.
+  for (const extraType of ['etfs','bonds']) {
+    if (typeof catInTotal !== 'function' || !catInTotal(extraType)) continue;
+    const liveAssets = (S[extraType] || []).filter(a => S.sp?.[a.sym]?.price > 0);
+    if (!liveAssets.length) continue;
+    const eItems = await dashMapLimit(liveAssets, 4, async a => {
+      const it = await dashComputeStock(a, range, fxMap);
+      if (it) { it.type = extraType; if (range.fromKey === range.endKey && range.endKey === _todayK) { const q = S.sp[a.sym]; const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null; if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; } } }
+      return it;
+    });
+    eItems.filter(Boolean).forEach(x => items.push(x));
+  }
   const group=type=>{
     const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
     return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
   };
-  const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity');
-  const startValue=stocks.startValue+crypto.startValue+commodities.startValue,endValue=stocks.endValue+crypto.endValue+commodities.endValue;
-  return {range,items,stocks,crypto,commodities,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+  const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity'),etfs=group('etfs'),bonds=group('bonds');
+  const startValue=stocks.startValue+crypto.startValue+commodities.startValue+etfs.startValue+bonds.startValue,endValue=stocks.endValue+crypto.endValue+commodities.endValue+etfs.endValue+bonds.endValue;
+  return {range,items,stocks,crypto,commodities,etfs,bonds,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
 }
 
 // P&L של סחורה בודדת לתקופה: 'היום' — מהציטוט החי (רק אם הוא מהיום),
@@ -13660,7 +13762,7 @@ function dashRenderPeriodData(data,{cached=false}={}){
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}${data.commodities&&data.commodities.count?dashSummaryCell('סחורות',data.commodities):''}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}${data.commodities&&data.commodities.count?dashSummaryCell('סחורות',data.commodities):''}${data.etfs&&data.etfs.count?dashSummaryCell('תעודות סל',data.etfs):''}${data.bonds&&data.bonds.count?dashSummaryCell('אג"ח',data.bonds):''}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
   const cardsBlock = cards
     ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
     : '';
@@ -13727,7 +13829,7 @@ async function doRefresh() {
       await Promise.allSettled([
         getFX().then(() => { try { updateFxKpi?.(); updateKPIs?.(); } catch(_){} }),
         getCrypto().then(() => { try { renderDashCrypto?.(); if (S.curPage==='crypto') renderCryptoPage?.(); updateKPIs?.(); } catch(_){} }),
-        getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); updateKPIs?.(); } catch(_){} }),
+        getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); renderManualCategories?.(); if (['etfs','bonds'].includes(S.curPage)) renderManualPage?.(S.curPage); updateKPIs?.(); } catch(_){} }),
         getCommodities().then(() => { try { renderManualCategories?.(); if (['commodities','bonds','etfs'].includes(S.curPage)) renderManualPage?.(S.curPage); updateKPIs?.(); } catch(_){} }),
       ]);
       // ⚡ Make sure EUR/GBP/JPY rates are in before the final render, so non-US
