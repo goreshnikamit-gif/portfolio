@@ -1285,6 +1285,11 @@ body.light .view-list { background: rgba(10,15,31,0.04); border-color: rgba(10,1
 .view-row:last-child { border-bottom: none; }
 .view-row-disabled { opacity: .45; }
 .view-row-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+/* Hierarchy arrows in the view modal */
+.view-move { display: flex; flex-direction: column; gap: 1px; margin-inline-end: 2px; }
+.view-move-btn { display: flex; align-items: center; justify-content: center; width: 20px; height: 15px; background: var(--s3); border: 1px solid var(--b1); color: var(--t2); border-radius: 4px; cursor: pointer; font-size: 10px; padding: 0; transition: all .12s; }
+.view-move-btn:hover:not(:disabled) { border-color: var(--ac); color: var(--ac); }
+.view-move-btn:disabled { opacity: .25; cursor: default; }
 .view-row-ico { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: var(--s2); border: 1px solid var(--b1); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--ac); }
 body.light .view-row-ico { background: rgba(255,255,255,0.8); }
 .view-row-label { font-size: 14px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2406,8 +2411,8 @@ onAuthStateChanged(auth, async user => {
 
 
     <div class="stat-g">
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
-      <div class="stat"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
+      <div class="stat" id="stocksStat"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
+      <div class="stat" id="cryptoStat"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
       <div class="stat" id="commoditiesStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-gas-pump ph-sm"></i> סחורות</div><div class="s-val" id="commoditiesKpi" style="color:var(--gd)">---</div><div class="s-sub" id="commoditiesPct">---%</div><div class="bar"><div class="bar-f" id="commoditiesBar" style="background:var(--gd)"></div></div></div>
       <div class="stat" id="bondsStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-bank ph-sm"></i> אג"ח</div><div class="s-val" id="bondsKpi" style="color:var(--gr)">---</div><div class="s-sub" id="bondsPct">---%</div><div class="bar"><div class="bar-f" id="bondsBar" style="background:var(--gr)"></div></div></div>
       <div class="stat" id="etfsStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-chart-pie-slice ph-sm"></i> תעודות סל</div><div class="s-val" id="etfsKpi" style="color:var(--pu,#9b8cff)">---</div><div class="s-sub" id="etfsPct">---%</div><div class="bar"><div class="bar-f" id="etfsBar" style="background:var(--pu,#9b8cff)"></div></div></div>
@@ -2447,22 +2452,32 @@ onAuthStateChanged(auth, async user => {
       </div>
     </div>
 
-    <div class="sec"><div class="sec-t"><i></i>מניות וניירות ערך</div><button class="add-b" onclick="openEditor('stock')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dSGrid"><div class="skel"></div></div>
+    <div class="dash-cat" id="dashCat-stocks">
+      <div class="sec"><div class="sec-t"><i></i>מניות וניירות ערך</div><button class="add-b" onclick="openEditor('stock')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
+      <div class="grid" id="dSGrid"><div class="skel"></div></div>
+    </div>
 
-    <div class="sec"><div class="sec-t"><i></i>קריפטו ריל-טיים</div><button class="add-b" onclick="openEditor('crypto')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dCGrid"><div class="skel"></div><div class="skel"></div></div>
+    <div class="dash-cat" id="dashCat-crypto">
+      <div class="sec"><div class="sec-t"><i></i>קריפטו ריל-טיים</div><button class="add-b" onclick="openEditor('crypto')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
+      <div class="grid" id="dCGrid"><div class="skel"></div><div class="skel"></div></div>
+    </div>
 
-    <div class="sec" id="secCommodities"><div class="sec-t"><i></i>סחורות</div><button class="add-b" onclick="openEditor('commodities')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dCommoditiesGrid"></div>
+    <div class="dash-cat" id="dashCat-commodities">
+      <div class="sec" id="secCommodities"><div class="sec-t"><i></i>סחורות</div><button class="add-b" onclick="openEditor('commodities')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
+      <div class="grid" id="dCommoditiesGrid"></div>
+    </div>
 
-    <div class="sec" id="secBonds"><div class="sec-t"><i></i>אג"ח</div><button class="add-b" onclick="openEditor('bonds')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dBondsGrid"></div>
+    <div class="dash-cat" id="dashCat-bonds">
+      <div class="sec" id="secBonds"><div class="sec-t"><i></i>אג"ח</div><button class="add-b" onclick="openEditor('bonds')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
+      <div class="grid" id="dBondsGrid"></div>
+    </div>
 
-    <div class="sec" id="secEtfs"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
-    <div class="grid" id="dEtfsGrid"></div>
+    <div class="dash-cat" id="dashCat-etfs">
+      <div class="sec" id="secEtfs"><div class="sec-t"><i></i>תעודות סל</div><button class="add-b" onclick="openEditor('etfs')"><i class="ph-thin ph-plus-circle ph-sm"></i> הוסף נכס</button></div>
+      <div class="grid" id="dEtfsGrid"></div>
+    </div>
 
-    <div class="sec" style="margin-top:14px"><div class="sec-t"><i></i>כתבות על הנכסים שלי</div></div>
+    <div class="sec" id="secNewsHead" style="margin-top:14px"><div class="sec-t"><i></i>כתבות על הנכסים שלי</div></div>
     <div class="an-filter" id="anFilter"></div>
     <div id="assetNews" class="asset-news"></div>
   </div>
@@ -9605,11 +9620,85 @@ function applyViewNav() {
 // VIEW SETTINGS MODAL — modular category & widget control
 // ═══════════════════════════════════════════
 // One toggle per category. Shown ⇒ visible everywhere AND counted in the total.
-function viewRow(cat) {
+// The user's chosen category order (persisted in S.view.order). Falls back to the
+// default VIEW_CATEGORIES order and self-heals if keys were added/removed.
+function viewOrder() {
+  const defaults = VIEW_CATEGORIES.map(c => c.key);
+  const saved = Array.isArray(S.view?.order) ? S.view.order : [];
+  const valid = saved.filter(k => defaults.includes(k));
+  defaults.forEach(k => { if (!valid.includes(k)) valid.push(k); });
+  return valid;
+}
+function orderedViewCategories() {
+  const order = viewOrder();
+  return [...VIEW_CATEGORIES].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+}
+// Move a category up/down in the hierarchy — the dashboard reorders instantly.
+function moveViewCat(key, dir) {
+  const order = viewOrder();
+  const i = order.indexOf(key);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  S.view.order = order;
+  saveView();
+  renderViewModalBody();
+  applyViewOrder();
+}
+window.moveViewCat = moveViewCat;
+// The user's chosen widget-tile order (persisted in S.view.widgetOrder).
+function widgetOrder() {
+  const defaults = WIDGET_TILES.map(w => w.key);
+  const saved = Array.isArray(S.view?.widgetOrder) ? S.view.widgetOrder : [];
+  const valid = saved.filter(k => defaults.includes(k));
+  defaults.forEach(k => { if (!valid.includes(k)) valid.push(k); });
+  return valid;
+}
+function orderedWidgetTiles() {
+  const order = widgetOrder();
+  return [...WIDGET_TILES].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+}
+function moveWidget(key, dir) {
+  const order = widgetOrder();
+  const i = order.indexOf(key);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  S.view.widgetOrder = order;
+  saveView();
+  renderViewModalBody();
+  applyViewOrder();
+}
+window.moveWidget = moveWidget;
+// Physically reorder: (a) the dashboard category sections, (b) the hero stat tiles —
+// category tiles first (by category order), then widget tiles (by widget order).
+function applyViewOrder() {
+  const anchor = document.getElementById('secNewsHead');
+  if (anchor?.parentElement) {
+    const parent = anchor.parentElement;
+    viewOrder().forEach(key => {
+      const el = document.getElementById(`dashCat-${key}`);
+      if (el) parent.insertBefore(el, anchor);
+    });
+  }
+  // ── The "שווי שוק כולל — נכסים" tiles follow the same hierarchy ──
+  const statGrid = document.querySelector('.hero-block .stat-g') || document.querySelector('.stat-g');
+  if (statGrid) {
+    const catMap = { stocks:'stocksStat', crypto:'cryptoStat', commodities:'commoditiesStat', bonds:'bondsStat', etfs:'etfsStat' };
+    viewOrder().forEach(key => { const el = document.getElementById(catMap[key]); if (el) statGrid.appendChild(el); });
+    orderedWidgetTiles().forEach(w => { const el = document.getElementById(w.el); if (el) statGrid.appendChild(el); });
+  }
+}
+
+function viewRow(cat, idx, total) {
   const on = !!S.view.show[cat.key];
   return `
     <div class="view-row">
       <div class="view-row-left">
+        <span class="view-move">
+          <button class="view-move-btn" onclick="moveViewCat('${cat.key}',-1)" ${idx === 0 ? 'disabled' : ''} title="העלה בהיררכיה"><i class="ph-thin ph-caret-up"></i></button>
+          <button class="view-move-btn" onclick="moveViewCat('${cat.key}',1)" ${idx === total - 1 ? 'disabled' : ''} title="הורד בהיררכיה"><i class="ph-thin ph-caret-down"></i></button>
+        </span>
         <span class="view-row-ico"><i class="ph-thin ${cat.icon}"></i></span>
         <span class="view-row-label">${cat.label}${cat.live ? '' : ' <span class="view-soon">בקרוב</span>'}</span>
       </div>
@@ -9620,11 +9709,15 @@ function viewRow(cat) {
     </div>`;
 }
 // Row for an optional KPI widget tile.
-function viewWidgetRow(w) {
+function viewWidgetRow(w, idx, total) {
   const on = widgetShown(w.key);
   return `
     <div class="view-row">
       <div class="view-row-left">
+        <span class="view-move">
+          <button class="view-move-btn" onclick="moveWidget('${w.key}',-1)" ${idx === 0 ? 'disabled' : ''} title="העלה בהיררכיה"><i class="ph-thin ph-caret-up"></i></button>
+          <button class="view-move-btn" onclick="moveWidget('${w.key}',1)" ${idx === total - 1 ? 'disabled' : ''} title="הורד בהיררכיה"><i class="ph-thin ph-caret-down"></i></button>
+        </span>
         <span class="view-row-ico"><i class="ph-thin ${w.icon}"></i></span>
         <span class="view-row-label">${w.label}</span>
       </div>
@@ -9637,8 +9730,10 @@ function viewWidgetRow(w) {
 function renderViewModalBody() {
   const body = document.getElementById('viewModalBody');
   if (!body) return;
-  const catRows    = VIEW_CATEGORIES.map(viewRow).join('');
-  const widgetRows = WIDGET_TILES.map(viewWidgetRow).join('');
+  const ordered    = orderedViewCategories();
+  const catRows    = ordered.map((c, i) => viewRow(c, i, ordered.length)).join('');
+  const orderedW   = orderedWidgetTiles();
+  const widgetRows = orderedW.map((w, i) => viewWidgetRow(w, i, orderedW.length)).join('');
   body.innerHTML = `
     <div class="view-section">
       <div class="view-section-title">קטגוריות מוצגות</div>
@@ -9666,6 +9761,7 @@ function toggleView(key) {
 window.toggleView = toggleView;
 // Re-render every surface that depends on the view config.
 function applyViewEverywhere() {
+  applyViewOrder();
   renderDashCrypto();
   renderDashStocks();
   renderExtraCategories();
@@ -14122,6 +14218,7 @@ window.proceedToApp = async function() {
   tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
   applyProState();                                    // PRO button state + hide ads if PRO
   migrateEtfsFromStocks();                            // QQQ & friends move from stocks → ETFs
+  try { applyViewOrder(); } catch(_){}                // dashboard sections follow the saved hierarchy
   setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 900);   // interstitial ad — every app open
   setTimeout(() => { try { injectAdCards(); } catch(_){} }, 1500);
 
