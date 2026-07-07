@@ -680,7 +680,24 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-summary-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
 .period-summary-title { font-size:11px; color:var(--t2); font-weight:700; }
 .period-summary-range { font-size:9.5px; color:var(--t3); font-family:var(--font-mono); }
-.period-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.period-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px; }
+/* ── Redesigned period summary cards ── */
+.psc { position:relative; background:linear-gradient(150deg, color-mix(in srgb, var(--psc-c) 6%, var(--s2)), var(--s2)); border:1px solid var(--b1); border-radius:12px; padding:12px 13px 11px; min-width:0; overflow:hidden; transition:transform .15s, border-color .15s; }
+.psc::before { content:''; position:absolute; inset-inline-start:0; top:10px; bottom:10px; width:3px; border-radius:3px; background:var(--psc-c); opacity:.85; }
+.psc:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--psc-c) 45%, var(--b1)); }
+.psc-head { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+.psc-ico { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; background:color-mix(in srgb, var(--psc-c) 14%, transparent); color:var(--psc-c); font-size:14px; flex:0 0 24px; }
+.psc-lbl { font-size:11px; font-weight:700; color:var(--t2); letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psc-pill { margin-inline-start:auto; font-family:var(--font-mono); font-size:9.5px; font-weight:800; padding:2.5px 7px; border-radius:999px; white-space:nowrap; }
+.psc-pill.up { color:var(--gr); background:color-mix(in srgb, var(--gr) 12%, transparent); }
+.psc-pill.dn { color:var(--rd); background:color-mix(in srgb, var(--rd) 12%, transparent); }
+.psc-val { font-family:var(--font-mono); font-size:17px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psc.is-primary { grid-column:1 / -1; background:linear-gradient(135deg, color-mix(in srgb, var(--psc-c) 12%, var(--s1)), var(--s1)); border-color:color-mix(in srgb, var(--psc-c) 35%, var(--b1)); box-shadow:0 8px 26px rgba(0,0,0,.22); }
+.psc.is-primary .psc-val { font-size:23px; }
+.psc.is-primary .psc-lbl { font-size:12.5px; color:var(--t1); }
+.psc.is-primary .psc-pill { font-size:11px; padding:3px 9px; }
+body.light .psc { box-shadow:0 2px 8px rgba(11,30,63,.05); }
+body.light .psc.is-primary { box-shadow:0 8px 24px rgba(11,30,63,.10); }
 .period-summary-cell { background:var(--s2); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:10px; min-width:0; }
 .period-summary-cell.is-primary { border:1px solid var(--b1); background:var(--s1); box-shadow:0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12); }
 .period-summary-cell.is-primary .period-summary-label { color:var(--t2); font-weight:700; }
@@ -1181,6 +1198,12 @@ body.light .sell-btn { background: #b89150; color: #fff; }
 .sell-cur-toggle .sell-cur-code { color: var(--t2); font-size: 10px; letter-spacing: .35px; }
 .sell-cur-toggle i { font-size: 11px; color: var(--t3); }
 .sell-cur-rate { min-height: 15px; margin: -10px 0 14px; text-align: end; color: var(--t3); font-family: var(--font-mono, monospace); font-size: 9.5px; direction: ltr; }
+/* ── After-tax net row in the sell modal ── */
+.sell-tax-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding:10px 12px; background:color-mix(in srgb, var(--gd) 7%, var(--s2)); border:1px solid color-mix(in srgb, var(--gd) 25%, var(--b1)); border-radius:var(--radius-sm); }
+.sell-tax-row .sell-proceeds-lbl { display:flex; align-items:center; gap:7px; }
+.sell-tax-select { background:var(--s3); border:1px solid var(--b1); color:var(--t1); font-family:var(--font-body); font-size:11px; border-radius:7px; padding:3px 6px; cursor:pointer; }
+.sell-tax-net { font-family:var(--font-mono); font-size:15px; font-weight:800; color:var(--gd); white-space:nowrap; }
+.sell-tax-note { font-size:10.5px; color:var(--t3); margin-top:5px; padding-inline-start:2px; }
 .sell-cur-rate.loading { color: var(--gd); }
 .sell-cur-rate.error { color: var(--rd); }
 .sell-cur-picker { min-width: 280px !important; }
@@ -1788,7 +1811,6 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="nit" id="navCommodities" data-p="commodities" onclick="goPage('commodities',this)" style="display:none">סחורות</button>
     <button class="nit" id="navBonds" data-p="bonds" onclick="goPage('bonds',this)" style="display:none">אג"ח</button>
     <button class="nit" id="navEtfs" data-p="etfs" onclick="goPage('etfs',this)" style="display:none">תעודות סל</button>
-    <button class="nit" data-p="news" onclick="goPage('news',this)">חדשות</button>
     <button class="nit" data-p="insights" onclick="goPage('insights',this)">תובנות</button>
   </nav>
 <div class="topbar">
@@ -2592,18 +2614,7 @@ onAuthStateChanged(auth, async user => {
     </div>
   </div>
 
-  <div class="page" id="page-news">
-    <div class="sec" style="margin-top:2px"><div class="sec-t"><i class="fi fi-tr-newspaper" style="margin-left:8px"></i>חדשות</div></div>
-    <div class="news-subtabs" id="newsSubtabs">
-      <button class="news-subtab active" id="newsTabWorld" onclick="setNewsTab('world')">חדשות מהעולם</button>
-      <button class="news-subtab" id="newsTabMine" onclick="setNewsTab('mine')">נכסים שלי</button>
-    </div>
-    <div class="news-filters" id="newsFilters"></div>
-    <div id="newsContent"><div class="news-list">
-      <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
-      <div class="news-skel"></div><div class="news-skel"></div><div class="news-skel"></div>
-    </div></div>
-  </div>
+  
 
   <div class="page" id="page-commodities">
     <div class="ad-banner-top">
@@ -2659,7 +2670,6 @@ onAuthStateChanged(auth, async user => {
   <button class="ni" id="navCommoditiesM" data-p="commodities" onclick="goPage('commodities',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-medal"></i></span><span class="ni-lbl">סחורות</span></button>
   <button class="ni" id="navBondsM" data-p="bonds" onclick="goPage('bonds',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-bank"></i></span><span class="ni-lbl">אג"ח</span></button>
   <button class="ni" id="navEtfsM" data-p="etfs" onclick="goPage('etfs',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-briefcase"></i></span><span class="ni-lbl">תעודות סל</span></button>
-  <button class="ni" data-p="news" onclick="goPage('news',this)"><span class="ni-ico"><i class="fi fi-tr-newspaper" style="font-size:18px"></i></span><span class="ni-lbl">חדשות</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
 </nav>
 
@@ -2729,6 +2739,14 @@ onAuthStateChanged(auth, async user => {
     </div>
     <div class="sell-cur-rate" id="sellCurRate"></div>
     <div class="picker-pop sell-cur-picker" id="sellCurPop" role="listbox"></div>
+
+    <div class="sell-tax-row">
+      <span class="sell-proceeds-lbl">נטו אחרי מס
+        <select id="sellTaxCountry" class="sell-tax-select" onchange="onSellTaxCountry(this.value)"></select>
+      </span>
+      <span class="sell-tax-net" id="sellTaxNet">—</span>
+    </div>
+    <div class="sell-tax-note" id="sellTaxNote"></div>
 
     <div class="sell-actions">
       <button class="sell-cancel" onclick="closeSell()">ביטול</button>
@@ -4353,6 +4371,9 @@ function loadView() {
       return {
         show:    { ...VIEW_DEFAULT.show,    ...saved.show },
         widgets: { ...VIEW_DEFAULT.widgets, ...(saved.widgets || {}) },
+        // ⚡ Persist the user's hierarchy — the whole point of the reorder arrows.
+        order:       Array.isArray(saved.order)       ? saved.order       : undefined,
+        widgetOrder: Array.isArray(saved.widgetOrder) ? saved.widgetOrder : undefined,
       };
     }
   } catch(_) {}
@@ -9172,7 +9193,6 @@ function goPage(id, btn) {
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
-  if (id === 'news') { renderNews(); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
 }
 
@@ -9700,7 +9720,7 @@ function viewRow(cat, idx, total) {
           <button class="view-move-btn" onclick="moveViewCat('${cat.key}',1)" ${idx === total - 1 ? 'disabled' : ''} title="הורד בהיררכיה"><i class="ph-thin ph-caret-down"></i></button>
         </span>
         <span class="view-row-ico"><i class="ph-thin ${cat.icon}"></i></span>
-        <span class="view-row-label">${cat.label}${cat.live ? '' : ' <span class="view-soon">בקרוב</span>'}</span>
+        <span class="view-row-label">${cat.label}</span>
       </div>
       <button class="view-switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}"
         onclick="toggleView('${cat.key}')">
@@ -10078,7 +10098,7 @@ let newsLastFetch = { world: 0, mine: 0 };
 
 // Yahoo Finance-style categories — each maps to Google News RSS queries
 const NEWS_CATEGORIES = [
-  { key: 'all',      label: 'הכל',        icon: 'newspaper',     queries: null },     // null = use existing NEWS_WORLD_FEEDS
+  { key: 'all',      label: 'הכל',        icon: 'newspaper',     queries: null },
   { key: 'markets',  label: 'שווקים',     icon: 'chart-line-up', queries: ['stock market today when:5d', 'S&P 500 when:5d', 'Dow Jones Nasdaq when:5d'] },
   { key: 'crypto',   label: 'קריפטו',     icon: 'coins',         queries: ['cryptocurrency news when:5d', 'Bitcoin price when:5d', 'Ethereum crypto when:5d'] },
   { key: 'earnings', label: 'דוחות',      icon: 'calendar-days', queries: ['earnings report when:5d', 'quarterly earnings when:5d', 'company earnings beat when:5d'] },
@@ -10087,38 +10107,6 @@ const NEWS_CATEGORIES = [
   { key: 'ai',       label: 'AI',         icon: 'brain-circuit', queries: ['artificial intelligence stocks when:5d', 'AI Nvidia when:5d', 'OpenAI when:5d'] },
 ];
 
-window.setNewsCategory = (key) => {
-  newsCategory = key;
-  newsPage = 1;
-  renderNewsFilters();
-  renderNews();
-};
-window.setNewsAssetFilter = (sym) => {
-  newsAssetFilter = sym;
-  newsPage = 1;
-  renderNewsFilters();
-  renderNews();
-};
-
-function renderNewsFilters() {
-  const el = document.getElementById('newsFilters');
-  if (!el) return;
-  if (newsTab === 'world') {
-    el.innerHTML = NEWS_CATEGORIES.map(c =>
-      `<button class="news-chip ${c.key === newsCategory ? 'active' : ''}" onclick="setNewsCategory('${c.key}')">
-        <i class="fi fi-tr-${c.icon}"></i>${c.label}
-      </button>`).join('');
-  } else {
-    const assets = [
-      ...(S.stocks || []).map(s => ({ sym: s.sym })),
-      ...(S.crypto || []).map(c => ({ sym: c.sym })),
-    ];
-    if (!assets.length) { el.innerHTML = ''; return; }
-    el.innerHTML =
-      `<button class="news-chip ${!newsAssetFilter ? 'active' : ''}" onclick="setNewsAssetFilter(null)">הכל</button>` +
-      assets.map(a => `<button class="news-chip ${newsAssetFilter === a.sym ? 'active' : ''}" onclick="setNewsAssetFilter('${a.sym}')">${a.sym}</button>`).join('');
-  }
-}
 const NEWS_TTL = 15 * 60 * 1000;       // avoid hammering free RSS gateways
 const NEWS_STALE_TTL = 6 * 60 * 60 * 1000;
 const NEWS_MAX_MINE_ASSETS = 12;
@@ -10132,21 +10120,6 @@ const NEWS_FETCHERS = [
   url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
   url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
 ];
-
-const NEWS_WORLD_FEEDS = [
-  { src: 'Google News · Markets', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(stock market OR Wall Street OR global markets) when:5d') + '&hl=en-US&gl=US&ceid=US:en' },
-  { src: 'Google News · Business', url: 'https://news.google.com/rss/search?q=' + encodeURIComponent('(business OR economy OR interest rates) when:5d') + '&hl=en-US&gl=US&ceid=US:en' },
-  { src: 'CNBC Markets', url: 'https://www.cnbc.com/id/20409666/device/rss/rss.html' },
-  { src: 'MarketWatch', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories' },
-];
-
-window.setNewsTab = (t) => {
-  newsTab = t;
-  newsPage = 1;
-  document.getElementById('newsTabWorld')?.classList.toggle('active', t === 'world');
-  document.getElementById('newsTabMine')?.classList.toggle('active', t === 'mine');
-  renderNews();
-};
 
 function newsEscape(value = '') {
   return String(value).replace(/[&<>"']/g, ch => ({
@@ -10315,37 +10288,6 @@ function newsStore(type, items) {
 }
 newsLoadStored();
 
-async function newsLoadWorld(catKey) {
-  const cat = catKey || newsCategory || 'all';
-  // "All" uses the original curated feed mix; specific categories build feeds dynamically
-  let feeds;
-  if (cat === 'all') {
-    feeds = NEWS_WORLD_FEEDS;
-  } else {
-    const def = NEWS_CATEGORIES.find(c => c.key === cat) || NEWS_CATEGORIES[0];
-    feeds = (def.queries || []).map(q => ({
-      src: 'Google News · ' + def.label,
-      url: 'https://news.google.com/rss/search?q=' + encodeURIComponent(q) + '&hl=en-US&gl=US&ceid=US:en'
-    }));
-  }
-  const cached = newsCache.worldByCat[cat];
-  if (cached && Date.now() - cached.fetchedAt < NEWS_TTL) return cached.items;
-
-  const results = await newsMapLimit(feeds, 3, feed => newsFetchRss(feed.url, feed.src));
-  const fresh = newsDedupe(results.flat())
-    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 60);
-
-  if (fresh.length) {
-    newsCache.worldByCat[cat] = { items: fresh, fetchedAt: Date.now() };
-    if (cat === 'all') { newsCache.world = fresh; newsLastFetch.world = Date.now(); newsStore('world', fresh); }
-    return fresh;
-  }
-  if (cached && Date.now() - cached.fetchedAt < NEWS_STALE_TTL) return cached.items;
-  if (cat === 'all' && newsCache.world && Date.now() - newsLastFetch.world < NEWS_STALE_TTL) return newsCache.world;
-  return [];
-}
-
 async function newsLoadMine() {
   if (newsCache.mine && Date.now() - newsLastFetch.mine < NEWS_TTL) return newsCache.mine;
 
@@ -10496,113 +10438,6 @@ async function renderAssetNews() {
 }
 window.renderAssetNews = renderAssetNews;
 
-function buildNewsPager(page, totalPages) {
-  if (totalPages <= 1) return '';
-  const isRtl = document.documentElement.dir !== 'ltr';
-  const labelPrev = isRtl ? 'הקודם' : 'Previous';
-  const labelNext = isRtl ? 'הבא' : 'Next';
-  // window of pages around current (max 7 visible) with ellipses
-  const pages = [];
-  const push = p => pages.push(p);
-  const lo = Math.max(2, page - 2), hi = Math.min(totalPages - 1, page + 2);
-  push(1);
-  if (lo > 2) push('…');
-  for (let p = lo; p <= hi; p++) push(p);
-  if (hi < totalPages - 1) push('…');
-  if (totalPages > 1) push(totalPages);
-  const btns = pages.map(p => p === '…'
-    ? `<span style="color:var(--t3);padding:0 4px">…</span>`
-    : `<button class="${p === page ? 'active' : ''}" onclick="goNewsPage(${p})">${p}</button>`
-  ).join('');
-  return `<div class="news-pager">
-    <button class="news-pager-step" onclick="goNewsPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>${labelPrev}</button>
-    ${btns}
-    <button class="news-pager-step" onclick="goNewsPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>${labelNext}</button>
-  </div>`;
-}
-window.goNewsPage = (p) => {
-  newsPage = Math.max(1, p);
-  renderNews();
-  document.getElementById('app')?.scrollTo?.({ top: 0, behavior: 'smooth' });
-  window.scrollTo?.({ top: 0, behavior: 'smooth' });
-};
-
-async function renderNews() {
-  const el = document.getElementById('newsContent');
-  if (!el) return;
-  const subtabs = document.getElementById('newsSubtabs');
-  if (subtabs) subtabs.style.display = '';
-  const filters = document.getElementById('newsFilters');
-  if (filters) filters.style.display = '';
-  renderNewsFilters();
-
-  el.innerHTML = '<div class="news-list">' + Array(6).fill('<div class="news-skel"></div>').join('') + '</div>';
-  try {
-    let items = newsTab === 'world' ? await newsLoadWorld(newsCategory) : await newsLoadMine();
-    // hard cap: only items from the last 5 days
-    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-    const cutoff = Date.now() - FIVE_DAYS_MS;
-    items = items.filter(it => {
-      const d = new Date(it.pubDate).getTime();
-      return !isNaN(d) && d >= cutoff;
-    });
-    if (newsTab === 'mine' && newsAssetFilter) {
-      items = items.filter(it => it.tagSym === newsAssetFilter);
-    }
-    if (!items.length) {
-      if (newsTab === 'mine' && !((S.stocks || []).length + (S.crypto || []).length)) {
-        el.innerHTML = '<div class="news-empty">אין נכסים בתיק שלך עדיין.<br>הוסיפי נכסים דרך כפתור העריכה כדי לראות חדשות ספציפיות.</div>';
-      } else {
-        el.innerHTML = '<div class="news-empty">לא נמצאו חדשות כרגע.<br>נסי לרענן בעוד מספר דקות.</div>';
-      }
-      return;
-    }
-
-    newsCache._displayed = items;
-    el.innerHTML = '<div class="news-list">' + items.map((item, index) => {
-      const sym = item.tagSym
-        ? `<span class="news-item-sym"><i class="fi fi-tr-bolt" style="font-size:10px"></i>${newsEscape(item.tagSym)}</span>`
-        : '';
-      return `<div class="news-item" role="button" tabindex="0" onclick="openNewsArticle(${index})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openNewsArticle(${index})}">
-        <div class="news-item-head">
-          <span class="news-item-src">${newsEscape(item.src)}</span>
-          <span class="news-item-time">${newsEscape(newsTimeAgo(item.pubDate))}</span>
-        </div>
-        <div class="news-item-title">${newsEscape(item.title)}</div>
-        ${item.desc ? `<div class="news-item-desc">${newsEscape(item.desc)}</div>` : ''}
-        ${sym}
-      </div>`;
-    }).join('') + '</div>';
-  } catch (error) {
-    console.error('[News] Render failed:', error);
-    el.innerHTML = '<div class="news-empty">שגיאה בטעינת חדשות.<br>בדקי חיבור לאינטרנט ונסי שוב.</div>';
-  }
-}
-
-window.openNewsArticle = function(index) {
-  const item = newsCache._displayed?.[index];
-  if (!item?.link) return;
-  const el = document.getElementById('newsContent');
-  const subtabs = document.getElementById('newsSubtabs');
-  const filtersEl = document.getElementById('newsFilters');
-  if (filtersEl) filtersEl.style.display = 'none';
-  if (subtabs) subtabs.style.display = 'none';
-
-  const safeLink = newsEscape(item.link);
-  el.innerHTML = `<div class="news-reader">
-    <div class="news-reader-head">
-      <button class="news-reader-back" onclick="renderNews()"><i class="ph-thin ph-arrow-right"></i> חזרה לחדשות</button>
-      <div class="news-reader-meta"><span>${newsEscape(item.src)}</span><span>${newsEscape(newsTimeAgo(item.pubDate))}</span></div>
-    </div>
-    ${item.img ? `<img class="news-reader-img" src="${newsEscape(item.img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
-    <div class="news-reader-title">${newsEscape(item.title)}</div>
-    <div class="news-reader-body">
-      ${item.desc ? `<p>${newsEscape(item.desc)}</p>` : '<p>המקור לא סיפק תקציר לכתבה זו.</p>'}
-      <p style="margin-top:22px"><a href="${safeLink}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:7px;background:var(--ac);color:#fff;text-decoration:none;padding:10px 16px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:13px;font-weight:700">לכתבה המלאה באתר המקור <i class="ph-thin ph-arrow-square-out"></i></a></p>
-    </div>
-  </div>`;
-};
-
 function renderInsights() {
   const {c, st, g} = tots();
   const pnlTotal = S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) + S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0);
@@ -10723,6 +10558,10 @@ async function buildHistoryTable() {
       const boughtQty = boughtToday.reduce((sum, lot) => sum + lot.qty, 0);
       return { qty: existingQty + boughtQty, existingQty, boughtToday };
     }
+    // No lots: respect the asset's buy date when present — a newly added asset must
+    // not be back-filled into history from before it was purchased.
+    const bd = asset.buyDate ? lotDateKey(asset.buyDate) : null;
+    if (bd && dateKey < bd) return { qty: 0, existingQty: 0, boughtToday: [] };
     const qty = type === 'stock' ? getShares(asset) : cQty(asset);
     return { qty, existingQty: qty, boughtToday: [] };
   };
@@ -11045,16 +10884,22 @@ async function buildHistoryTable() {
             // exactly like stocks. Non-trading days naturally yield 0.
             let cStartV = 0, cEndV = 0, cHasData = false;
             for (const a of S.commodities || []) {
+              // ⚡ Position AS OF this date — assets only count from their purchase day.
+              const qty = positionOnDate(a, dateKey, 'stock').qty;
+              if (!(qty > 0)) continue;
               const entry = commodityCatalogFor(a.sym);
-              if (!entry) { const q0 = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty||0); cStartV += q0 * (a.price||0); cEndV += q0 * (a.price||0); continue; }
-              const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+              if (!entry) { cStartV += qty * (a.price||0); cEndV += qty * (a.price||0); continue; }
               const qtyPU = qty * commodityUnitFactor(entry, a.unit);
               const map = commodityHist[entry.key] || {};
               const keys = Object.keys(map).sort();
               let prevC = null, sessC = null;
               for (const kk of keys) { if (kk < dateKey) prevC = map[kk]; else if (kk === dateKey) sessC = map[kk]; else break; }
               const endP = sessC > 0 ? sessC : (prevC > 0 ? prevC : null);
-              if (!(endP > 0)) { const lv = commodityLiveValueUSD(a); if (lv != null) { cStartV += lv * fx; cEndV += lv * fx; } continue; }
+              if (!(endP > 0)) {
+                const q = S.mp?.[entry.key];
+                if (q?.usd > 0) { const v = qtyPU * q.usd * fx; cStartV += v; cEndV += v; }
+                continue;
+              }
               const startP = prevC > 0 ? prevC : endP;
               cStartV += startP * qtyPU * fx;
               cEndV   += endP  * qtyPU * fx;
@@ -11068,7 +10913,8 @@ async function buildHistoryTable() {
             // ETFs / tradable bonds: per-day P&L from daily closes, like stocks.
             let eStartV = 0, eEndV = 0, eHasData = false;
             for (const a of S[k] || []) {
-              const qty = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty || 0);
+              // ⚡ Position AS OF this date — assets only count from their purchase day.
+              const qty = positionOnDate(a, dateKey, 'stock').qty;
               if (!(qty > 0)) continue;
               const map = stockLikeHist[a.sym];
               if (!map || !Object.keys(map).length) {
@@ -11093,7 +10939,19 @@ async function buildHistoryTable() {
             manualByCat[k] = { v: eEndV, pnl: ePnl, live: true, hasData: eHasData };
             manualVal += eStartV;
           } else {
-            const v = manualCatValueILS(k) || 0;
+            // Static (manual) categories: value per date, counting each asset only
+            // from its purchase day.
+            let v = 0;
+            const isUsd = ED_CATS[k]?.curr === '$';
+            for (const a of S[k] || []) {
+              const q = positionOnDate(a, dateKey, 'stock').qty;
+              if (!(q > 0)) continue;
+              if (k === 'commodities') { const lvFull = commodityLiveValueUSD(a); const full = a.lots?.length ? a.lots.reduce((s,l)=>s+(parseFloat(l.qty)||0),0) : (a.qty||0); if (lvFull != null && full > 0) { v += (lvFull * (q/full)) * S.fx; continue; } }
+              const spq = (k === 'etfs' || k === 'bonds') ? S.sp?.[a.sym] : null;
+              if (spq?.price > 0) { v += nativeToILS(q * spq.price, spq.currency || 'USD'); continue; }
+              const price = a.lots?.length ? (avgEntry(a) || 0) : (a.price || 0);
+              v += isUsd ? q * price * S.fx : q * price;
+            }
             manualByCat[k] = { v, pnl: 0, live: false };
             manualVal += v;
           }
@@ -12245,7 +12103,8 @@ const ED_CATS = {
 // The list of category keys to show as editor tabs — categories enabled in the view.
 function edEnabledTabs() {
   const map = { stocks:'stock', crypto:'crypto', commodities:'commodities', bonds:'bonds', etfs:'etfs' };
-  return VIEW_CATEGORIES.filter(c => catShown(c.key)).map(c => map[c.key]).filter(Boolean);
+  // ⚡ Tabs follow the user's chosen hierarchy (same order as the dashboard).
+  return orderedViewCategories().filter(c => catShown(c.key)).map(c => map[c.key]).filter(Boolean);
 }
 // Resolve the active category's data array.
 function edList() { return S[ED_CATS[edTab]?.arr] || []; }
@@ -12383,14 +12242,14 @@ function renderEd() {
             ${avg!=null ? `<div style="font-size:10px;color:var(--gd);font-family:var(--font-mono);margin-top:2px">@ ${fPriceCur(avg,2)} ממוצע</div>` : ''}
           </div>
           <input class="einput" type="number" value="${totalQty}" step="any" placeholder="${cat.unit}" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="${qtyBind}">
-          ${(cat.live || edTab==='commodities') ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
+          ${(cat.live || ['commodities','etfs','bonds'].includes(edTab)) ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
           <div class="emove">
             <button class="emove-btn" title="הזז למעלה" onclick="moveAsset(${i},-1)" ${i === 0 ? 'disabled' : ''}><i class="fi fi-tr-angle-up"></i></button>
             <button class="emove-btn" title="הזז למטה" onclick="moveAsset(${i},1)" ${i === list.length - 1 ? 'disabled' : ''}><i class="fi fi-tr-angle-down"></i></button>
           </div>
           <button class="edel" onclick="delA(${i})"><i class="ph-thin ph-trash" style="font-size:13px"></i></button>
         </div>
-        ${((cat.live || edTab==='commodities') && expanded) ? lotsPanelHTML(i) : ''}
+        ${((cat.live || ['commodities','etfs','bonds'].includes(edTab)) && expanded) ? lotsPanelHTML(i) : ''}
         `;
       }).join('')}
       ${list.length === 0 ? `<div class="ed-empty-list"><i class="ph-thin ${cat.icon}"></i> אין עדיין נכסים בקטגוריה זו — הוסף את הראשון למטה</div>` : ''}
@@ -12405,12 +12264,12 @@ function renderEd() {
         <div class="ff"><label>שער קנייה <span style="color:var(--t3);font-size:10px">(${cat.live?'לפי התאריך שנבחר':'הזן ידנית'})</span></label>
           <div class="cur-input-wrap">
             <select id="nPCur" class="cur-select" onchange="this.dataset.manualCur='1';fillNewUnitPrice()">${CUR_OPTION_LIST.map(c=>`<option value="${c}"${c==='USD'?' selected':''}>${CUR_SYM_MAP[c]} ${c}</option>`).join('')}</select>
-            <input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled');if(typeof updateCommodityTotal==='function'&&edTab==='commodities')updateCommodityTotal()">
+            <input id="nP" type="number" placeholder="0.00" step="any" oninput="this.dataset.manual='1';this.classList.remove('lot-autofilled');if(typeof updateCommodityTotal==='function')updateCommodityTotal()">
           </div>
         </div>
         <div class="ff"><label>תאריך קנייה <span style="color:var(--t3);font-size:10px">(ברירת מחדל: היום)</span></label><input id="nD" type="date" value="${new Date().toISOString().slice(0,10)}" onchange="onNewDateInput()"></div>
       </div>
-      ${edTab==='commodities' ? '<div class="cm-total" id="cmTotal" style="display:none"></div>' : ''}
+      <div class="cm-total" id="cmTotal" style="display:none"></div>
       <button class="fadd" onclick="addA()"><i class="ph-thin ph-plus"></i> הוסף לרשימת המעקב</button>
     </div>
     <button class="fsave" onclick="saveClose()"><i class="ph-thin ph-floppy-disk"></i> שמור שינויים ורענן</button>
@@ -12474,11 +12333,12 @@ function commoditySymInput(v) {
 window.commoditySymInput = commoditySymInput;
 
 // Live total: qty × price-per-unit, shown in $ and ₪, updates on every keystroke.
+// Works in EVERY editor tab: stocks, crypto, commodities, bonds and ETFs.
 function updateCommodityTotal() {
   const el = document.getElementById('cmTotal');
   if (!el) return;
   const sym = (document.getElementById('nS')?.value || '').trim().toUpperCase();
-  const entry = commodityCatalogFor(sym);
+  const entry = edTab === 'commodities' ? commodityCatalogFor(sym) : null;
   const qty = parseFloat(document.getElementById('nQ')?.value);
   // Per-unit price: prefer whatever is in the price field (respects manual typing +
   // the picked currency), fall back to the live quote × unit factor.
@@ -12489,7 +12349,18 @@ function updateCommodityTotal() {
     perUnit = S.mp[entry.key].usd * commodityUnitFactor(entry, unit);
     perUnitCur = 'USD';
   }
-  if (!entry || !(qty > 0) || !(perUnit > 0)) { el.style.display = 'none'; return; }
+  // Non-commodity tabs: fall back to the symbol's live quote when the price field is empty.
+  if (!(perUnit > 0) && edTab !== 'commodities' && sym) {
+    if (edTab === 'crypto') {
+      const c = S.crypto.find(x => x.sym === sym);
+      if (c && S.cp?.[c.id]?.usd > 0) { perUnit = S.cp[c.id].usd; perUnitCur = 'USD'; }
+    } else if (S.sp?.[sym]?.price > 0) {
+      perUnit = S.sp[sym].price;
+      perUnitCur = String(S.sp[sym].currency || 'USD').toUpperCase().replace('ILA','ILS');
+    }
+  }
+  if (edTab === 'commodities' && !entry) { el.style.display = 'none'; return; }
+  if (!(qty > 0) || !(perUnit > 0)) { el.style.display = 'none'; return; }
   // Convert the per-unit price to USD if it was typed in another currency.
   let perUnitUSD = perUnit;
   if (perUnitCur !== 'USD' && typeof convertCurrencyAmount === 'function') {
@@ -12498,10 +12369,15 @@ function updateCommodityTotal() {
   }
   const totalUSD = qty * perUnitUSD;
   const totalILS = totalUSD * S.fx;
-  const unitLbl = commodityUnitLabel(entry, document.getElementById('nU')?.value || entry.defaultUnit);
+  const unitLbl = entry
+    ? commodityUnitLabel(entry, document.getElementById('nU')?.value || entry.defaultUnit)
+    : (edTab === 'crypto' ? sym : (edTab === 'stock' ? i18nGetText('מניות') : i18nGetText('יחידות')));
+  const icoHTML = entry
+    ? `<i class="${entry.icon}" style="color:${entry.color}"></i>`
+    : `<i class="ph-thin ${edTab==='crypto'?'ph-coins':edTab==='stock'?'ph-chart-line-up':edTab==='etfs'?'ph-chart-pie-slice':'ph-bank'}" style="color:var(--ac)"></i>`;
   el.style.display = '';
   el.innerHTML = `
-    <i class="${entry.icon}" style="color:${entry.color}"></i>
+    ${icoHTML}
     <span class="cmt-l">${i18nGetText('סה"כ שווי')}:</span>
     <span class="cmt-v">$${totalUSD.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
     <span class="cmt-sep">≈</span>
@@ -12713,7 +12589,8 @@ function sellAsset(key, type) {
                     : Number(quote?.price || 0);
   const nativeCur = (isC || isM) ? 'USD' : String(quote?.currency || 'USD').toUpperCase().replace('ILA','ILS');
 
-  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, isM, isE, sym:a.sym, qty:0 };
+  _sellCtx = { key, type, held, idx, unit, priceNative, nativeCur, isC, isM, isE, sym:a.sym, qty:0, avg: avgEntry(a) || 0 };
+  fillSellTaxCountries();
   // Important: every new sale starts in the same currency currently selected on
   // the home/dashboard screen. A temporary choice inside this modal is not saved.
   _sellCur = String(S.currency || 'ils').toUpperCase();
@@ -12755,6 +12632,56 @@ function _roundQ(q) {
   if (_isStock()) return Math.round(q);
   return Math.round(q * 1e6) / 1e6;
 }
+// ── Capital-gains tax by country (approximate headline rates on securities) ──
+const SELL_TAX_COUNTRIES = [
+  { code:'IL', he:'ישראל',   rate:0.25   },
+  { code:'US', he:'ארה"ב',   rate:0.15   },
+  { code:'GB', he:'בריטניה', rate:0.20   },
+  { code:'DE', he:'גרמניה',  rate:0.26375},
+  { code:'FR', he:'צרפת',    rate:0.30   },
+  { code:'CA', he:'קנדה',    rate:0.25   },
+  { code:'AU', he:'אוסטרליה',rate:0.225  },
+  { code:'NONE', he:'ללא מס', rate:0     },
+];
+function sellTaxCountry() { return localStorage.getItem('sellTaxCountry') || 'IL'; }
+function onSellTaxCountry(code) { localStorage.setItem('sellTaxCountry', code); updateSellTax(); }
+window.onSellTaxCountry = onSellTaxCountry;
+function fillSellTaxCountries() {
+  const sel = document.getElementById('sellTaxCountry');
+  if (!sel) return;
+  const cur = sellTaxCountry();
+  sel.innerHTML = SELL_TAX_COUNTRIES.map(c =>
+    `<option value="${c.code}"${c.code === cur ? ' selected' : ''}>${c.he} ${c.rate > 0 ? (c.rate * 100).toFixed(c.rate*100 % 1 ? 1 : 0) + '%' : ''}</option>`).join('');
+}
+// Net after tax = gross − rate × max(0, gross − cost basis). Tax applies to the GAIN,
+// not to the whole proceeds — selling at a loss pays no tax.
+function updateSellTax() {
+  const netEl = document.getElementById('sellTaxNet');
+  const noteEl = document.getElementById('sellTaxNote');
+  if (!netEl || !_sellCtx) return;
+  const q = _sellCtx.qty || 0;
+  const price = _sellCtx.priceNative || 0;
+  const country = SELL_TAX_COUNTRIES.find(c => c.code === sellTaxCountry()) || SELL_TAX_COUNTRIES[0];
+  if (!(q > 0) || !(price > 0)) { netEl.textContent = '—'; if (noteEl) noteEl.textContent = ''; return; }
+  const gross = q * price;
+  const basis = (_sellCtx.avg > 0) ? _sellCtx.avg * q : null;
+  const gain = basis != null ? Math.max(0, gross - basis) : gross;   // no basis → conservative: tax the whole amount? better: gain unknown → tax on gross noted
+  const tax = gain * country.rate;
+  const netNative = gross - tax;
+  const converted = canConvertCurrency(_sellCtx.nativeCur, _sellCur) ? convertCurrencyAmount(netNative, _sellCtx.nativeCur, _sellCur) : null;
+  const curDef = CURRENCIES[_sellCur] || { sym: _sellCur + ' ' };
+  netEl.textContent = converted != null ? curDef.sym + _formatSellInput(converted, _sellCur) : '—';
+  if (noteEl) {
+    if (country.rate === 0) noteEl.textContent = '';
+    else if (basis == null) noteEl.textContent = `הערכה: מס ${ (country.rate*100).toFixed(0) }% על מלוא התמורה (אין מחיר קנייה ידוע)`;
+    else if (gain <= 0) noteEl.textContent = 'מכירה בהפסד — אין חבות מס רווח הון';
+    else {
+      const taxConv = canConvertCurrency(_sellCtx.nativeCur, _sellCur) ? convertCurrencyAmount(tax, _sellCtx.nativeCur, _sellCur) : null;
+      noteEl.textContent = taxConv != null ? `מס רווח הון משוער: ${curDef.sym}${_formatSellInput(taxConv, _sellCur)} (${(country.rate*100).toFixed(country.rate*100 % 1 ? 1 : 0)}% על הרווח)` : '';
+    }
+  }
+}
+
 function setSellQty(q) {
   if (!_sellCtx) return;
   q = _roundQ(q);
@@ -12787,6 +12714,7 @@ function setSellQty(q) {
   btn.disabled = !(q > 0 && _sellCtx.priceNative > 0);
   btn.textContent = i18nGetText((q >= held - 1e-9 && held > 0) ? 'מכור את כל הפוזיציה' : 'אישור מכירה');
   _sellCtx.qty = q;
+  updateSellTax();
 }
 function onSellIls(v) {
   if (!_sellCtx || !(_sellCtx.priceNative > 0)) return;
@@ -13252,8 +13180,8 @@ window.confirmLot = confirmLot;
 // Auto-fill entry price in the "add new asset" form when a quantity is typed.
 // Updates on every keystroke. If the price isn't known locally yet, fetch it live (once).
 async function onNewQtyInput() {
-  // Commodities: recompute the live total on every keystroke (cheap, no fetch).
-  if (edTab === 'commodities' && typeof updateCommodityTotal === 'function') updateCommodityTotal();
+  // Recompute the live total on every keystroke (cheap, no fetch) — all tabs.
+  if (typeof updateCommodityTotal === 'function') updateCommodityTotal();
   // Quantity changed — debounce the price autofill so rapid typing of a
   // multi-digit quantity doesn't fire a fetch per keystroke.
   clearTimeout(window._newQtyDebounce);
@@ -13892,7 +13820,14 @@ async function dashComputeCommodity(a, range) {
   } catch (_) { return null; }
 }
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
-function dashSummaryCell(label,g,primary){const up=g.pnl>=0;return `<div class="period-summary-cell${primary?' is-primary':''}"><div class="period-summary-label">${label}</div><div class="period-summary-value" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div><div class="period-summary-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(g.pct)}</div></div>`;}
+function dashSummaryCell(label,g,primary){
+  const up=g.pnl>=0;
+  const meta={'כלל התיק':['ph-briefcase','var(--ac)'],'מניות':['ph-chart-line-up','var(--bl)'],'קריפטו':['ph-coins','var(--ac)'],'סחורות':['ph-medal','var(--gd)'],'תעודות סל':['ph-chart-pie-slice','#9b8cff'],'אג"ח':['ph-bank','var(--gr)']}[label]||['ph-squares-four','var(--ac)'];
+  return `<div class="psc${primary?' is-primary':''}" style="--psc-c:${meta[1]}">
+    <div class="psc-head"><span class="psc-ico"><i class="ph-thin ${meta[0]}"></i></span><span class="psc-lbl">${label}</span><span class="psc-pill ${up?'up':'dn'}">${up?'▲':'▼'} ${fPct(g.pct).replace('+','').replace('-','')}</span></div>
+    <div class="psc-val" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div>
+  </div>`;
+}
 function dashRenderPeriodData(data,{cached=false}={}){
   // Publish today's result so the hero header shows the SAME number as this summary.
   try {
