@@ -10221,6 +10221,17 @@ function updateKPIs() {
 
   applyWidgetTiles();
   renderAlloc(c, st);
+  // Repaint the period panel together with the hero whenever prices refresh, so the
+  // "כלל התיק / היום" figure and the header figure always come from the same snapshot.
+  // Debounced to one repaint per second; only when the panel is on the "today" tab.
+  try {
+    if (S.curPage === 'dash' && dashPeriod === 'today' && typeof renderDashPeriod === 'function') {
+      if (!window._kpiPanelSync || Date.now() - window._kpiPanelSync > 1000) {
+        window._kpiPanelSync = Date.now();
+        setTimeout(() => { try { renderDashPeriod('today'); } catch(_){} }, 0);
+      }
+    }
+  } catch(_){ /* dashPeriod not initialized yet on very first render — fine */ }
 }
 
 // Show/hide the optional KPI tiles per the view config.
@@ -14170,14 +14181,8 @@ function dashSummaryCell(label,g,primary){
   </div>`;
 }
 function dashRenderPeriodData(data,{cached=false}={}){
-  // Publish today's result so the hero header shows the SAME number as this summary.
-  try {
-    const tk = todayLocalDateKey();
-    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk && data.total) {
-      S._todayPeriod = { pnl: data.total.pnl, pct: data.total.pct, ts: Date.now() };
-      updateKPIs?.();
-    }
-  } catch(_){}
+  // Note: the hero header no longer reads from this panel — both compute the "today"
+  // figure with the same spnl()/cpnl() functions, so they agree by construction.
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   // מיון פירוט הנכסים לפי רווח/הפסד בכסף (₪) — מהרווח הגבוה לנמוך
   const sortedItems=[...(data.items||[])].sort((a,b)=>(b.pnl||0)-(a.pnl||0));
@@ -14209,12 +14214,17 @@ function dashPeriodCacheKey(range){return `result:${dashPortfolioSignature()}:${
 async function renderDashPeriod(period=dashPeriod,customFrom,customTo){
   dashPeriod=period;
   const range=dashResolveRange(period,customFrom,customTo), key=dashPeriodCacheKey(range), grid=document.getElementById('dashPeriodGrid');
-  const req=++dashPeriodRequestId, entry=dashCacheEntry(key), ttl=range.includesToday?5*60*1000:24*60*60*1000;
+  const isTodayRange = range.fromKey === range.endKey && range.includesToday;
+  const req=++dashPeriodRequestId, entry=isTodayRange?null:dashCacheEntry(key), ttl=24*60*60*1000;
+  // "today" is NEVER served from cache: its stocks+crypto legs are computed in-memory
+  // with the same spnl()/cpnl() the hero header uses, so recomputing is instant and a
+  // stale cached copy (up to minutes old, possibly from an older engine) was the source
+  // of the hero-vs-panel mismatch. Historical ranges keep the 24h cache.
   if(entry?.data){dashRenderPeriodData(entry.data,{cached:true});if(Date.now()-entry.ts<ttl){dashSetStatus('מהזיכרון · עדכני','fresh');return entry.data;}dashSetStatus('מהזיכרון · מעדכן ברקע','updating');}
-  else if(grid)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
+  else if(grid && !isTodayRange)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
   let promise=dashPeriodInFlight.get(key);
   if(!promise){promise=dashComputePeriod(range).finally(()=>dashPeriodInFlight.delete(key));dashPeriodInFlight.set(key,promise);}
-  try{const data=await promise;dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
+  try{const data=await promise;if(!isTodayRange)dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
   catch(e){console.error('[Period summary]',e);if(req===dashPeriodRequestId&&!entry?.data){grid.innerHTML=`<div class="period-error">לא הצלחנו לחשב את התקופה כרגע. נסה שוב בעוד רגע.</div>`;dashSetStatus('שגיאת טעינה','error');}return null;}
 }
 function setDashPeriod(p,btn){
