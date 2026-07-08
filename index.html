@@ -10165,15 +10165,22 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  // Daily P&L only sums categories that are included in the total.
+  // Daily P&L — SINGLE SOURCE OF TRUTH.
+  // The period panel's engine (dashComputeStock/Crypto) is the authoritative daily
+  // calculation: it handles lots, buy-dates, baseILS holdings and per-currency FX.
+  // To guarantee the hero header and the "כלל התיק / היום" panel show the EXACT same
+  // number, the hero reuses the panel's fresh result for today rather than running a
+  // second, slightly-different calculation (spnl/cpnl). The live spnl/cpnl sum is only
+  // a fallback for the brief moment before the panel's first result lands.
   let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
                  + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
   let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
-  // The hero P&L is computed LIVE from current prices (spnl/cpnl) on every render.
-  // We intentionally do NOT substitute a cached period-summary result here: that cache
-  // could be up to several minutes old and was built at a different instant on each
-  // device, which made the phone and desktop show wildly different daily %. Live values
-  // keep every device in agreement (any residual gap is just seconds of quote drift).
+  const tp = S._todayPeriod;
+  if (tp && (Date.now() - tp.ts < 90 * 1000)) {
+    // Fresh authoritative result from the panel — use it verbatim so the two displays match.
+    pnlTotal = tp.pnl;
+    pnlPct = tp.pct;
+  }
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
