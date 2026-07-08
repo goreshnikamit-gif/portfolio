@@ -10135,11 +10135,11 @@ function updateKPIs() {
   let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
                  + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
   let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
-  // ⚡ Single source of truth: when the "סיכום ביצועים לפי תקופה" engine has a FRESH
-  // result for TODAY, the hero shows the exact same number — no more mismatched totals
-  // between the header and the period summary (they used different fx/crypto windows).
-  const tp = S._todayPeriod;
-  if (tp && Date.now() - tp.ts < 6 * 60 * 1000) { pnlTotal = tp.pnl; pnlPct = tp.pct; }
+  // The hero P&L is computed LIVE from current prices (spnl/cpnl) on every render.
+  // We intentionally do NOT substitute a cached period-summary result here: that cache
+  // could be up to several minutes old and was built at a different instant on each
+  // device, which made the phone and desktop show wildly different daily %. Live values
+  // keep every device in agreement (any residual gap is just seconds of quote drift).
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
