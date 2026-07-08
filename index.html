@@ -4588,14 +4588,13 @@ const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
 
-  // A stock contributes to today's P&L only after its data source has emitted
-  // a quote whose timestamp belongs to today's calendar date in Israel.
-  // Before the US market opens, Yahoo/Finnhub still report the previous session;
-  // that quote is intentionally treated as 0 for the new Israeli day.
-  if (!timestampIsTodayLocal(p.quoteTime)) return 0;
-
+  // Daily P&L is always measured against the market's own previous close.
+  // prevClose is a stable, market-provided value — identical on every device
+  // regardless of which data source answered first or when the quote arrived.
+  // This keeps the shekel P&L in lock-step with the percentage change shown
+  // elsewhere, so phone and desktop never disagree.
   const sh = getShares(s);
-  // ⚡ FIX: convert the per-share gain in the stock's native currency to ILS.
+  // ⚡ convert the per-share gain in the stock's native currency to ILS.
   if (sh && p.prevClose) return nativeToILS(sh * (p.price - p.prevClose), p.currency || 'USD');
   if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
   return null;
