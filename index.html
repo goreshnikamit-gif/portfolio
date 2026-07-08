@@ -10165,12 +10165,12 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  // Daily P&L — computed live from spnl()/cpnl(). The period panel's "today" branch
-  // now calls these exact same functions, so the header total and the panel total are
-  // mathematically identical (same lots, same baseline, same FX) with no timing or
-  // cache dependency between them.
-  let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
-                 + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
+  // Daily P&L — computed live from spnl()/cpnl(). The panel's "today" numbers are
+  // patched synchronously below (syncTodayPanel) with these EXACT same figures, in the
+  // same tick — so the hero and the panel can never be even one price-tick apart.
+  const _cryptoPnl = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0;
+  const _stocksPnl = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0;
+  let pnlTotal = _cryptoPnl + _stocksPnl + (Number(S._todayOthersPnl) || 0);
   let pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : (g > 0 ? (pnlTotal / g) * 100 : 0);
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
@@ -10221,17 +10221,13 @@ function updateKPIs() {
 
   applyWidgetTiles();
   renderAlloc(c, st);
-  // Repaint the period panel together with the hero whenever prices refresh, so the
-  // "כלל התיק / היום" figure and the header figure always come from the same snapshot.
-  // Debounced to one repaint per second; only when the panel is on the "today" tab.
+  // Patch the "today" panel numbers in the SAME tick, from the SAME figures the hero
+  // just displayed. No async, no debounce, no cache — they cannot diverge.
   try {
-    if (S.curPage === 'dash' && dashPeriod === 'today' && typeof renderDashPeriod === 'function') {
-      if (!window._kpiPanelSync || Date.now() - window._kpiPanelSync > 1000) {
-        window._kpiPanelSync = Date.now();
-        setTimeout(() => { try { renderDashPeriod('today'); } catch(_){} }, 0);
-      }
-    }
-  } catch(_){ /* dashPeriod not initialized yet on very first render — fine */ }
+    const _stocksEnd = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (sv(s) || 0), 0) : 0;
+    const _cryptoEnd = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cv(x) || 0), 0) : 0;
+    if (typeof syncTodayPanel === 'function') syncTodayPanel(_stocksPnl, _cryptoPnl, _stocksEnd, _cryptoEnd);
+  } catch(_){ /* panel not mounted yet — fine */ }
 }
 
 // Show/hide the optional KPI tiles per the view config.
@@ -14174,15 +14170,52 @@ async function dashComputeCommodity(a, range) {
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
 function dashSummaryCell(label,g,primary){
   const up=g.pnl>=0;
+  const keyMap={'כלל התיק':'total','מניות':'stocks','קריפטו':'crypto','סחורות':'commodities','תעודות סל':'etfs','אג"ח':'bonds'};
   const meta={'כלל התיק':['ph-briefcase','var(--ac)'],'מניות':['ph-chart-line-up','var(--bl)'],'קריפטו':['ph-coins','var(--ac)'],'סחורות':['ph-medal','var(--gd)'],'תעודות סל':['ph-chart-pie-slice','#9b8cff'],'אג"ח':['ph-bank','var(--gr)']}[label]||['ph-squares-four','var(--ac)'];
-  return `<div class="psc${primary?' is-primary':''}" style="--psc-c:${meta[1]}">
+  return `<div class="psc${primary?' is-primary':''}" data-psc="${keyMap[label]||''}" style="--psc-c:${meta[1]}">
     <div class="psc-head"><span class="psc-ico"><i class="ph-thin ${meta[0]}"></i></span><span class="psc-lbl">${label}</span><span class="psc-pill ${up?'up':'dn'}">${up?'▲':'▼'} ${fPct(g.pct).replace('+','').replace('-','')}</span></div>
     <div class="psc-val" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div>
   </div>`;
 }
+// ── Synchronous today-panel updater ──
+// Runs in the SAME tick as the hero update, from the SAME in-memory prices, so the
+// hero and the panel numbers can never be one price-tick apart. Stocks & crypto are
+// recomputed with spnl()/cpnl(); slower-moving categories (commodities/ETF/bonds)
+// keep the value from the last full async compute (stored in S._todayOthersPnl).
+function syncTodayPanel(stocksPnl, cryptoPnl, stocksEnd, cryptoEnd) {
+  try {
+    if (typeof dashPeriod === 'undefined' || dashPeriod !== 'today') return;
+    const grid = document.getElementById('dashPeriodGrid');
+    if (!grid) return;
+    const others = Number(S._todayOthersPnl) || 0;
+    const totalPnl = stocksPnl + cryptoPnl + others;
+    const patch = (key, pnl, endVal) => {
+      const cell = grid.querySelector(`[data-psc="${key}"]`);
+      if (!cell) return;
+      const up = pnl >= 0;
+      const basis = endVal - pnl;
+      const pct = basis > 0 ? (pnl / basis) * 100 : 0;
+      const pill = cell.querySelector('.psc-pill');
+      const val = cell.querySelector('.psc-val');
+      if (pill) { pill.className = 'psc-pill ' + (up ? 'up' : 'dn'); pill.innerHTML = `${up?'▲':'▼'} ${fPct(pct).replace('+','').replace('-','')}`; }
+      if (val) { val.style.color = up ? 'var(--gr)' : 'var(--rd)'; val.textContent = (up?'+':'') + fILS(pnl); }
+    };
+    patch('stocks', stocksPnl, stocksEnd);
+    patch('crypto', cryptoPnl, cryptoEnd);
+    patch('total', totalPnl, stocksEnd + cryptoEnd + (Number(S._todayOthersEnd) || 0));
+  } catch(_){}
+}
 function dashRenderPeriodData(data,{cached=false}={}){
-  // Note: the hero header no longer reads from this panel — both compute the "today"
-  // figure with the same spnl()/cpnl() functions, so they agree by construction.
+  // Note: the hero header no longer reads this panel's stocks/crypto (both compute via
+  // spnl/cpnl). We only remember the slow-moving categories' contribution here so the
+  // hero total can include commodities/ETFs/bonds consistently between async recomputes.
+  try {
+    const tk = todayLocalDateKey();
+    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk) {
+      S._todayOthersPnl = (data.commodities?.pnl || 0) + (data.etfs?.pnl || 0) + (data.bonds?.pnl || 0);
+      S._todayOthersEnd = (data.commodities?.endValue || 0) + (data.etfs?.endValue || 0) + (data.bonds?.endValue || 0);
+    }
+  } catch(_){}
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
   // מיון פירוט הנכסים לפי רווח/הפסד בכסף (₪) — מהרווח הגבוה לנמוך
   const sortedItems=[...(data.items||[])].sort((a,b)=>(b.pnl||0)-(a.pnl||0));
