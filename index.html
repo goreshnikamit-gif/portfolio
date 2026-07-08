@@ -158,6 +158,34 @@ body.light::before { opacity: 0; }
 .pro-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--gd) 25%, transparent); }
 .pro-btn.on { background: var(--gd); color: #0A0F1F; border-color: var(--gd); }
 .pro-btn.on::after { content: ' ✓'; }
+/* ── Profile chip + popover ── */
+.profile-chip { display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; overflow:hidden; border:2px solid color-mix(in srgb, var(--ac) 55%, var(--b1)); background:var(--s3); cursor:pointer; padding:0; transition:transform .12s, box-shadow .12s; }
+.profile-chip:hover { transform:scale(1.06); box-shadow:0 0 0 3px color-mix(in srgb, var(--ac) 20%, transparent); }
+.profile-chip img { width:100%; height:100%; object-fit:cover; }
+.profile-chip span { font-family:var(--font-mono); font-weight:800; font-size:13px; color:var(--ac); }
+.profile-pop { position:absolute; top:52px; inset-inline-start:12px; z-index:600; width:250px; background:var(--s1); border:1px solid var(--b2); border-radius:14px; padding:14px; box-shadow:0 20px 50px rgba(0,0,0,.45); display:none; }
+.profile-pop.open { display:block; animation:fadeSlide .15s ease; }
+.profile-pop-head { display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+.profile-pop-avatar { width:44px; height:44px; border-radius:50%; overflow:hidden; flex:0 0 44px; background:var(--s3); display:flex; align-items:center; justify-content:center; border:2px solid color-mix(in srgb, var(--ac) 45%, var(--b1)); }
+.profile-pop-avatar img { width:100%; height:100%; object-fit:cover; }
+.profile-pop-avatar span { font-family:var(--font-mono); font-weight:800; font-size:18px; color:var(--ac); }
+.profile-pop-name { font-size:14px; font-weight:800; color:var(--t1); }
+.profile-pop-email { font-size:11px; color:var(--t3); direction:ltr; text-align:end; }
+.verify-card { text-align:center; }
+.verify-ico { font-size:52px; color:var(--ac, #6366f1); margin-bottom:6px; line-height:1; }
+.verify-msg { font-size:14px; color:var(--tx, #e5e7eb); margin:10px 0 6px; line-height:1.5; }
+.verify-msg strong { color:var(--ac, #818cf8); font-weight:700; word-break:break-all; }
+.verify-sub { font-size:12px; color:var(--tx-dim, #9ca3af); margin-bottom:16px; line-height:1.5; }
+.verify-card .auth-submit { margin-top:4px; }
+.profile-pop-verify { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--gd); background:color-mix(in srgb, var(--gd) 10%, transparent); border:1px solid color-mix(in srgb, var(--gd) 28%, transparent); border-radius:8px; padding:7px 9px; margin-bottom:10px; }
+.profile-pop-verify button { margin-inline-start:auto; background:none; border:none; color:var(--gd); font-size:11px; font-weight:700; text-decoration:underline; cursor:pointer; padding:0; }
+.profile-pop-logout { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; background:color-mix(in srgb, var(--rd) 9%, var(--s2)); border:1px solid color-mix(in srgb, var(--rd) 30%, var(--b1)); color:var(--rd); font-family:var(--font-body); font-size:12.5px; font-weight:700; border-radius:9px; padding:9px; cursor:pointer; transition:all .12s; }
+.profile-pop-logout:hover { background:color-mix(in srgb, var(--rd) 16%, var(--s2)); }
+/* Apple / Facebook buttons */
+.gbtn.provider-apple { background:#000; color:#fff; border-color:#333; }
+.gbtn.provider-apple svg { width:18px; height:18px; }
+body.light .gbtn.provider-apple { background:#000; color:#fff; }
+.gbtn.provider-facebook svg { width:18px; height:18px; }
 /* ── Ad card (inside asset grids) ── */
 .ad-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 200px; height: 100%; align-self: stretch; background: linear-gradient(145deg, color-mix(in srgb, var(--ac) 7%, var(--s3)), var(--s3)); border: 1px dashed color-mix(in srgb, var(--ac) 40%, var(--b1)); border-radius: var(--radius); padding: 20px; text-align: center; overflow: hidden; box-sizing: border-box; }
 /* Mobile: asset cards are compact single rows — the ad matches that shape */
@@ -1818,6 +1846,21 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <div class="logo-m" id="logoMark">V·</div>
     <div class="logo-t" id="logoText">Vector<span> · Equities</span></div>
     <button class="pro-btn" id="proBtn" onclick="togglePro()" title="מצב PRO — ללא פרסומות">PRO</button>
+    <button class="profile-chip" id="profileChip" onclick="toggleProfilePop(event)" style="display:none" title="החשבון שלי"></button>
+    <div class="profile-pop" id="profilePop">
+      <div class="profile-pop-head">
+        <div class="profile-pop-avatar" id="ppAvatar"></div>
+        <div class="profile-pop-info">
+          <div class="profile-pop-name" id="ppName"></div>
+          <div class="profile-pop-email" id="ppEmail"></div>
+        </div>
+      </div>
+      <div class="profile-pop-verify" id="ppVerify" style="display:none">
+        <i class="ph-thin ph-warning-circle"></i> המייל טרם אומת
+        <button onclick="resendVerification()">שלח שוב</button>
+      </div>
+      <button class="profile-pop-logout" onclick="doLogout()"><i class="ph-thin ph-sign-out"></i> התנתקות</button>
+    </div>
   </div>
   <div class="topbar-r">
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()" title="רענן נתונים">
@@ -1853,7 +1896,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, OAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -1989,7 +2032,10 @@ window.fbSignOut = async () => {
   await signOut(auth);
 };
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+ reports as Mac
+const isStandalonePWA = window.navigator.standalone === true
+  || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
 const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
 
 if (isWebView) {
@@ -2080,7 +2126,9 @@ async function finishAuth(user, mode) {
   if (!exists && !window.firebaseLastError) {
     // real account creation: profile doc + starting portfolio
     // (migrates local-mode work if this device belonged to no one / to this user)
-    const seed = (prevOwner && prevOwner !== uid) ? { crypto: [], stocks: [] } : localPortfolio();
+    const seed = (prevOwner && prevOwner !== uid)
+      ? { crypto: [], stocks: [], commodities: [], bonds: [], etfs: [] }
+      : localPortfolio();
     try {
       await setDoc(DOC, {
         ownerUid: uid,
@@ -2155,6 +2203,10 @@ window.doEmailAuth = async () => {
     const result = mode === 'signup'
       ? await createUserWithEmailAndPassword(auth, email, pass)
       : await signInWithEmailAndPassword(auth, email, pass);
+    // ⚡ New signup → send a verification email right away.
+    if (mode === 'signup') {
+      try { await sendEmailVerification(result.user); } catch(_) {}
+    }
     // save investment preferences on signup
     if (mode === 'signup') {
       const prefs = Array.from(window._signupPrefs);
@@ -2163,7 +2215,14 @@ window.doEmailAuth = async () => {
     }
     await finishAuth(result.user, mode);
     lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
-    setTimeout(() => window.proceedToApp(), 500);
+    if (mode === 'signup') {
+      // Show the "check your email" interstitial instead of entering the app.
+      showVerifyScreen(email);
+      btn.disabled = false;
+      lbl.textContent = 'צור חשבון';
+    } else {
+      setTimeout(() => window.proceedToApp(), 500);
+    }
   } catch(e) {
     btn.disabled = false;
     lbl.textContent = mode === 'signup' ? 'צור חשבון' : 'התחברות';
@@ -2191,21 +2250,172 @@ window.doGoogleLogin = async () => {
   const mode = authMode;
   err.textContent = '';
   lbl.textContent = mode === 'signup' ? 'נרשם...' : 'מתחבר לגוגל...';
+  const provider = new GoogleAuthProvider();
+  // Popup first on ALL platforms — it doesn't depend on third-party cookies,
+  // which Safari/iOS block, breaking the redirect flow. Fall back to redirect
+  // only when the popup is actually blocked by the browser.
   try {
-    const provider = new GoogleAuthProvider();
-    if (isIOS) {
-      localStorage.setItem('google_pending_redirect', '1');
-      localStorage.setItem('google_auth_mode', mode);
-      await signInWithRedirect(auth, provider);
-    } else {
-      const result = await signInWithPopup(auth, provider);
-      await finishAuth(result.user, mode);
-      lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
-      setTimeout(() => window.proceedToApp(), 600);
-    }
+    const result = await signInWithPopup(auth, provider);
+    await finishAuth(result.user, mode);
+    lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
+    setTimeout(() => window.proceedToApp(), 600);
   } catch(e) {
+    const popupBlocked = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code);
+    if (popupBlocked) {
+      // Browser blocked the popup — switch to the redirect flow.
+      try {
+        localStorage.setItem('google_pending_redirect', '1');
+        localStorage.setItem('google_auth_mode', mode);
+        lbl.textContent = 'מפנה לגוגל...';
+        await signInWithRedirect(auth, provider);
+        return;
+      } catch(e2) {
+        lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
+        err.textContent = 'שגיאה: ' + (e2.message || e2.code);
+        return;
+      }
+    }
     lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
-    err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
+    if (e.code === 'auth/popup-closed-by-user') err.textContent = 'החלון נסגר — נסי שוב';
+    else if (e.code === 'auth/unauthorized-domain') err.textContent = 'הדומיין לא מאושר ב-Firebase (Authorized domains)';
+    else if (e.code === 'auth/network-request-failed') err.textContent = 'אין חיבור לאינטרנט — נסי שוב';
+    else err.textContent = 'שגיאה: ' + (e.message || e.code);
+  }
+};
+
+// ── Profile chip (topbar): avatar + name + logout, follows auth state ──
+function updateProfileChip() {
+  const chip = document.getElementById('profileChip');
+  if (!chip) return;
+  const u = window.firebaseUser;
+  if (!u) { chip.style.display = 'none'; document.getElementById('profilePop')?.classList.remove('open'); return; }
+  const name = u.displayName || (u.email ? u.email.split('@')[0] : 'משתמש');
+  const initial = (name || '?').trim().charAt(0).toUpperCase();
+  chip.innerHTML = u.photoURL
+    ? `<img src="${u.photoURL}" alt="" referrerpolicy="no-referrer">`
+    : `<span>${initial}</span>`;
+  chip.style.display = 'flex';
+  const av = document.getElementById('ppAvatar');
+  if (av) av.innerHTML = u.photoURL ? `<img src="${u.photoURL}" alt="" referrerpolicy="no-referrer">` : `<span>${initial}</span>`;
+  const nm = document.getElementById('ppName');  if (nm) nm.textContent = name;
+  const em = document.getElementById('ppEmail'); if (em) em.textContent = u.email || '';
+  // Email-verification notice (only for password accounts).
+  const isPassword = (u.providerData || []).some(p => p.providerId === 'password');
+  const ver = document.getElementById('ppVerify');
+  if (ver) ver.style.display = (isPassword && !u.emailVerified) ? 'flex' : 'none';
+}
+window.updateProfileChip = updateProfileChip;
+window.toggleProfilePop = (e) => {
+  e?.stopPropagation?.();
+  document.getElementById('profilePop')?.classList.toggle('open');
+};
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('profilePop');
+  if (pop?.classList.contains('open') && !pop.contains(e.target) && e.target?.id !== 'profileChip') pop.classList.remove('open');
+});
+window.resendVerification = async () => {
+  // If the verify interstitial is open, report inline; otherwise use alert (profile popup).
+  const onVerifyScreen = document.getElementById('verifyCard')?.style.display !== 'none'
+    && document.getElementById('verifyCard');
+  const vErr = document.getElementById('verifyErr');
+  try {
+    if (window.firebaseUser) {
+      await sendEmailVerification(window.firebaseUser);
+      if (onVerifyScreen && vErr) {
+        vErr.style.color = 'var(--gr, #22c55e)';
+        vErr.textContent = 'הקישור נשלח מחדש ✓ בדקו את תיבת הדואר (גם בספאם)';
+      } else {
+        alert('מייל אימות נשלח שוב ✓ בדוק את תיבת הדואר (גם בספאם)');
+      }
+    }
+  } catch (e) {
+    const msg = e.code === 'auth/too-many-requests' ? 'נשלחו יותר מדי מיילים — נסה שוב מאוחר יותר' : 'שליחה נכשלה: ' + (e.message || '');
+    if (onVerifyScreen && vErr) { vErr.style.color = ''; vErr.textContent = msg; }
+    else alert(msg);
+  }
+};
+
+// ── Email-verification interstitial (shown after signup) ──
+window.showVerifyScreen = (email) => {
+  window._awaitingEmailVerify = true;
+  const card = document.getElementById('lockScreen')?.querySelector('.lock-card:not(.verify-card)');
+  const vCard = document.getElementById('verifyCard');
+  const vEmail = document.getElementById('verifyEmail');
+  const vErr = document.getElementById('verifyErr');
+  if (vEmail) vEmail.textContent = email || (window.firebaseUser?.email || '');
+  if (vErr) { vErr.textContent = ''; vErr.style.color = ''; }
+  if (card) card.style.display = 'none';
+  if (vCard) vCard.style.display = '';
+};
+window.backToAuthFromVerify = () => {
+  window._awaitingEmailVerify = false;
+  const card = document.getElementById('lockScreen')?.querySelector('.lock-card:not(.verify-card)');
+  const vCard = document.getElementById('verifyCard');
+  if (vCard) vCard.style.display = 'none';
+  if (card) card.style.display = '';
+};
+window.checkVerifiedAndProceed = async () => {
+  const lbl = document.getElementById('verifyContinueLbl');
+  const vErr = document.getElementById('verifyErr');
+  if (vErr) { vErr.textContent = ''; vErr.style.color = ''; }
+  if (lbl) lbl.textContent = 'בודק...';
+  try {
+    // Reload the user so emailVerified reflects the latest state from Firebase.
+    await window.firebaseUser?.reload?.();
+    const u = window.firebaseAuth?.currentUser || window.firebaseUser;
+    if (u?.emailVerified) {
+      window._awaitingEmailVerify = false;
+      if (lbl) lbl.textContent = 'אומת! ✓';
+      setTimeout(() => window.proceedToApp(), 400);
+    } else {
+      if (lbl) lbl.textContent = 'אימתתי — המשך';
+      if (vErr) vErr.textContent = 'עדיין לא זיהינו אימות. לחצו על הקישור במייל ואז נסו שוב.';
+    }
+  } catch (e) {
+    if (lbl) lbl.textContent = 'אימתתי — המשך';
+    if (vErr) vErr.textContent = 'שגיאה בבדיקה — נסו שוב';
+  }
+};
+
+// ── Apple / Facebook sign-in — same finishAuth flow as Google ──
+window.doProviderLogin = async (name) => {
+  const err = document.getElementById('lockErr');
+  const mode = authMode;
+  err.textContent = '';
+  let provider;
+  if (name === 'apple') {
+    provider = new OAuthProvider('apple.com');
+    provider.addScope('email'); provider.addScope('name');
+  } else if (name === 'facebook') {
+    provider = new FacebookAuthProvider();
+    provider.addScope('email');
+  } else return;
+  try {
+    // Popup first (cookie-independent, works on iOS); redirect only as fallback.
+    const result = await signInWithPopup(auth, provider);
+    await finishAuth(result.user, mode);
+    setTimeout(() => window.proceedToApp(), 600);
+  } catch (e) {
+    const popupBlocked = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code);
+    if (popupBlocked) {
+      try {
+        localStorage.setItem('google_pending_redirect', '1');
+        localStorage.setItem('google_auth_mode', mode);
+        await signInWithRedirect(auth, provider);
+        return;
+      } catch(_) {}
+    }
+    if (e.code === 'auth/operation-not-allowed') {
+      err.textContent = name === 'apple'
+        ? 'התחברות Apple עדיין לא הופעלה (דורשת חשבון Apple Developer + הפעלה ב-Firebase Console)'
+        : 'התחברות Facebook עדיין לא הופעלה (דורשת אפליקציית Facebook + הפעלה ב-Firebase Console)';
+    } else if (e.code === 'auth/popup-closed-by-user') {
+      err.textContent = 'החלון נסגר — נסה שוב';
+    } else if (e.code === 'auth/account-exists-with-different-credential') {
+      err.textContent = 'כבר קיים חשבון לכתובת הזו דרך ספק אחר — התחבר איתו';
+    } else {
+      err.textContent = 'שגיאה: ' + (e.message || e.code);
+    }
   }
 };
 
@@ -2225,6 +2435,9 @@ window.checkAuthAndShow = () => {
     localStorage.setItem('google_auth_ts', Date.now().toString());
     localStorage.setItem('google_auth_email', user.email || '');
     localStorage.setItem('google_auth_uid', user.uid);
+    // Hold on the "verify your email" interstitial after a fresh signup —
+    // don't auto-enter the app until the user chooses to continue.
+    if (window._awaitingEmailVerify) return;
     if (typeof window.proceedToApp === 'function') window.proceedToApp();
     else window._proceedAfterAppBoot = true;
     return;
@@ -2297,19 +2510,45 @@ setPersistence(auth, browserLocalPersistence).catch(error => {
   console.warn('Could not enable local Firebase Auth persistence:', error);
 });
 
+// If we're returning from a Google redirect, show a "connecting" state right
+// away so the user isn't confused by a fresh-looking login screen.
+if (localStorage.getItem('google_pending_redirect') === '1') {
+  const gl = document.getElementById('gLbl');
+  if (gl) gl.textContent = 'מתחבר לגוגל...';
+  const le = document.getElementById('lockErr');
+  if (le) { le.style.color = ''; le.textContent = 'משלים התחברות דרך גוגל...'; }
+}
+
 getRedirectResult(auth).then(async result => {
   if (result?.user) {
     const mode = localStorage.getItem('google_auth_mode') || 'login';
     localStorage.removeItem('google_auth_mode');
     localStorage.removeItem('google_pending_redirect');
+    const le = document.getElementById('lockErr');
+    if (le) { le.style.color = 'var(--gr, #22c55e)'; le.textContent = 'מחוברת! ✓'; }
     await finishAuth(result.user, mode);
   }
 }).catch(error => {
   localStorage.removeItem('google_pending_redirect');
+  localStorage.removeItem('google_auth_mode');
   console.warn('Google redirect result failed:', error);
+  // Surface the failure to the user instead of silently doing nothing.
+  const err = document.getElementById('lockErr');
+  if (err) {
+    if (error.code === 'auth/unauthorized-domain') {
+      err.textContent = 'הדומיין של האתר לא מאושר ב-Firebase. יש להוסיף אותו ל-Authorized domains.';
+    } else if (error.code === 'auth/account-exists-with-different-credential') {
+      err.textContent = 'כבר קיים חשבון לכתובת הזו דרך ספק אחר — התחברי איתו';
+    } else if (error.code === 'auth/network-request-failed') {
+      err.textContent = 'אין חיבור לאינטרנט — נסי שוב';
+    } else {
+      err.textContent = 'ההתחברות דרך גוגל נכשלה — נסי שוב. (' + (error.code || error.message || '') + ')';
+    }
+  }
 });
 
 onAuthStateChanged(auth, async user => {
+  setTimeout(() => { try { window.updateProfileChip?.(); } catch(_){} }, 50);
   try {
     setCloudUser(user);
     if (user) {
@@ -2364,6 +2603,15 @@ onAuthStateChanged(auth, async user => {
       <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       <span class="gbtn-lbl" id="gLbl">היכנס באמצעות Google</span>
     </button>
+    <!-- Apple / Facebook: hidden until enabled in Firebase Console. To re-enable, remove style="display:none" below. -->
+    <button class="gbtn provider-apple" onclick="doProviderLogin('apple')" style="display:none">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.86-3.08.38-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.38C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+      <span class="gbtn-lbl">היכנס באמצעות Apple</span>
+    </button>
+    <button class="gbtn provider-facebook" onclick="doProviderLogin('facebook')" style="display:none">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      <span class="gbtn-lbl">היכנס באמצעות Facebook</span>
+    </button>
     <div class="lock-note" id="lockNote">ההרשמה פתוחה — ייפתח לך תיק אישי חדש</div>
     <div class="lock-div" id="lockDiv">או</div>
     <button class="lock-swap" id="swapBtn" onclick="setAuthMode(window._authMode === 'signup' ? 'login' : 'signup')">יצירת חשבון</button>
@@ -2373,6 +2621,20 @@ onAuthStateChanged(auth, async user => {
     </button>
     <div class="lock-err" id="lockErr"></div>
     <button class="lock-skip" onclick="skipAuth()">כניסה ללא אימות (מצב מקומי)</button>
+  </div>
+
+  <!-- Email verification interstitial (shown right after signup) -->
+  <div class="lock-card verify-card" id="verifyCard" style="display:none">
+    <div class="verify-ico"><i class="ph-thin ph-envelope-simple-open"></i></div>
+    <div class="lock-title">אימות אימייל</div>
+    <div class="verify-msg">שלחנו קישור אימות לכתובת:<br><strong id="verifyEmail" dir="ltr"></strong></div>
+    <div class="verify-sub">פִּתחו את המייל ולחצו על הקישור כדי להשלים את ההרשמה. אם לא הגיע תוך דקה, בדקו גם בתיקיית הספאם.</div>
+    <button class="auth-submit" id="verifyContinueBtn" onclick="checkVerifiedAndProceed()">
+      <span id="verifyContinueLbl">אימתתי — המשך</span>
+    </button>
+    <button class="auth-forgot" id="verifyResendBtn" onclick="resendVerification()">שליחת הקישור מחדש</button>
+    <button class="lock-swap" onclick="backToAuthFromVerify()">חזרה / שינוי כתובת</button>
+    <div class="lock-err" id="verifyErr"></div>
   </div>
 </div>
 
