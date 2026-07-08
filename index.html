@@ -14006,17 +14006,10 @@ async function dashComputePeriod(range){
   const fxMap=await dashGetFxMap(range,lotDates);
   const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
-  // 'היום' כשהשוק עוד לא נסחר: הציטוט ה"חי" של מניה עדיין נושא את התנועה של יום
-  // המסחר האחרון. אם הציטוט אינו מהיום — ה-P&L של היום הוא 0 (כמו שבת).
+  // 'היום': ה-P&L מחושב תמיד מול סגירת השוק הקודמת (startValue), בדיוק כמו
+  // האחוז שמוצג בכרטיסים. אין תלות בעיתוי הגעת הציטוט או במקור הנתונים — כך
+  // המחשב והטלפון תמיד מציגים אותו רווח יומי.
   const _todayK = todayLocalDateKey();
-  if (range.fromKey === range.endKey && range.endKey === _todayK) {
-    for (const it of items) {
-      if (it.type !== 'stock') continue;
-      const q = S.sp[it.sym];
-      const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null;
-      if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; }
-    }
-  }
   // סחורות: P&L חי לתקופה (זהב, נפט...) — מצטרף לפירוט, לקוביות ולסה"כ.
   if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
     const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
@@ -14030,7 +14023,7 @@ async function dashComputePeriod(range){
     if (!liveAssets.length) continue;
     const eItems = await dashMapLimit(liveAssets, 4, async a => {
       const it = await dashComputeStock(a, range, fxMap);
-      if (it) { it.type = extraType; if (range.fromKey === range.endKey && range.endKey === _todayK) { const q = S.sp[a.sym]; const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null; if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; } } }
+      if (it) { it.type = extraType; }
       return it;
     });
     eItems.filter(Boolean).forEach(x => items.push(x));
