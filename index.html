@@ -10165,22 +10165,13 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  // Daily P&L — SINGLE SOURCE OF TRUTH.
-  // The period panel's engine (dashComputeStock/Crypto) is the authoritative daily
-  // calculation: it handles lots, buy-dates, baseILS holdings and per-currency FX.
-  // To guarantee the hero header and the "כלל התיק / היום" panel show the EXACT same
-  // number, the hero reuses the panel's fresh result for today rather than running a
-  // second, slightly-different calculation (spnl/cpnl). The live spnl/cpnl sum is only
-  // a fallback for the brief moment before the panel's first result lands.
+  // Daily P&L — computed live from spnl()/cpnl(). The period panel's "today" branch
+  // now calls these exact same functions, so the header total and the panel total are
+  // mathematically identical (same lots, same baseline, same FX) with no timing or
+  // cache dependency between them.
   let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
                  + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
-  let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
-  const tp = S._todayPeriod;
-  if (tp && (Date.now() - tp.ts < 90 * 1000)) {
-    // Fresh authoritative result from the panel — use it verbatim so the two displays match.
-    pnlTotal = tp.pnl;
-    pnlPct = tp.pct;
-  }
+  let pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : (g > 0 ? (pnlTotal / g) * 100 : 0);
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
@@ -14055,14 +14046,57 @@ async function dashComputeCrypto(asset,range,fxMap){
   return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive,basis:usedEntryFallback?'entry':'date'};
 }
 async function dashComputePeriod(range){
+  const _todayK = todayLocalDateKey();
+  const isToday = range.fromKey === range.endKey && range.endKey === _todayK;
+  // ══ SINGLE ENGINE FOR "TODAY" ══
+  // For today's range we compute stocks & crypto with the EXACT same spnl()/cpnl()
+  // functions the hero header uses. This makes the header and this panel structurally
+  // identical — same lots, same baseline rules, same FX — so their totals can never
+  // drift. Longer ranges still use the historical dashComputeStock/Crypto engine
+  // (they need daily candle series that spnl/cpnl don't have).
+  if (isToday) {
+    const items = [];
+    if (catInTotal('stocks')) for (const s of S.stocks) {
+      const end = sv(s); const pnl = spnl(s);
+      if (pnl == null) continue;
+      items.push({ type:'stock', sym:s.sym, name:s.name, icon:s.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
+    }
+    if (catInTotal('crypto')) for (const a of S.crypto) {
+      const end = cv(a); const pnl = cpnl(a);
+      if (pnl == null) continue;
+      items.push({ type:'crypto', sym:a.sym, name:a.name, icon:a.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
+    }
+    // Commodities / ETFs / bonds: keep the existing live-quote logic below by falling
+    // through to the shared assembly, but seed items with the ones already computed.
+    if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
+      const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
+      cItems.filter(Boolean).forEach(x => items.push(x));
+    }
+    for (const extraType of ['etfs','bonds']) {
+      if (typeof catInTotal !== 'function' || !catInTotal(extraType)) continue;
+      const liveAssets = (S[extraType] || []).filter(a => S.sp?.[a.sym]?.price > 0);
+      if (!liveAssets.length) continue;
+      const fxMap = await dashGetFxMap(range, []);
+      const eItems = await dashMapLimit(liveAssets, 4, async a => {
+        const it = await dashComputeStock(a, range, fxMap);
+        if (it) it.type = extraType;
+        return it;
+      });
+      eItems.filter(Boolean).forEach(x => items.push(x));
+    }
+    const group=type=>{
+      const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
+      return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
+    };
+    const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity'),etfs=group('etfs'),bonds=group('bonds');
+    const startValue=stocks.startValue+crypto.startValue+commodities.startValue+etfs.startValue+bonds.startValue;
+    const endValue=stocks.endValue+crypto.endValue+commodities.endValue+etfs.endValue+bonds.endValue;
+    return {range,items,stocks,crypto,commodities,etfs,bonds,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+  }
   const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
   const fxMap=await dashGetFxMap(range,lotDates);
   const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
-  // 'היום': ה-P&L מחושב תמיד מול סגירת השוק הקודמת (startValue), בדיוק כמו
-  // האחוז שמוצג בכרטיסים. אין תלות בעיתוי הגעת הציטוט או במקור הנתונים — כך
-  // המחשב והטלפון תמיד מציגים אותו רווח יומי.
-  const _todayK = todayLocalDateKey();
   // סחורות: P&L חי לתקופה (זהב, נפט...) — מצטרף לפירוט, לקוביות ולסה"כ.
   if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
     const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
