@@ -1863,9 +1863,6 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     </div>
   </div>
   <div class="topbar-r">
-    <button class="ibtn" id="diagBtn" onclick="showDiag()" title="אבחון מקורות נתונים">
-      <i class="ph-thin ph-stethoscope"></i>
-    </button>
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()" title="רענן נתונים">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     </button>
@@ -4566,15 +4563,31 @@ function isUsRegularMarketOpenNow(value = Date.now()) {
 }
 
 const cpnl = (a) => {
-  // Crypto trades continuously. Daily P&L is measured from 00:00 in the user's local
-  // timezone, not from Binance's rolling 24h change and not from 00:00 UTC.
+  // Crypto trades continuously. Daily P&L follows the same rule as the period panel:
+  //   • a lot bought TODAY is measured from the price paid
+  //   • everything else is measured from 00:00 in the user's local timezone (openToday)
   const p = S.cp[a.id];
-  if (!p?.usd || !cQty(a)) return null;
-  if (p.openToday && p.openTodayDateKey === todayLocalDateKey()) {
-    return (p.usd - p.openToday) * cQty(a) * S.fx;
+  if (!p?.usd) return null;
+  const todayK = todayLocalDateKey();
+  const haveOpen = p.openToday && p.openTodayDateKey === todayK;
+  const lots = (a.lots && a.lots.length)
+    ? a.lots
+    : [{ qty: cQty(a), price: 0, date: null }];
+  let pnlUsd = 0, matched = false;
+  for (const lot of lots) {
+    const qty = parseFloat(lot.qty) || 0;
+    if (!qty) continue;
+    const lotKey = lot.date ? dashLotDateKey(lot.date) : null;
+    const boughtToday = lotKey === todayK && (parseFloat(lot.price) || 0) > 0;
+    let basis;
+    if (boughtToday) basis = parseFloat(lot.price);
+    else if (haveOpen) basis = p.openToday;
+    else return null; // no calendar-day baseline yet — don't guess
+    pnlUsd += qty * (p.usd - basis);
+    matched = true;
   }
-  // Never substitute a rolling 24h figure for a calendar-day figure.
-  return null;
+  if (!matched) return null;
+  return pnlUsd * S.fx;
 };
 
 const sv = (s) => {
@@ -4590,17 +4603,29 @@ const sv = (s) => {
 const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
-
-  // Daily P&L is always measured against the market's own previous close.
-  // prevClose is a stable, market-provided value — identical on every device
-  // regardless of which data source answered first or when the quote arrived.
-  // This keeps the shekel P&L in lock-step with the percentage change shown
-  // elsewhere, so phone and desktop never disagree.
-  const sh = getShares(s);
-  // ⚡ convert the per-share gain in the stock's native currency to ILS.
-  if (sh && p.prevClose) return nativeToILS(sh * (p.price - p.prevClose), p.currency || 'USD');
-  if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
-  return null;
+  if (!p.prevClose) { return s.baseILS ? null : null; }
+  const cur = p.currency || 'USD';
+  const todayK = todayLocalDateKey();
+  // Match the period-summary engine exactly so the hero header and the
+  // "כלל התיק / היום" panel can never disagree:
+  //   • a lot BOUGHT TODAY is measured from the price you actually paid
+  //   • a lot held from before is measured from the market's previous close
+  const lots = (s.lots && s.lots.length)
+    ? s.lots
+    : [{ qty: getShares(s), price: 0, date: null }];
+  let pnlNative = 0, matched = false;
+  for (const lot of lots) {
+    const qty = parseFloat(lot.qty) || 0;
+    if (!qty) continue;
+    const lotKey = lot.date ? dashLotDateKey(lot.date) : null;
+    const boughtToday = lotKey === todayK && (parseFloat(lot.price) || 0) > 0;
+    const basis = boughtToday ? parseFloat(lot.price) : p.prevClose;
+    if (!(basis > 0)) continue;
+    pnlNative += qty * (p.price - basis);
+    matched = true;
+  }
+  if (!matched) return null;
+  return nativeToILS(pnlNative, cur);
 };
 // ═══════════════════════════════════════════
 // MODULAR VIEW — user controls which asset categories appear
@@ -9546,7 +9571,16 @@ async function drawSpark(cid, key, isCrypto, isUp) {
 // ═══════════════════════════════════════════
 function cardHTML(o) {
   const {sym, name, icon, color, type, value, qtyLabel, priceStr, priceUSD, change, pnlDay, pnlTotal, id} = o;
-  const up = change >= 0, pup = (pnlDay || 0) >= 0;
+  // Keep the daily % in lock-step with the daily ₪: derive the percentage from the
+  // same P&L figure (gain ÷ starting value), so a lot bought today shows a % measured
+  // from your buy price — exactly like the shekel amount. Fall back to the raw
+  // market change only when there's no P&L (e.g. a manual holding with no price data).
+  let dayPct = change;
+  if (pnlDay != null && Number.isFinite(value)) {
+    const basisVal = value - pnlDay;               // portfolio value at the measurement start
+    dayPct = basisVal > 0 ? (pnlDay / basisVal) * 100 : change;
+  }
+  const up = (dayPct != null ? dayPct : 0) >= 0, pup = (pnlDay || 0) >= 0;
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
@@ -9561,7 +9595,7 @@ function cardHTML(o) {
     <div class="spk" id="spk_${sym}"></div>
     <div class="cb">
       <div class="pb">
-        <div class="pp ${up?'up':'dn'}" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'▲':'▼'} ${change!=null?Math.abs(change).toFixed(2):'--'}%</div>
+        <div class="pp ${up?'up':'dn'}" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'▲':'▼'} ${dayPct!=null?Math.abs(dayPct).toFixed(2):'--'}%</div>
         ${pnlDay!=null?`<div class="pn ${pup?'up':'dn'}" style="color:${pup?'var(--gr)':'var(--rd)'}">${pup?'+':''}${fILS(pnlDay)}</div>`:''}
         <div class="pl">P&L יומי</div>
         ${pnlTotal!=null?`<div class="pn pn-total ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'};margin-top:6px;border-top:1px solid var(--b1);padding-top:4px">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</div><div class="pl pl-total">P&L מצטבר</div>`:''}
@@ -14156,85 +14190,6 @@ function scheduleDashPeriodRefresh(force=false){
 // SYNC & REFRESH
 // ═══════════════════════════════════════════
 let refreshInFlight = null;
-// ══════════════════════════════════════════════════════════
-// DIAGNOSTIC PANEL — temporary tool to compare what each device pulls.
-// Shows per-symbol: source, live price, prevClose, %, quote time, fetch age.
-// Open on phone + desktop at the same time to spot where they diverge.
-// ══════════════════════════════════════════════════════════
-window.showDiag = function() {
-  const fmtT = (ms) => {
-    if (!ms) return '—';
-    try {
-      return new Intl.DateTimeFormat('en-GB', { timeZone: APP_TIME_ZONE, hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' }).format(new Date(ms));
-    } catch(_) { return '—'; }
-  };
-  const todayK = todayLocalDateKey();
-  const rows = [];
-  const push = (label, sym, p, isCrypto) => {
-    if (!p) { rows.push({ label, sym, src:'—', price:'—', prev:'—', pct:'—', qt:'—', qtKey:'—', today:'?' }); return; }
-    const price = isCrypto ? p.usd : p.price;
-    const prev = isCrypto ? (p.openToday ?? null) : p.prevClose;
-    const pct = (price!=null && prev) ? ((price-prev)/prev*100).toFixed(2)+'%' : '—';
-    const qt = isCrypto ? p.openTodayTs : p.quoteTime;
-    const qtKey = qt ? dateKeyInTimeZone(qt, APP_TIME_ZONE) : null;
-    rows.push({
-      label, sym,
-      src: p._source || (isCrypto ? 'binance' : '—'),
-      price: price!=null ? (isCrypto?'$':'')+Number(price).toFixed(2) : '—',
-      prev: prev!=null ? (isCrypto?'$':'')+Number(prev).toFixed(2) : '—',
-      pct,
-      qt: fmtT(qt),
-      qtKey: qtKey || '—',
-      today: qtKey === todayK ? '✓' : '✗',
-    });
-  };
-  (S.stocks||[]).forEach(s => push(s.name||s.sym, s.sym, S.sp[s.sym], false));
-  ['etfs','bonds'].forEach(cat => (S[cat]||[]).forEach(a => push((a.name||a.sym)+' ['+cat+']', a.sym, S.sp[a.sym], false)));
-  (S.crypto||[]).forEach(a => push(a.name||a.sym, a.sym, S.cp[a.id], true));
-
-  const rowsHtml = rows.map(r => `<tr>
-    <td style="text-align:right;padding:4px 8px;white-space:nowrap">${r.label}<br><span style="opacity:.5;font-size:10px">${r.sym}</span></td>
-    <td style="padding:4px 8px"><span style="padding:1px 6px;border-radius:4px;background:${r.src==='finnhub'?'#1d4ed8':r.src==='yahoo'?'#7c2d12':r.src==='twelvedata'?'#166534':r.src==='binance'?'#a16207':'#374151'};color:#fff;font-size:10px">${r.src}</span></td>
-    <td style="padding:4px 8px;font-family:monospace">${r.price}</td>
-    <td style="padding:4px 8px;font-family:monospace;opacity:.7">${r.prev}</td>
-    <td style="padding:4px 8px;font-family:monospace;color:${r.pct.startsWith('-')?'#f87171':'#4ade80'}">${r.pct}</td>
-    <td style="padding:4px 8px;font-family:monospace;opacity:.7">${r.qt}</td>
-    <td style="padding:4px 8px;text-align:center;color:${r.today==='✓'?'#4ade80':'#f87171'}">${r.today}</td>
-  </tr>`).join('');
-
-  // Plain-text version for copy → paste to compare devices.
-  const txt = 'DIAG ' + fmtT(Date.now()) + ' TZ=' + APP_TIME_ZONE + ' FX=' + S.fx + '\n'
-    + rows.map(r => `${r.sym}\t${r.src}\t${r.price}\t${r.prev}\t${r.pct}\t${r.qt}\t${r.today}`).join('\n');
-
-  let ov = document.getElementById('diagOverlay');
-  if (ov) ov.remove();
-  ov = document.createElement('div');
-  ov.id = 'diagOverlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px;font-family:system-ui,sans-serif';
-  ov.innerHTML = `<div style="background:#0f172a;color:#e2e8f0;border-radius:12px;max-width:900px;width:100%;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-weight:700;font-size:15px">🩺 אבחון מקורות נתונים <span style="opacity:.5;font-weight:400;font-size:12px">— ${fmtT(Date.now())} · TZ: ${tzCityLabel()} · FX: ${S.fx}</span></div>
-      <div style="display:flex;gap:8px">
-        <button onclick="navigator.clipboard.writeText(document.getElementById('diagTxt').value).then(()=>{this.textContent='הועתק ✓'})" style="background:#2563eb;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px">העתק הכל</button>
-        <button onclick="document.getElementById('diagOverlay').remove()" style="background:#374151;color:#fff;border:0;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px">סגור</button>
-      </div>
-    </div>
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="border-bottom:1px solid #334155;text-align:right">
-        <th style="padding:6px 8px;text-align:right">נכס</th><th style="padding:6px 8px;text-align:right">מקור</th>
-        <th style="padding:6px 8px;text-align:right">מחיר</th><th style="padding:6px 8px;text-align:right">סגירה קודמת</th>
-        <th style="padding:6px 8px;text-align:right">%</th><th style="padding:6px 8px;text-align:right">זמן ציטוט</th>
-        <th style="padding:6px 8px">היום?</th>
-      </tr></thead>
-      <tbody>${rowsHtml}</tbody>
-    </table></div>
-    <textarea id="diagTxt" style="position:absolute;left:-9999px" readonly>${txt}</textarea>
-    <div style="margin-top:10px;font-size:11px;opacity:.6;line-height:1.5">פתח את אותו החלון גם בטלפון וגם במחשב באותו רגע. השווה: אם ה"מקור" או ה"סגירה קודמת" שונים בין המכשירים — שם הפער. לחץ "העתק הכל" בכל מכשיר ושלח את שניהם.</div>
-  </div>`;
-  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
-  document.body.appendChild(ov);
-};
-
 async function doRefresh() {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
