@@ -14005,7 +14005,13 @@ async function dashComputeStock(asset,range,fxMap){
     else if(!boughtInside&&range.fromKey===todayLocalDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
     else startPrice=dashPickPrice(series,effective,{strictBefore:!boughtInside});
     if(!(startPrice>0))continue;
-    const startFx=isIls?1:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
+    // For a single-day "today" range, an older holding's basis (prevClose) and its
+    // end price are two points on the SAME day — they must convert with the SAME rate.
+    // Using a cached historical USD→ILS rate for the start while the end uses the live
+    // S.fx introduced a currency-drift gap (hundreds of ₪) between this panel and the
+    // hero header. Pin both sides to the live rate when the range includes today.
+    const sameDayLive = range.includesToday && !boughtInside && !useEntryFallback;
+    const startFx=isIls?1:(sameDayLive?S.fx:(useEntryFallback?endFx:dashFxAt(fxMap,effective)));
     startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
     if(useEntryFallback) usedEntryFallback=true;
@@ -14029,7 +14035,10 @@ async function dashComputeCrypto(asset,range,fxMap){
     const effective=boughtInside?lot.dateKey:range.fromKey;
     const startPrice=(boughtInside||useEntryFallback)&&lot.price>0?lot.price:await dashGetCryptoBoundary(asset,effective);
     if(!(startPrice>0))continue;
-    const startFx=useEntryFallback?endFx:dashFxAt(fxMap,effective);
+    // Same-day range: pin start FX to the live rate (see stock note above) so the
+    // crypto panel and the hero header agree instead of drifting on currency.
+    const sameDayLive = range.includesToday && !boughtInside && !useEntryFallback;
+    const startFx=sameDayLive?S.fx:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
     startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
     if(useEntryFallback) usedEntryFallback=true;
