@@ -1656,15 +1656,17 @@ body.light .rb.active { background: #fff; color: var(--ac); box-shadow: 0 1px 6p
 .ff label { font-size: 9px; color: var(--t3); font-weight: 700; text-transform: uppercase; }
 .ff input { background: var(--s2); border: 1px solid var(--b2); border-radius: var(--radius-sm); padding: 6px 10px; color: var(--t1); font-family: var(--font-body); font-size: 12px; width: 100%; min-width: 0; box-sizing: border-box; }
 .ff input:focus { outline: none; border-color: var(--ac); }
-.fadd { width: 100%; background: #f1f4fb; border: 1px solid transparent; color: #0A0F1F; padding: 8px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
-body.light .fadd { background: #b89150; color: #fff; }
+.fadd { width: min(300px, 100%); display:block; margin: 0 auto; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); color: #fff; padding: 10px 26px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity .15s, background .15s, transform .1s; position: relative; z-index: 0; backdrop-filter: blur(4px); }
+.fadd:active { transform: scale(.96); }
+body.light .fadd { background: #b89150; color: #fff; border-color: transparent; }
 .fadd:hover { opacity: .88; }
 i.fi { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
 .fi-spin { display: inline-block; animation: fi-spin 1.6s linear infinite; transform-origin: center; }
 @keyframes fi-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 /* Primary CTA = Voltage (Vector) / Navy (Meridian) — brand: Place order button */
-.fsave { width: 100%; background: var(--ac); border: none; border-radius: var(--radius-sm); padding: 12px; color: #F1F4FB; font-family: var(--font-body); font-size: 13px; font-weight: 800; cursor: pointer; }
-body.light .fsave { color: var(--bg); }
+.fsave { width: min(300px, 100%); display:block; margin: 0 auto; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14); border-radius: var(--radius-sm); padding: 12px 26px; color: #fff; font-family: var(--font-body); font-size: 13px; font-weight: 800; cursor: pointer; transition: opacity .15s, background .15s, transform .1s; position: relative; z-index: 0; backdrop-filter: blur(4px); }
+.fsave:active { transform: scale(.96); }
+body.light .fsave { background: #b89150; color: #fff; border-color: transparent; }
 
 /* ── Light mode: Edit panel fixes ── */
 body.light .erow {
@@ -11778,7 +11780,7 @@ async function openDet(sym, type) {
 // speed is identical along every edge (a conic gradient can't do that on a wide
 // button — angle ≠ arc length).
 function decorateSellButtons(root) {
-  (root || document).querySelectorAll('.sell-btn').forEach(btn => {
+  (root || document).querySelectorAll('.sell-btn, .fadd, .fsave').forEach(btn => {
     btn.querySelector('.sell-ring')?.remove();          // rebuild on re-render/resize
     // clientWidth/Height = the padding box — EXACTLY the box that `inset:0` pins the
     // SVG to (it excludes the 1px CSS border). Using offsetWidth (border box) made the
@@ -13065,8 +13067,10 @@ function renderEd() {
     </div>
     <button class="fsave" onclick="saveClose()"><i class="ph-thin ph-floppy-disk"></i> שמור שינויים ורענן</button>
 
-    <button style="width:100%;background:transparent;border:1px solid var(--b2);border-radius:var(--radius-sm);padding:10px;color:var(--t3);font-family:var(--font-body);font-size:11px;cursor:pointer;margin-top:7px" onclick="if(confirm('לאפס את כל נתוני התיק השמורים ולחזור להגדרות ברירת המחדל?')){localStorage.removeItem('pc');localStorage.removeItem('ps');location.reload();}"><i class="ph-thin ph-arrow-counter-clockwise"></i> אפס לברירת מחדל</button>
+    <button style="width:min(260px,100%);display:block;margin:7px auto 0;background:transparent;border:1px solid var(--b2);border-radius:var(--radius-sm);padding:9px 20px;color:var(--t3);font-family:var(--font-body);font-size:11px;cursor:pointer" onclick="if(confirm('לאפס את כל נתוני התיק השמורים ולחזור להגדרות ברירת המחדל?')){localStorage.removeItem('pc');localStorage.removeItem('ps');location.reload();}"><i class="ph-thin ph-arrow-counter-clockwise"></i> אפס לברירת מחדל</button>
   `;
+  // Add the traveling border-light ring to the editor's action buttons too.
+  setTimeout(() => { try { decorateSellButtons(document.getElementById('edOv')); } catch(_){} }, 60);
 }
 
 function delA(i) { const arr = edList(); arr.splice(i,1); saveLS(); renderEd(); refreshAllCategoryViews(); }
