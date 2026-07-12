@@ -106,8 +106,8 @@ body.light {
   --b2: rgba(11, 30, 63, 0.14);
   --ac:   #3B6BFF;   /* same Voltage blue accent */
   --bl:   #3B6BFF;
-  --gd:   #B89150;   /* brass garnish (same) */
-  --rd:   #E4344C;   /* losses */
+  --gd:   #8F6A1B;   /* brass — darkened so it reads clearly on light glass tiles */
+  --rd:   #C11A32;   /* losses — deepened for contrast in light mode */
   --gr:   #0A7A40;   /* gains — darker for readable contrast on light glass */
   --t1:   #0A0F1F;   /* primary text (mirror of dark --bg) */
   --t2:   #2E3958;   /* secondary text — dark slate, readable on glass */
@@ -145,6 +145,18 @@ body::before {
   transition: opacity .25s;
 }
 body.light::before { opacity: 0; }
+/* Light mode: a soft, barely-there shadow under every money figure lifts the digits
+   off the bright glass tiles so amounts read clearly at a glance. */
+body.light .mkpi-v,
+body.light .vv,
+body.light .pn,
+body.light .s-val,
+body.light .psc-val,
+body.light .t-val,
+body.light #grandNum,
+body.light .avg-toggle-val {
+  text-shadow: 0 1px 2px rgba(11, 30, 63, .22);
+}
 
 #app { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; z-index: 1; padding-bottom: calc(var(--nav) + var(--safe) + 32px); -webkit-overflow-scrolling: touch; }
 #app::-webkit-scrollbar { width: 4px; }
@@ -454,17 +466,27 @@ body.light .nav::before {
 .ni:hover { color: rgba(255, 255, 255, 0.85); }
 .ni.active {
   color: #fff;
+}
+/* Sliding pill behind the active nav item — moves between items instead of jumping. */
+.nav-glider {
+  position: absolute;
+  border-radius: 999px;
   background: linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 100%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  transition: left .38s cubic-bezier(.55,.2,.2,1), width .38s cubic-bezier(.55,.2,.2,1), top .38s, height .38s;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;               /* shown once first positioned */
 }
+.nav-glider.ready { opacity: 1; }
+.ni { z-index: 1; }         /* items above the glider */
 body.light .ni { color: rgba(0, 0, 0, 0.55); }
 body.light .ni:hover { color: rgba(0, 0, 0, 0.85); }
 body.light .ni.active {
   color: #000;
-  background: linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  font-weight: 700;
 }
-body.light .ni.active { background: transparent; font-weight: 700; }
+body.light .nav-glider { background: linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); }
 .ni-ico { font-size: 22px; line-height: 1; display: block; }
 .ni-lbl { font-size: 10.5px; font-weight: 500; letter-spacing: 0.3px; opacity: 0.95; }
 
@@ -540,7 +562,11 @@ body.light .fab-edit::before {
 .nav-top button { background: none; border: none; cursor: pointer; height: 100%; padding: 0 18px; font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--t2); letter-spacing: .2px; transition: color .12s; position: relative; }
 .nav-top button:hover { color: var(--t1); }
 .nav-top button.active { color: var(--t1); font-weight: 700; }
-.nav-top button.active::after { content: ''; position: absolute; left: 18px; right: 18px; bottom: -1px; height: 2px; background: var(--ac); }
+/* Sliding underline — one element that glides to the active tab instead of a
+   per-button ::after that jumps. Positioned by positionTopNavLine(). */
+.nav-top-line { position: absolute; bottom: -1px; height: 2px; background: var(--ac); border-radius: 2px;
+  transition: left .35s cubic-bezier(.55,.2,.2,1), width .35s cubic-bezier(.55,.2,.2,1); opacity: 0; pointer-events: none; }
+.nav-top-line.ready { opacity: 1; }
 @media (min-width: 640px) {
   body { max-width: 100%; }
   .fab-edit { display: none; }
@@ -919,6 +945,14 @@ body.light .filter-block, body.light .ins-card {
     0 4px 8px rgba(0, 0, 0, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
+/* Modal KPI tiles specifically: near-opaque WHITE (not translucent glass), so the
+   mustard/red amounts have a solid bright surface to read against. */
+body.light .mkpi {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(11, 30, 63, 0.10) !important;
+}
 body.light .fund-cell {
   background: linear-gradient(135deg,
     rgba(255, 255, 255, 0.15) 0%,
@@ -1055,6 +1089,9 @@ body.light .total::before { display:none; }
 .stat-g[data-count="9"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .stat-g[data-count="10"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .stat { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; overflow: hidden; }
+.stat-click { cursor:pointer; transition:transform .15s, border-color .15s, box-shadow .15s; }
+.stat-click:hover { transform:translateY(-2px); border-color:var(--ac); box-shadow:0 6px 18px rgba(0,0,0,.22); }
+.stat-click:active { transform:translateY(0); }
 /* Desktop: hero card with KPI on one side and 4 sub-stats in a 2x2 grid on the other */
 @media (min-width: 640px) {
   .hero-block { background: var(--s1); border: 1px solid var(--b2); border-radius: var(--radius); padding: 24px 28px; margin-bottom: 14px;
@@ -1266,10 +1303,21 @@ html[dir="ltr"] .modal-back i, body[dir="ltr"] .modal-back i { transform: scaleX
 /* Topbar variant: in-flow, sits inside the header row (not overlapping content) */
 .modal-topbar .mclose { position: static; top: auto; left: auto; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; }
 @media(min-width: 640px) { .modal-topbar .mclose { width: 32px; height: 32px; border-radius: var(--radius-sm); } }
-.sell-btn { width: 100%; margin-top: 14px; padding: 13px; border-radius: var(--radius-sm); border: 1px solid transparent; background: #f1f4fb; color: #0A0F1F; font-family: var(--font-body); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity .15s, transform .1s; }
-body.light .sell-btn { background: #b89150; color: #fff; }
-.sell-btn:hover { opacity: .88; }
-.sell-btn:active { transform: scale(.98); }
+.sell-btn { width: min(300px, 100%); margin: 14px auto 0; padding: 13px 26px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.09); color: #fff; font-family: var(--font-body); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; transition: opacity .15s, transform .1s, background .15s; position:relative; z-index:0; backdrop-filter: blur(4px); }
+.sell-btn:hover { background: rgba(255,255,255,.13); }
+body.light .sell-btn { background: #b89150; color: #fff; border-color: transparent; }
+/* Border-light effect: faint uniform ring + a bright segment traveling along it.
+   The segment's MOTION is driven by the Web Animations API in decorateSellButtons —
+   not by CSS keyframes — because Safari does not support var() inside @keyframes,
+   which silently killed the previous version there. */
+.sell-ring { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:0; transition:opacity .22s; overflow:visible; }
+.sell-ring.lit { opacity:1; }
+.sell-ring .ring-base { fill:none; stroke:rgba(255,255,255,.30); stroke-width:1.4; }
+body.light .sell-ring .ring-base { stroke:rgba(255,255,255,.45); }
+.sell-ring .ring-move { fill:none; stroke:#fff; stroke-width:1.6; stroke-linecap:round;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 0 7px rgba(255,255,255,.45)); }
+.sell-btn:active { transform: scale(.96); }
+@media (hover:none) { .sell-btn:active { transform: scale(.95); } }
 .sell-btn i { font-size: 16px; }
 .sell-cur-toggle { background: color-mix(in srgb, var(--gr) 9%, transparent); border: 1px solid color-mix(in srgb, var(--gr) 24%, transparent); border-radius: 8px; cursor: pointer; font-family: var(--font-mono, monospace); font-size: 12px; font-weight: 700; color: var(--gr); padding: 6px 8px; line-height: 1; transition: opacity .12s, background .12s, border-color .12s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .sell-cur-toggle:hover { opacity: .88; background: color-mix(in srgb, var(--gr) 14%, transparent); border-color: color-mix(in srgb, var(--gr) 42%, transparent); }
@@ -1885,6 +1933,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
 </head>
 <body>
 <nav class="nav-top" id="navTop">
+    <span class="nav-top-line" id="navTopLine" aria-hidden="true"></span>
     <button class="nit active" data-p="dash" onclick="goPage('dash',this)">דשבורד</button>
     <button class="nit" data-p="stocks" onclick="goPage('stocks',this)">מניות</button>
     <button class="nit" data-p="crypto" onclick="goPage('crypto',this)">קריפטו</button>
@@ -2722,11 +2771,11 @@ onAuthStateChanged(auth, async user => {
 
 
     <div class="stat-g">
-      <div class="stat" id="stocksStat"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
-      <div class="stat" id="cryptoStat"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
-      <div class="stat" id="commoditiesStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-gas-pump ph-sm"></i> סחורות</div><div class="s-val" id="commoditiesKpi" style="color:var(--gd)">---</div><div class="s-sub" id="commoditiesPct">---%</div><div class="bar"><div class="bar-f" id="commoditiesBar" style="background:var(--gd)"></div></div></div>
-      <div class="stat" id="bondsStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-bank ph-sm"></i> אג"ח</div><div class="s-val" id="bondsKpi" style="color:var(--gr)">---</div><div class="s-sub" id="bondsPct">---%</div><div class="bar"><div class="bar-f" id="bondsBar" style="background:var(--gr)"></div></div></div>
-      <div class="stat" id="etfsStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-chart-pie-slice ph-sm"></i> תעודות סל</div><div class="s-val" id="etfsKpi" style="color:var(--pu,#9b8cff)">---</div><div class="s-sub" id="etfsPct">---%</div><div class="bar"><div class="bar-f" id="etfsBar" style="background:var(--pu,#9b8cff)"></div></div></div>
+      <div class="stat stat-click" id="stocksStat" onclick="openEditor('stock')" title="ניהול פוזיציות — מניות" role="button" tabindex="0"><div class="s-lbl"><i class="ph-thin ph-chart-line-up ph-sm"></i> מניות</div><div class="s-val" id="sKpi" style="color:var(--bl)">---</div><div class="s-sub" id="sPct">---%</div><div class="bar"><div class="bar-f" id="sBar" style="background:var(--bl)"></div></div></div>
+      <div class="stat stat-click" id="cryptoStat" onclick="openEditor('crypto')" title="ניהול פוזיציות — קריפטו" role="button" tabindex="0"><div class="s-lbl"><i class="ph-thin ph-coins ph-sm"></i> קריפטו</div><div class="s-val" id="cKpi" style="color:var(--ac)">---</div><div class="s-sub" id="cPct">---%</div><div class="bar"><div class="bar-f" id="cBar" style="background:var(--ac)"></div></div></div>
+      <div class="stat stat-click" id="commoditiesStat" style="display:none" onclick="openEditor('commodities')" title="ניהול פוזיציות — סחורות" role="button" tabindex="0"><div class="s-lbl"><i class="ph-thin ph-gas-pump ph-sm"></i> סחורות</div><div class="s-val" id="commoditiesKpi" style="color:var(--gd)">---</div><div class="s-sub" id="commoditiesPct">---%</div><div class="bar"><div class="bar-f" id="commoditiesBar" style="background:var(--gd)"></div></div></div>
+      <div class="stat stat-click" id="bondsStat" style="display:none" onclick="openEditor('bonds')" title="ניהול פוזיציות — אג&quot;ח" role="button" tabindex="0"><div class="s-lbl"><i class="ph-thin ph-bank ph-sm"></i> אג"ח</div><div class="s-val" id="bondsKpi" style="color:var(--gr)">---</div><div class="s-sub" id="bondsPct">---%</div><div class="bar"><div class="bar-f" id="bondsBar" style="background:var(--gr)"></div></div></div>
+      <div class="stat stat-click" id="etfsStat" style="display:none" onclick="openEditor('etfs')" title="ניהול פוזיציות — תעודות סל" role="button" tabindex="0"><div class="s-lbl"><i class="ph-thin ph-chart-pie-slice ph-sm"></i> תעודות סל</div><div class="s-val" id="etfsKpi" style="color:var(--pu,#9b8cff)">---</div><div class="s-sub" id="etfsPct">---%</div><div class="bar"><div class="bar-f" id="etfsBar" style="background:var(--pu,#9b8cff)"></div></div></div>
       <div class="stat" id="fxStat"><div class="s-lbl"><i class="ph-thin ph-currency-dollar ph-sm"></i> שער דולר</div><div class="s-val" id="fxKpi" style="color:var(--gd)">---</div><div class="s-sub" id="fxKpiSub">USD/ILS רציף</div></div>
       <div class="stat" id="bestStat"><div class="s-lbl"><i class="ph-thin ph-trophy ph-sm"></i> ביצועים מובילים</div><div class="s-val" id="bestKpi" style="font-size:13px;color:var(--gr)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
       <div class="stat" id="worstStat" style="display:none"><div class="s-lbl"><i class="ph-thin ph-trend-down ph-sm"></i> המפסידה הגדולה</div><div class="s-val" id="worstKpi" style="font-size:13px;color:var(--rd)">---</div><div class="s-sub">ב-24 השעות האחרונות</div></div>
@@ -2956,6 +3005,7 @@ onAuthStateChanged(auth, async user => {
 </div>
 
 <nav class="nav">
+  <span class="nav-glider" id="navGlider" aria-hidden="true"></span>
   <button class="ni active" data-p="dash" onclick="goPage('dash',this)"><span class="ni-ico"><i class="ph-thin ph-house"></i></span><span class="ni-lbl">דשבורד</span></button>
   <button class="ni" data-p="stocks" onclick="goPage('stocks',this)"><span class="ni-ico"><i class="ph-thin ph-chart-line-up"></i></span><span class="ni-lbl">מניות</span></button>
   <button class="ni" data-p="crypto" onclick="goPage('crypto',this)"><span class="ni-ico"><i class="ph-thin ph-coins"></i></span><span class="ni-lbl">קריפטו</span></button>
@@ -3516,6 +3566,18 @@ function marketTimeZoneForSymbol(sym) {
 function latestTradingSessionOnly(data, sym) {
   const normalized = normalizeStockSeries(data);
   if (!normalized) return null;
+  // Futures (…=F) trade ~23 hours across TWO calendar dates with maintenance breaks.
+  // A calendar-day slice therefore mixes chunks of two different sessions with price
+  // jumps between them — the chart looks like three glued pieces. For futures we keep
+  // the LAST CONTIGUOUS run of candles instead (gap ≤ 45 min): one unbroken line.
+  // This fixes every consumer at once: card sparklines, the modal 1D chart, live charts.
+  if (/=F$/i.test(String(sym || ''))) {
+    const MAX_GAP = 45 * 60 * 1000;
+    let cut = normalized.length - 1;
+    while (cut > 0 && (normalized[cut].t - normalized[cut - 1].t) <= MAX_GAP) cut--;
+    const run = normalized.slice(cut);
+    return run.length >= 10 ? run : normalized;
+  }
   const tz = marketTimeZoneForSymbol(sym);
   const fmt = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:tz });
   const latestDay = fmt.format(new Date(normalized[normalized.length - 1].t));
@@ -4428,6 +4490,18 @@ const avgEntry = a => {
   });
   return totalQty > 0 ? totalCost / totalQty : null;
 };
+// Total money actually paid for an asset, in its native (purchase) currency:
+// the sum of qty × price across all lots. Null when no priced lots exist.
+const totalInvested = a => {
+  if (!Array.isArray(a.lots) || !a.lots.length) return null;
+  let cost = 0, any = false;
+  a.lots.forEach(l => {
+    const q = parseFloat(l.qty) || 0;
+    const p = parseFloat(l.price) || 0;
+    if (q > 0 && p > 0) { cost += q * p; any = true; }
+  });
+  return any ? cost : null;
+};
 // Total qty for crypto (handles lots[] or legacy qty field).
 const cQty = a => {
   if (Array.isArray(a.lots) && a.lots.length) {
@@ -4989,6 +5063,27 @@ window.toggleAvgCell = function(el) {
   el.dataset.mode = next;
   valEl.textContent = next === 'native' ? el.dataset.native : el.dataset.disp;
 };
+// "סה״כ השקעה" tile — how much money was actually paid for the position.
+// Same currency-toggle behavior as the avg-entry tile.
+function investedCellHTML(invested, nativeCode) {
+  if (invested == null) return '';
+  const nat = (nativeCode || 'USD').toUpperCase();
+  const natDef = CURRENCIES[nat] || CURRENCIES.USD;
+  const nativeStr = (natDef.sym || '$') + invested.toLocaleString(natDef.locale || 'en-US', {maximumFractionDigits:0});
+  const ils = (typeof nativeToILS === 'function') ? nativeToILS(invested, nat) : invested * S.fx;
+  const disp = (S.currency || 'ils').toUpperCase();
+  const dispDef = CURRENCIES[disp] || CURRENCIES.ILS;
+  const dispVal = (typeof convertFromILS === 'function') ? convertFromILS(ils, disp) : ils;
+  const dispStr = (dispDef.sym || '₪') + dispVal.toLocaleString(dispDef.locale || 'en-US', {maximumFractionDigits:0});
+  const same = nat === disp || (nat === 'ILA' && disp === 'ILS');
+  if (same) {
+    return `<div class="mkpi"><div class="mkpi-l">סה"כ השקעה</div><div class="mkpi-v" style="color:var(--gd)">${nativeStr}</div></div>`;
+  }
+  return `<div class="mkpi avg-toggle" onclick="toggleAvgCell(this)" title="לחץ להחלפת מטבע" data-native="${nativeStr.replace(/"/g,'&quot;')}" data-disp="${dispStr.replace(/"/g,'&quot;')}" data-mode="native" style="cursor:pointer">
+    <div class="mkpi-l">סה"כ השקעה <i class="ph-thin ph-arrows-left-right" style="font-size:10px;opacity:.6"></i></div>
+    <div class="mkpi-v avg-toggle-val" style="color:var(--gd)">${nativeStr}</div>
+  </div>`;
+}
 
 function fPriceNative(pu, nativeCode, decimals = 2) {
   if (pu == null || isNaN(pu)) return '--';
@@ -5216,7 +5311,7 @@ const I18N = {
   'ב-24 השעות האחרונות':'In the last 24 hours','USD/ILS רציף':'USD/ILS live',
   // sections + buttons
   'הוספת נכס חדש':'Add New Asset','הוסף נכס':'Add Asset','הוסף מניה':'Add Stock','הוסף מטבע':'Add Coin',
-  'P&L מצטבר':'Cumulative P&L','מחיר כניסה $':'Entry Price $','קניות':'Buys','קנייה':'Buy',
+  'P&L מצטבר':'Cumulative P&L','רווח/הפסד לכל התקופה':'Cumulative P&L','מחיר כניסה $':'Entry Price $','קניות':'Buys','קנייה':'Buy',
   'מחיר כניסה ממוצע':'Avg Entry Price','היסטוריית קניות':'Buy History','תאריך':'Date','כמות':'Qty','מחיר $':'Price $','רווח/הפסד':'P&L',
   'נתונים בזמן אמת':'Real-time data','שווי שוק':'Market Cap','מכפיל רווח':'P/E Ratio','שיא 52ש':'52w High','שפל 52ש':'52w Low','דירוג שוק':'Rank','שיא כל הזמנים':'All-Time High','מחזור יומי':'24h Volume','היצע במחזור':'Circulating','היצע כולל':'Total Supply',
   'הוסף קנייה':'Add buy','ממוצע':'avg','מחיר ממוצע':'Avg price','מנוהל דרך קניות':'Managed via buys',
@@ -5733,7 +5828,7 @@ const LANG_DICTS = {
     'הוסף נכס':'Добавить актив',
     'הוסף מניה':'Добавить акцию',
     'הוסף מטבע':'Добавить монету',
-    'P&L מצטבר':'Совокупный P&L',
+    'P&L מצטבר':'Совокупный P&L','רווח/הפסד לכל התקופה':'Совокупный P&L',
     'מחיר כניסה $':'Цена входа $',
     'קניות':'Покупки',
     'קנייה':'Покупка',
@@ -6205,7 +6300,7 @@ const LANG_DICTS = {
     'הוסף נכס':'Añadir activo',
     'הוסף מניה':'Añadir acción',
     'הוסף מטבע':'Añadir moneda',
-    'P&L מצטבר':'P&L acumulado',
+    'P&L מצטבר':'P&L acumulado','רווח/הפסד לכל התקופה':'P&L acumulado',
     'מחיר כניסה $':'Precio de entrada $',
     'קניות':'Compras',
     'קנייה':'Compra',
@@ -6670,7 +6765,7 @@ const LANG_DICTS = {
     'הוסף נכס':'Ajouter un actif',
     'הוסף מניה':'Ajouter une action',
     'הוסף מטבע':'Ajouter une crypto',
-    'P&L מצטבר':'P&L cumulé',
+    'P&L מצטבר':'P&L cumulé','רווח/הפסד לכל התקופה':'P&L cumulé',
     'מחיר כניסה $':'Prix d\'entrée $',
     'קניות':'Achats',
     'קנייה':'Achat',
@@ -7135,7 +7230,7 @@ const LANG_DICTS = {
     'הוסף נכס':'إضافة أصل',
     'הוסף מניה':'إضافة سهم',
     'הוסף מטבע':'إضافة عملة',
-    'P&L מצטבר':'الربح/الخسارة التراكمي',
+    'P&L מצטבר':'الربح/الخسارة التراكمي','רווח/הפסד לכל התקופה':'الربح/الخسارة التراكمي',
     'מחיר כניסה $':'سعر الدخول $',
     'קניות':'مشتريات',
     'קנייה':'شراء',
@@ -7600,7 +7695,7 @@ const LANG_DICTS = {
     'הוסף נכס':'Asset hinzufügen',
     'הוסף מניה':'Aktie hinzufügen',
     'הוסף מטבע':'Münze hinzufügen',
-    'P&L מצטבר':'Kumulativer G&V',
+    'P&L מצטבר':'Kumulativer G&V','רווח/הפסד לכל התקופה':'Kumulativer G&V',
     'מחיר כניסה $':'Einstiegspreis $',
     'קניות':'Käufe',
     'קנייה':'Kauf',
@@ -8065,7 +8160,7 @@ const LANG_DICTS = {
     'הוסף נכס':'添加资产',
     'הוסף מניה':'添加股票',
     'הוסף מטבע':'添加币种',
-    'P&L מצטבר':'累计盈亏',
+    'P&L מצטבר':'累计盈亏','רווח/הפסד לכל התקופה':'累计盈亏',
     'מחיר כניסה $':'入场价 $',
     'קניות':'买入',
     'קנייה':'买入',
@@ -8530,7 +8625,7 @@ const LANG_DICTS = {
     'הוסף נכס':'Activum toevoegen',
     'הוסף מניה':'Aandeel toevoegen',
     'הוסף מטבע':'Munt toevoegen',
-    'P&L מצטבר':'Cumulatieve W&V',
+    'P&L מצטבר':'Cumulatieve W&V','רווח/הפסד לכל התקופה':'Cumulatieve W&V',
     'מחיר כניסה $':'Aankoopprijs $',
     'קניות':'Aankopen',
     'קנייה':'Aankoop',
@@ -9511,11 +9606,119 @@ function goPage(id, btn) {
   document.getElementById('tickerBar').classList.add('show');   // always-on across pages
   document.getElementById('marketBar')?.classList.add('show');  // market status bar — always-on too
   document.getElementById('app').scrollTop = 0;
+  positionNavGlider();                       // slide the mobile-nav pill to the new page
+  positionTopNavLine();                      // slide the desktop-nav underline too
+  scheduleCountUp(id);                       // number count-up, once per page per session
   if (id === 'dash')     { scheduleDashPeriodRefresh(true); renderAssetNews(); if (_prevPage && _prevPage !== 'dash') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
+}
+
+// ═══════════════════════════════════════════
+// MOBILE NAV — sliding active pill
+// The pill glides between items (left/width transition) instead of jumping.
+// ═══════════════════════════════════════════
+function positionNavGlider() {
+  const glider = document.getElementById('navGlider');
+  if (!glider) return;
+  const nav = glider.parentElement;
+  const active = nav?.querySelector('.ni.active');
+  if (!nav || !active || active.offsetParent === null) return;   // nav hidden (desktop)
+  glider.style.left = active.offsetLeft + 'px';
+  glider.style.top = active.offsetTop + 'px';
+  glider.style.width = active.offsetWidth + 'px';
+  glider.style.height = active.offsetHeight + 'px';
+  // First positioning happens without transition (no fly-in from 0,0), then fade in.
+  if (!glider.classList.contains('ready')) {
+    glider.style.transition = 'none';
+    requestAnimationFrame(() => { glider.style.transition = ''; glider.classList.add('ready'); });
+  }
+}
+// Desktop top-nav: the accent underline glides to the active tab (same idea as the
+// mobile pill). Inset 18px on each side to match the old per-button underline look.
+function positionTopNavLine() {
+  const line = document.getElementById('navTopLine');
+  if (!line) return;
+  const nav = line.parentElement;
+  const active = nav?.querySelector('.nit.active');
+  if (!nav || !active || active.offsetParent === null) return;   // nav hidden (mobile)
+  const inset = 18;
+  line.style.left = (active.offsetLeft + inset) + 'px';
+  line.style.width = Math.max(8, active.offsetWidth - inset * 2) + 'px';
+  if (!line.classList.contains('ready')) {
+    line.style.transition = 'none';
+    requestAnimationFrame(() => { line.style.transition = ''; line.classList.add('ready'); });
+  }
+}
+window.addEventListener('resize', () => { try { positionTopNavLine(); } catch(_){} });
+document.addEventListener('DOMContentLoaded', () => setTimeout(() => { try { positionTopNavLine(); } catch(_){} }, 80));
+window.addEventListener('resize', () => { try { positionNavGlider(); } catch(_){} });
+document.addEventListener('DOMContentLoaded', () => setTimeout(() => { try { positionNavGlider(); } catch(_){} }, 60));
+
+// ═══════════════════════════════════════════
+// COUNT-UP — numbers "grow like the chart" on first view (~3s), once per page.
+// Parses each element's already-formatted text (₪1,234.56), animates the numeric
+// part 0→value with ease-out, preserving prefix/suffix and decimal places.
+// ═══════════════════════════════════════════
+const COUNTUP_MS = 2000;
+const _countedPages = new Set();
+function animateCountEl(el, dur = COUNTUP_MS) {
+  if (!el || el.dataset.counting) return;
+  const txt = el.textContent || '';
+  const m = txt.match(/-?[\d,]+(?:\.\d+)?/);
+  if (!m) return;                                     // no number (e.g. '---' or masked ••••)
+  const raw = m[0];
+  const target = parseFloat(raw.replace(/,/g, ''));
+  if (!Number.isFinite(target) || target === 0) return;
+  const prefix = txt.slice(0, m.index), suffix = txt.slice(m.index + raw.length);
+  const decimals = (raw.split('.')[1] || '').length;
+  const t0 = performance.now();
+  el.dataset.counting = '1';
+  const ease = x => 1 - Math.pow(1 - x, 3);           // ease-out cubic, like a chart settling
+  (function frame(now) {
+    if (!el.isConnected) { delete el.dataset.counting; return; }   // re-rendered away
+    const p = Math.min(1, (now - t0) / dur);
+    // Simple and reliable: 80% → 100% of the value captured at start.
+    const v = target * (0.8 + 0.2 * ease(p));
+    el.textContent = prefix + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+    if (p < 1) requestAnimationFrame(frame);
+    else delete el.dataset.counting;
+  })(performance.now());
+}
+function runCountUp(page) {
+  const targets = [];
+  if (page === 'dash') {
+    ['grandNum','sKpi','cKpi','commoditiesKpi','bondsKpi','etfsKpi','totalPnlKpi'].forEach(id => {
+      const el = document.getElementById(id); if (el) targets.push(el);
+    });
+    document.querySelectorAll('#page-dash .card .vv').forEach(el => targets.push(el));
+  } else {
+    document.querySelectorAll(`#page-${page} .card .vv, #page-${page} .s-val`).forEach(el => targets.push(el));
+  }
+  const live = targets.filter(el => /\d/.test(el.textContent || ''));
+  if (!live.length) return false;                     // data not in yet — caller retries
+  // The hero grand total gets a slower, more deliberate count (it's the headline
+  // figure); everything else keeps the snappy default.
+  live.forEach(el => animateCountEl(el, el.id === 'grandNum' ? 5000 : COUNTUP_MS));
+  return true;
+}
+function scheduleCountUp(page) {
+  if (_countedPages.has(page)) return;
+  _countedPages.add(page);
+  // Start the moment the FIRST numeric value appears (checked every 80ms), so the
+  // user never sees the final figure sitting still before the animation kicks in.
+  const refEl = () => page === 'dash'
+    ? document.getElementById('grandNum')
+    : document.querySelector(`#page-${page} .card .vv`);
+  let tries = 0;
+  (function attempt() {
+    const el = refEl();
+    if (el && /\d/.test(el.textContent || '')) { runCountUp(page); return; }
+    if (++tries < 120) setTimeout(attempt, 80);        // up to ~10s of patience
+    else _countedPages.delete(page);                   // no data — next visit retries
+  })();
 }
 
 // ═══════════════════════════════════════════
@@ -9543,12 +9746,25 @@ async function drawSpark(cid, key, isCrypto, isUp, sourceSym) {
     } else {
       // Paint cached data immediately, then refresh in the background. If a monthly
       // series is unavailable, an actual intraday series is still a truthful fallback.
-      const cached = peekStockHist(fetchSym, '1mo') || peekStockHist(fetchSym, '1d');
+      // Futures 1d series: trim to the last contiguous session at CONSUMPTION too —
+      // this covers stale pre-fix series still sitting in the 24h localStorage cache
+      // (they were stored already sliced into multi-session chunks).
+      const isFut = /=F$/i.test(String(fetchSym || ''));
+      const trimFut = arr => {
+        if (!isFut || !Array.isArray(arr) || arr.length < 12) return arr;
+        const MAX_GAP = 45 * 60 * 1000;
+        let cut = arr.length - 1;
+        while (cut > 0 && (arr[cut].t - arr[cut - 1].t) <= MAX_GAP) cut--;
+        const run = arr.slice(cut);
+        return run.length >= 10 ? run : arr;
+      };
+      let cached = peekStockHist(fetchSym, '1mo');
+      if (!(cached?.length >= 2)) cached = trimFut(peekStockHist(fetchSym, '1d'));
       if (cached?.length >= 2) prices = cached.map(d => d.p).filter(Number.isFinite);
       const fresh = await getStockHist(fetchSym, '1mo');
       if (fresh?.length >= 2) prices = fresh.map(d => d.p).filter(Number.isFinite);
       if (!prices?.length) {
-        const day = await getStockHist(fetchSym, '1d');
+        const day = trimFut(await getStockHist(fetchSym, '1d'));
         if (day?.length >= 2) prices = day.map(d => d.p).filter(Number.isFinite);
       }
       if (!prices?.length) {
@@ -9590,6 +9806,22 @@ async function drawSpark(cid, key, isCrypto, isUp, sourceSym) {
   // gradient reads clearly on a bright background, just like in dark mode.
   const isLight = document.body.classList.contains('light');
   const topOp = isLight ? '0.28' : '0.22';
+  // ONE continuous left-to-right sweep, even though cards re-render 2-3 times while
+  // prices stream in. Each re-render rebuilds the SVG, so instead of restarting (looked
+  // like the line draws in broken chunks) or snapping to full (harsh cut), the rebuilt
+  // SVG RESUMES the sweep from where it was — a negative animation-delay equal to the
+  // time elapsed since this spark's first appearance.
+  const REVEAL_MS = 2400;
+  S._sparkFirstAt ||= {};
+  if (!S._sparkFirstAt[cid]) S._sparkFirstAt[cid] = Date.now();
+  const elapsed = Date.now() - S._sparkFirstAt[cid];
+  const revealing = elapsed < REVEAL_MS;
+  const fillStyle = revealing
+    ? `animation:fadeIn ${REVEAL_MS}ms cubic-bezier(.55,.2,.2,1) ${300 - elapsed}ms forwards`
+    : 'opacity:1';
+  const lineStyle = revealing
+    ? `--dash-len:${len}; stroke-dasharray:${len}; stroke-dashoffset:${len}; animation: drawLine ${REVEAL_MS}ms cubic-bezier(.55,.2,.2,1) ${-elapsed}ms forwards;`
+    : '';
   const svgHTML = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
       <defs>
@@ -9598,11 +9830,10 @@ async function drawSpark(cid, key, isCrypto, isUp, sourceSym) {
           <stop offset="1" stop-color="${col}" stop-opacity="0"/>
         </linearGradient>
       </defs>
-      <path d="${fillD}" fill="url(#${gid})" opacity="0" style="animation:fadeIn 2.4s cubic-bezier(.55,.2,.2,1) .3s forwards"/>
+      <path d="${fillD}" fill="url(#${gid})" opacity="0" style="${fillStyle}"/>
       <path class="spark-path" d="${d}" fill="none"
         stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-        style="--dash-len:${len}; stroke-dasharray:${len}; stroke-dashoffset:${len};
-               animation: drawLine 2.4s cubic-bezier(.55,.2,.2,1) forwards;"/>
+        style="${lineStyle}"/>
     </svg>`;
   // draw on EVERY container with this id (dashboard + page may both have it)
   containers.forEach(c => { c.innerHTML = svgHTML; });
@@ -9755,7 +9986,7 @@ function renderExtraCategories() {
               <div class="cid"><div class="ico">${ico}</div>
                 <div style="display:flex;align-items:baseline;gap:6px;min-width:0;"><div class="tic">${a.sym}</div><div class="nam">${a.name||''}</div></div>
               </div>
-              <div class="tag tm" style="margin-left:auto;">${(cat.label||'').toUpperCase()}</div>
+              <div class="tag tm" style="margin-left:auto;">${({commodities:'COMMODITIES',bonds:'BONDS',etfs:'ETF'})[cat.key]||(cat.label||'')}</div>
             </div>
             ${sparkHTML}
             <div class="cb">
@@ -9828,7 +10059,7 @@ function manualCardsHTML(catKey, catIcon, catLabel) {
           <div class="cid"><div class="ico">${ico}</div>
             <div style="display:flex;align-items:baseline;gap:6px;min-width:0;"><div class="tic">${a.sym}</div><div class="nam">${a.name||''}</div></div>
           </div>
-          <div class="tag tm" style="margin-left:auto;">${(catLabel||'').toUpperCase()}</div>
+          <div class="tag tm" style="margin-left:auto;">${({commodities:'COMMODITIES',bonds:'BONDS',etfs:'ETF'})[catKey]||(catLabel||'')}</div>
         </div>
         ${sparkHTML}
         <div class="cb">
@@ -10024,6 +10255,9 @@ function applyViewNav() {
       if (btn) btn.style.display = catShown(key) ? '' : 'none';
     });
   });
+  // Nav geometry changed — the sliding indicators must re-measure their positions.
+  try { positionNavGlider(); } catch(_){}
+  try { positionTopNavLine(); } catch(_){}
   // If the current page is a manual category that just got hidden, fall back to dash.
   if (['commodities','bonds','etfs'].includes(S.curPage) && !catShown(S.curPage)) {
     const dashBtn = document.querySelector('.nit[data-p="dash"]');
@@ -11534,6 +11768,73 @@ async function openDet(sym, type) {
   else if (type === 'commodity') { const a = (S.commodities || []).find(x => x.sym === sym); if (a) renderCommodityModal(a, el); }
   else if (type === 'etfs' || type === 'bonds') { const a = (S[type] || []).find(x => x.sym === sym); if (a) renderStockModal(a, el, type); }
   else                   { const s = S.stocks.find(x => x.sym === sym); if (s) renderStockModal(s, el); }
+  // The border-light ring is an SVG sized to the button's actual pixels — it must be
+  // (re)built after the modal's HTML lands and the button has laid out.
+  setTimeout(() => { try { decorateSellButtons(el); } catch(_){} }, 60);
+}
+
+// Build the border-light SVG inside every .sell-btn: a faint full ring + a bright
+// segment whose dash pattern is computed from the REAL perimeter, so its travel
+// speed is identical along every edge (a conic gradient can't do that on a wide
+// button — angle ≠ arc length).
+function decorateSellButtons(root) {
+  (root || document).querySelectorAll('.sell-btn').forEach(btn => {
+    btn.querySelector('.sell-ring')?.remove();          // rebuild on re-render/resize
+    // clientWidth/Height = the padding box — EXACTLY the box that `inset:0` pins the
+    // SVG to (it excludes the 1px CSS border). Using offsetWidth (border box) made the
+    // viewBox slightly larger than the SVG's real box, so the ring floated inward.
+    const w = btn.clientWidth, h = btn.clientHeight;
+    if (!w || !h) return;
+    const br = Math.max(0, (parseFloat(getComputedStyle(btn).borderTopLeftRadius) || 10) - 1);
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'sell-ring');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const mkRect = cls => {
+      const r = document.createElementNS(NS, 'rect');
+      // Hug the very edge of the button (stroke centered on the border line) instead
+      // of sitting visibly inset from it.
+      r.setAttribute('x', 0.8); r.setAttribute('y', 0.8);
+      r.setAttribute('width', w - 1.6); r.setAttribute('height', h - 1.6);
+      r.setAttribute('rx', Math.min(br, (h - 1.6) / 2));
+      r.setAttribute('class', cls);
+      svg.appendChild(r);
+      return r;
+    };
+    mkRect('ring-base');
+    const mv = mkRect('ring-move');
+    btn.appendChild(svg);                               // must be in DOM to measure
+    const P = mv.getTotalLength();
+    const seg = P * 0.22;                               // the light covers ~22% of the rim
+    mv.setAttribute('stroke-dasharray', `${seg} ${P - seg}`);
+    mv.setAttribute('stroke-dashoffset', '0');
+    // Motion via Web Animations API — works in Safari (CSS keyframes with var() don't).
+    let anim = null;
+    const start = () => {
+      svg.classList.add('lit');
+      if (anim) { anim.play(); return; }
+      try {
+        anim = mv.animate(
+          [{ strokeDashoffset: 0 }, { strokeDashoffset: -P }],
+          { duration: 1500, iterations: Infinity, easing: 'linear' }
+        );
+      } catch(_) {}
+    };
+    const stop = () => { svg.classList.remove('lit'); try { anim?.pause(); } catch(_){} };
+    if (btn._ringStart) {   // re-decoration: refresh old listeners
+      btn.removeEventListener('pointerenter', btn._ringStart);
+      btn.removeEventListener('pointerleave', btn._ringStop);
+      btn.removeEventListener('pointerdown', btn._ringStart);
+      btn.removeEventListener('pointerup', btn._ringStop);
+      btn.removeEventListener('pointercancel', btn._ringStop);
+    }
+    btn._ringStart = start; btn._ringStop = stop;
+    btn.addEventListener('pointerenter', start);        // desktop hover
+    btn.addEventListener('pointerleave', stop);
+    btn.addEventListener('pointerdown', start);         // mobile press
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointercancel', stop);
+  });
 }
 function closeDet() { document.getElementById('detOv').classList.remove('open'); document.body.style.overflow = ''; S.sel = null; if (S.dChart) { S.dChart.destroy(); S.dChart = null;  stopLiveChart(); } }
 
@@ -11558,7 +11859,8 @@ async function renderCryptoModal(a, el) {
       <div class="mkpi"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
       ${avgEntryCellHTML(avg, 'USD')}
-      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+      ${investedCellHTML(totalInvested(a), 'USD')}
+      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">רווח/הפסד לכל התקופה</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">גרף רציף מוזן רשת <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -11650,6 +11952,7 @@ function renderCommodityModal(a, el) {
       <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
       ${avgEntryCellHTML(avg, 'USD')}
+      ${investedCellHTML(totalInvested(a), 'USD')}
     </div>
     <div class="mch">
       <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -11722,6 +12025,17 @@ async function loadMC(key, range, btn, silent) {
   if (box) box.classList.remove('chart-loading');
   // Drop any zero/null candles (defense in depth — also covers stale cached series).
   if (Array.isArray(data)) data = data.filter(d => (d.p ?? d.value) > 0);
+  // Futures trade ~23h across two calendar dates with maintenance breaks, so a
+  // calendar-day slice contains chunks of two sessions + gaps — rendering as a chart
+  // "split into three". For 1D we instead keep the LAST CONTIGUOUS run of points
+  // (gap ≤ 45min between 5-minute candles): one clean unbroken line, left to right.
+  if (range === '1d' && Array.isArray(data) && data.length > 2) {
+    const MAX_GAP = 45 * 60 * 1000;
+    let cut = data.length - 1;
+    while (cut > 0 && (data[cut].t - data[cut - 1].t) <= MAX_GAP) cut--;
+    const run = data.slice(cut);
+    if (run.length >= 10) data = run;   // keep the slice only if it's a substantial session
+  }
   if (!data || data.length < 2) { setStockChartStatus('לא התקבלו כרגע נתוני גרף אמיתיים ממקור השוק.'); return; }
   const holder = (S.commodities || []).find(x => commodityCatalogFor(x.sym)?.key === key);
   if (!holder || S.sel !== holder.sym || !document.getElementById('detOv')?.classList.contains('open')) return;
@@ -11764,7 +12078,8 @@ function renderStockModal(s, el, assetType = 'stock') {
       <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
       ${avgEntryCellHTML(avg, p?.currency || 'USD')}
-      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
+      ${investedCellHTML(totalInvested(s), p?.currency || 'USD')}
+      ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">רווח/הפסד לכל התקופה</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
       <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -14701,6 +15016,9 @@ window.proceedToApp = async function() {
   applyProState();                                    // PRO button state + hide ads if PRO
   migrateEtfsFromStocks();                            // QQQ & friends move from stocks → ETFs
   try { applyViewOrder(); } catch(_){}                // dashboard sections follow the saved hierarchy
+  // Entrance animations: numbers count up "like the chart", nav pill takes position.
+  try { scheduleCountUp('dash'); } catch(_){}
+  setTimeout(() => { try { positionNavGlider(); } catch(_){} }, 120);
   setTimeout(() => {
     try {
       // New user's first run → greet with the "build your portfolio" screen and open
