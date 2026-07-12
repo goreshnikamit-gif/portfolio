@@ -687,6 +687,13 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-cards-toggle:hover { border-color:var(--ac); color:var(--t1); }
 .period-cards-toggle span { display:flex; align-items:center; gap:7px; }
 .period-cards-caret { transition:transform .2s ease; font-size:13px; }
+/* Hide-balance eye button next to the total */
+.balance-eye { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; margin-inline-start:8px; vertical-align:middle; background:var(--s3); border:1px solid var(--b1); border-radius:7px; color:var(--t2); cursor:pointer; font-size:14px; transition:all .12s; }
+.balance-eye:hover { border-color:var(--ac); color:var(--ac); }
+/* Period-summary collapsible header + spacing when open */
+.period-summary-toggle { margin-bottom:9px; }
+.period-summary-toggle .pss-total { font-family:var(--font-mono); font-weight:800; font-size:13px; }
+.period-summary-body { display:flex; flex-direction:column; gap:9px; }
 .period-cards-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
 .period-asset-card { background:var(--s3); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:12px; cursor:pointer; min-width:0; transition:border-color .15s, transform .15s; }
 .period-asset-card:hover { border-color:var(--ac); transform:translateY(-1px); }
@@ -732,7 +739,14 @@ body.light .period-summary-cell.is-primary { background:#fff; border:1px solid c
   .period-presets { flex-wrap:wrap; gap:6px; }
   .period-presets .pb2 { flex:1 1 auto; min-width:0; text-align:center; padding:8px 10px; font-size:12px; }
   .period-cards-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .period-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  /* ⚡ Mobile: readable stacked summary cards instead of a cramped 3-across grid.
+     Primary (כלל התיק) full width, the rest 2-up. */
+  .period-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .psc.is-primary { grid-column:1 / -1; }
+  .psc-val { font-size:15px; }
+  .psc.is-primary .psc-val { font-size:20px; }
+  .psc-lbl { font-size:10.5px; }
+  .psc-pill { font-size:9px; padding:2px 6px; }
   .period-summary-cell { padding:9px 7px; }
   .period-summary-value { font-size:13px; letter-spacing:-0.4px; }
   .period-summary-pct { font-size:9px; }
@@ -2175,8 +2189,20 @@ async function finishAuth(user, mode) {
     const seed = (prevOwner && prevOwner !== uid)
       ? { crypto: [], stocks: [], commodities: [], bonds: [], etfs: [] }
       : localPortfolio();
+    // ⚡ Build the initial VIEW from the signup investment picks, so the new account
+    // is created already tailored — no race with a later applyInvestPrefs call.
+    let seedView = null;
+    if (mode === 'signup' && window._signupPrefs && window._signupPrefs.size) {
+      const want = Array.from(window._signupPrefs).map(p => PREF_TO_CAT[p]).filter(Boolean);
+      const show = {};
+      ['stocks','crypto','etfs','bonds','commodities'].forEach(cat => { show[cat] = want.includes(cat); });
+      if (!Object.values(show).some(Boolean)) show.stocks = true;
+      seedView = { show, widgets: (VIEW_DEFAULT?.widgets || {}) };
+      // Apply locally right away too, before any cloud round-trip.
+      try { S.view = { show: { ...(VIEW_DEFAULT?.show||{}), ...show }, widgets: { ...(VIEW_DEFAULT?.widgets||{}) } }; saveView?.(); applyViewEverywhere?.(); } catch(_){}
+    }
     try {
-      await setDoc(DOC, {
+      const docPayload = {
         ownerUid: uid,
         profile: { email: user.email || '', name: user.displayName || '', photo: user.photoURL || '' },
         createdAt: Date.now(),
@@ -2184,7 +2210,12 @@ async function finishAuth(user, mode) {
         updatedAtServer: serverTimestamp(),
         crypto: seed.crypto,
         stocks: seed.stocks,
-      }, { merge: true });
+        commodities: seed.commodities || [],
+        bonds: seed.bonds || [],
+        etfs: seed.etfs || [],
+      };
+      if (seedView) docPayload.view = seedView;
+      await setDoc(DOC, docPayload, { merge: true });
       window.firebaseSyncState = 'synced';
       window.firebaseLastError = null;
       if (mode === 'login' && err) err.textContent = 'לא נמצא תיק קיים — נפתח עבורך תיק ענן חדש';
@@ -2584,10 +2615,6 @@ onAuthStateChanged(auth, async user => {
       <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       <span class="gbtn-lbl" id="gLbl">היכנס באמצעות Google</span>
     </button>
-    <button class="gbtn provider-facebook" onclick="doProviderLogin('facebook')">
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-      <span class="gbtn-lbl">היכנס באמצעות Facebook</span>
-    </button>
     <div class="lock-note" id="lockNote">ההרשמה פתוחה — ייפתח לך תיק אישי חדש</div>
     <div class="lock-div" id="lockDiv">או</div>
     <button class="lock-swap" id="swapBtn" onclick="setAuthMode(window._authMode === 'signup' ? 'login' : 'signup')">יצירת חשבון</button>
@@ -2642,7 +2669,10 @@ onAuthStateChanged(auth, async user => {
           </button>
         </div>
         <div class="t-lbl">שווי שוק כולל — נכסים</div>
-        <div class="t-val"><span id="grandNumWrap"><span id="grandNum">---</span></span><span class="sym" id="grandSym">ILS</span></div>
+        <div class="t-val">
+          <span id="grandNumWrap"><span id="grandNum">---</span></span><span class="sym" id="grandSym">ILS</span>
+          <button class="balance-eye" id="balanceEye" onclick="toggleBalanceHidden()" title="הסתר/הצג סכום" aria-label="הסתר סכום"><i class="ph-thin ph-eye"></i></button>
+        </div>
         <div class="t-meta">
           <div style="display:flex;align-items:center;gap:12px;">
             <div class="badge up" id="chgBadge">---</div>
@@ -10070,8 +10100,23 @@ function closeViewModal() {
 }
 window.closeViewModal = closeViewModal;
 
-function updateKPIs() {
-  const {c, st, g} = tots();
+// ── Hide/show the total balance (privacy) — masks ONLY the grand total ──
+function balanceHidden() { return localStorage.getItem('balanceHidden') === '1'; }
+function toggleBalanceHidden() {
+  localStorage.setItem('balanceHidden', balanceHidden() ? '0' : '1');
+  syncBalanceEye();
+  updateKPIs();
+}
+window.toggleBalanceHidden = toggleBalanceHidden;
+function syncBalanceEye() {
+  const btn = document.getElementById('balanceEye');
+  if (!btn) return;
+  const hidden = balanceHidden();
+  btn.innerHTML = `<i class="ph-thin ${hidden ? 'ph-eye-slash' : 'ph-eye'}"></i>`;
+  btn.title = hidden ? 'הצג סכום' : 'הסתר סכום';
+}
+
+function updateKPIs() {  const {c, st, g} = tots();
   const prevTotal = S._lastTotal || 0;
   S._lastTotal = g;
   // grandNum — simple, no splitting
@@ -10083,7 +10128,7 @@ function updateKPIs() {
   const symEl = document.querySelector('.t-val .sym');
   if (symEl) symEl.textContent = curCode;
   const grandEl = document.getElementById('grandNum');
-  if (grandEl) grandEl.textContent = displayVal > 0 ? displayVal.toLocaleString(curDef.locale, {maximumFractionDigits:0}) : '---';
+  if (grandEl) grandEl.textContent = balanceHidden() ? '•••••' : (displayVal > 0 ? displayVal.toLocaleString(curDef.locale, {maximumFractionDigits:0}) : '---');
   // Price-tick flash on the grand total — fires whenever the total moved between updates.
   const wrap = document.getElementById('grandNumWrap');
   if (wrap && prevTotal > 0 && g > 0 && g !== prevTotal) {
@@ -14109,11 +14154,33 @@ function dashRenderPeriodData(data,{cached=false}={}){
   const cardsBlock = cards
     ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
     : '';
-  grid.innerHTML = summary + (cardsBlock || '');
+  // ⚡ Wrap the whole summary in a collapsible header (like the asset breakdown).
+  const totalPnlUp = (data.total?.pnl || 0) >= 0;
+  const headerRight = `<span class="pss-total" style="color:${totalPnlUp?'var(--gr)':'var(--rd)'}">${totalPnlUp?'+':''}${fILS(data.total?.pnl||0)}</span>`;
+  grid.innerHTML = `
+    <div class="period-cards-toggle period-summary-toggle" id="periodSummaryToggle" onclick="togglePeriodSummary()">
+      <span><i class="ph-thin ph-chart-bar ph-sm"></i> סיכום ביצועים לפי תקופה</span>
+      <span style="display:flex;align-items:center;gap:10px">${headerRight}<i class="ph-thin ph-caret-down period-cards-caret" id="periodSummaryCaret"></i></span>
+    </div>
+    <div class="period-summary-body" id="periodSummaryBody">
+      ${summary}
+      ${cardsBlock || ''}
+    </div>`;
   // restore open/closed state (default: open after a period click)
   applyPeriodCardsState();
+  applyPeriodSummaryState();
   dashSetStatus(cached?'מוצג מהזיכרון':'עודכן עכשיו',cached?'updating':'fresh');
 }
+// ── Collapsible whole period-summary section ──
+let _periodSummaryOpen = (localStorage.getItem('periodSummaryOpen') !== '0');
+function togglePeriodSummary(){ _periodSummaryOpen = !_periodSummaryOpen; localStorage.setItem('periodSummaryOpen', _periodSummaryOpen?'1':'0'); applyPeriodSummaryState(); }
+function applyPeriodSummaryState(){
+  const body=document.getElementById('periodSummaryBody'), caret=document.getElementById('periodSummaryCaret');
+  if(!body)return;
+  body.style.display=_periodSummaryOpen?'':'none';
+  if(caret) caret.style.transform=_periodSummaryOpen?'rotate(180deg)':'rotate(0deg)';
+}
+window.togglePeriodSummary=togglePeriodSummary;
 // ── Collapsible asset detail under the period summary ──
 let _periodCardsOpen = false;
 function togglePeriodCards(){ _periodCardsOpen = !_periodCardsOpen; applyPeriodCardsState(); }
@@ -14412,9 +14479,17 @@ window.proceedToApp = async function() {
   appStarted = true;
   tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
   applyProState();                                    // PRO button state + hide ads if PRO
+  try { syncBalanceEye(); } catch(_){}                // restore hide-balance eye state
   migrateEtfsFromStocks();                            // QQQ & friends move from stocks → ETFs
   try { applyViewOrder(); } catch(_){}                // dashboard sections follow the saved hierarchy
-  setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 900);   // interstitial ad — every app open
+  setTimeout(() => {
+    try {
+      // ⚡ New signups: instead of an ad, open the add-asset editor so the user can
+      // start building their portfolio immediately. Everyone else sees the usual ad.
+      if (window._pendingPrefs && window._pendingPrefs.length) return;   // handled below
+      maybeShowInterstitial();
+    } catch(_){}
+  }, 900);   // interstitial ad — every app open (except right after signup)
   setTimeout(() => { try { injectAdCards(); } catch(_){} }, 1500);
 
   // ⚡ SPEED: kick off market-price fetching IMMEDIATELY, in parallel with Firebase.
@@ -14455,9 +14530,13 @@ window.proceedToApp = async function() {
     applyInvestPrefs(prefs);
     const order = ['stocks','crypto','commodities','bonds','etfs'];
     const firstCat = order.find(c => prefs.map(p => PREF_TO_CAT[p]).includes(c)) || 'stocks';
+    // Map the first chosen category to its editor tab and open the add-asset editor
+    // so the new user can start building their portfolio right away.
+    const catToTab = { stocks:'stock', crypto:'crypto', commodities:'commodities', bonds:'bonds', etfs:'etfs' };
     setTimeout(() => {
       const btn = document.querySelector(`[data-p="${firstCat}"]`);
       if (typeof goPage === 'function') goPage(firstCat, btn);
+      setTimeout(() => { try { openEditor(catToTab[firstCat] || 'stock'); } catch(_){} }, 500);
     }, 700);
   }
 };
