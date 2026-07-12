@@ -171,12 +171,6 @@ body.light::before { opacity: 0; }
 .profile-pop-avatar span { font-family:var(--font-mono); font-weight:800; font-size:18px; color:var(--ac); }
 .profile-pop-name { font-size:14px; font-weight:800; color:var(--t1); }
 .profile-pop-email { font-size:11px; color:var(--t3); direction:ltr; text-align:end; }
-.verify-card { text-align:center; }
-.verify-ico { font-size:52px; color:var(--ac, #6366f1); margin-bottom:6px; line-height:1; }
-.verify-msg { font-size:14px; color:var(--tx, #e5e7eb); margin:10px 0 6px; line-height:1.5; }
-.verify-msg strong { color:var(--ac, #818cf8); font-weight:700; word-break:break-all; }
-.verify-sub { font-size:12px; color:var(--tx-dim, #9ca3af); margin-bottom:16px; line-height:1.5; }
-.verify-card .auth-submit { margin-top:4px; }
 .profile-pop-verify { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--gd); background:color-mix(in srgb, var(--gd) 10%, transparent); border:1px solid color-mix(in srgb, var(--gd) 28%, transparent); border-radius:8px; padding:7px 9px; margin-bottom:10px; }
 .profile-pop-verify button { margin-inline-start:auto; background:none; border:none; color:var(--gd); font-size:11px; font-weight:700; text-decoration:underline; cursor:pointer; padding:0; }
 .profile-pop-logout { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; background:color-mix(in srgb, var(--rd) 9%, var(--s2)); border:1px solid color-mix(in srgb, var(--rd) 30%, var(--b1)); color:var(--rd); font-family:var(--font-body); font-size:12.5px; font-weight:700; border-radius:9px; padding:9px; cursor:pointer; transition:all .12s; }
@@ -2032,10 +2026,7 @@ window.fbSignOut = async () => {
   await signOut(auth);
 };
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+ reports as Mac
-const isStandalonePWA = window.navigator.standalone === true
-  || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
 
 if (isWebView) {
@@ -2084,6 +2075,30 @@ window.setAuthMode = (m) => {
   document.getElementById('lockErr').textContent = '';
 };
 
+// Map a signup preference key → the view category key it enables.
+const PREF_TO_CAT = { stocks:'stocks', crypto:'crypto', etf:'etfs', bonds:'bonds', commodities:'commodities' };
+// Apply the user's chosen investment areas: enable exactly those categories in the
+// view config (and hide the rest), then persist + navigate to the first pick.
+function applyInvestPrefs(prefs) {
+  if (!Array.isArray(prefs) || !prefs.length) return;
+  try {
+    const wantCats = prefs.map(p => PREF_TO_CAT[p]).filter(Boolean);
+    S.view = S.view || { show:{}, widgets:{} };
+    S.view.show = S.view.show || {};
+    // stocks + crypto stay on by default; enable exactly the picked extras and turn
+    // off the ones not chosen so the app opens tailored to the user.
+    ['stocks','crypto','etfs','bonds','commodities'].forEach(cat => {
+      S.view.show[cat] = wantCats.includes(cat);
+    });
+    // Never leave the user with an empty dashboard — if somehow nothing matched,
+    // fall back to stocks.
+    if (!Object.values(S.view.show).some(Boolean)) S.view.show.stocks = true;
+    if (typeof saveView === 'function') saveView();
+    if (typeof applyViewEverywhere === 'function') applyViewEverywhere();
+  } catch (_) {}
+}
+window.applyInvestPrefs = applyInvestPrefs;
+
 // Investment preferences picker
 window._signupPrefs = new Set();
 window.togglePref = (btn) => {
@@ -2100,6 +2115,37 @@ const localPortfolio = () => {
     };
   } catch(_) { return { crypto: [], stocks: [] }; }
 };
+
+// After a successful login, offer to enable biometric quick-login on this device
+// (once per device). Enrolls a platform credential tied to nothing sensitive — it
+// only gates the local app open; the real identity stays the Firebase session.
+async function offerBiometricEnroll() {
+  try {
+    if (!window.PublicKeyCredential) return;
+    if (localStorage.getItem('bio_cred')) return;                 // already enrolled
+    if (localStorage.getItem('bio_declined') === '1') return;     // user said no before
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.();
+    if (!available) return;
+    if (!confirm('להפעיל כניסה מהירה עם טביעת אצבע / זיהוי פנים במכשיר הזה?')) {
+      localStorage.setItem('bio_declined', '1');
+      return;
+    }
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name: 'Vector Equities', id: location.hostname },
+      user: { id: crypto.getRandomValues(new Uint8Array(16)),
+              name: (window.firebaseUser?.email || 'user'),
+              displayName: (window.firebaseUser?.displayName || 'User') },
+      pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+      authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required' },
+      timeout: 60000,
+    }});
+    localStorage.setItem('bio_cred', JSON.stringify(Array.from(new Uint8Array(cred.rawId))));
+    localStorage.setItem('bio_owner_uid', window.firebaseUser?.uid || '');
+    alert('כניסה מהירה הופעלה ✓ בפעם הבאה תוכל להיכנס עם טביעת אצבע / פנים');
+  } catch (_) { /* user cancelled or unsupported — silent */ }
+}
+window.offerBiometricEnroll = offerBiometricEnroll;
 
 async function finishAuth(user, mode) {
   const uid = user.uid;
@@ -2215,14 +2261,8 @@ window.doEmailAuth = async () => {
     }
     await finishAuth(result.user, mode);
     lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
-    if (mode === 'signup') {
-      // Show the "check your email" interstitial instead of entering the app.
-      showVerifyScreen(email);
-      btn.disabled = false;
-      lbl.textContent = 'צור חשבון';
-    } else {
-      setTimeout(() => window.proceedToApp(), 500);
-    }
+    await offerBiometricEnroll();
+    setTimeout(() => window.proceedToApp(), 500);
   } catch(e) {
     btn.disabled = false;
     lbl.textContent = mode === 'signup' ? 'צור חשבון' : 'התחברות';
@@ -2250,36 +2290,40 @@ window.doGoogleLogin = async () => {
   const mode = authMode;
   err.textContent = '';
   lbl.textContent = mode === 'signup' ? 'נרשם...' : 'מתחבר לגוגל...';
-  const provider = new GoogleAuthProvider();
-  // Popup first on ALL platforms — it doesn't depend on third-party cookies,
-  // which Safari/iOS block, breaking the redirect flow. Fall back to redirect
-  // only when the popup is actually blocked by the browser.
+  // In SIGNUP mode, require at least one investment area first (same as email signup),
+  // so the account opens tailored to the user's picks.
+  if (mode === 'signup' && (!window._signupPrefs || window._signupPrefs.size === 0)) {
+    err.textContent = 'בחר/י לפחות תחום השקעה אחד לפני ההרשמה';
+    lbl.textContent = 'הרשמה עם Google';
+    return;
+  }
   try {
-    const result = await signInWithPopup(auth, provider);
-    await finishAuth(result.user, mode);
-    lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
-    setTimeout(() => window.proceedToApp(), 600);
-  } catch(e) {
-    const popupBlocked = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code);
-    if (popupBlocked) {
-      // Browser blocked the popup — switch to the redirect flow.
-      try {
-        localStorage.setItem('google_pending_redirect', '1');
-        localStorage.setItem('google_auth_mode', mode);
-        lbl.textContent = 'מפנה לגוגל...';
-        await signInWithRedirect(auth, provider);
-        return;
-      } catch(e2) {
-        lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
-        err.textContent = 'שגיאה: ' + (e2.message || e2.code);
-        return;
+    const provider = new GoogleAuthProvider();
+    // ⚡ Always let the user pick which Google account — never silently reuse the one
+    // already signed into the browser/device. 'select_account' forces the chooser.
+    provider.setCustomParameters({ prompt: 'select_account' });
+    if (isIOS) {
+      localStorage.setItem('google_pending_redirect', '1');
+      localStorage.setItem('google_auth_mode', mode);
+      // Preserve any signup investment picks across the redirect round-trip.
+      if (mode === 'signup') localStorage.setItem('google_pending_prefs', JSON.stringify(Array.from(window._signupPrefs || [])));
+      await signInWithRedirect(auth, provider);
+    } else {
+      const result = await signInWithPopup(auth, provider);
+      // Carry signup investment picks into the app (same path as email signup).
+      if (mode === 'signup' && window._signupPrefs?.size) {
+        const prefs = Array.from(window._signupPrefs);
+        try { localStorage.setItem('invest_prefs', JSON.stringify(prefs)); } catch(_) {}
+        window._pendingPrefs = prefs;
       }
+      await finishAuth(result.user, mode);
+      lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
+      await offerBiometricEnroll();
+      setTimeout(() => window.proceedToApp(), 600);
     }
+  } catch(e) {
     lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
-    if (e.code === 'auth/popup-closed-by-user') err.textContent = 'החלון נסגר — נסי שוב';
-    else if (e.code === 'auth/unauthorized-domain') err.textContent = 'הדומיין לא מאושר ב-Firebase (Authorized domains)';
-    else if (e.code === 'auth/network-request-failed') err.textContent = 'אין חיבור לאינטרנט — נסי שוב';
-    else err.textContent = 'שגיאה: ' + (e.message || e.code);
+    err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
   }
 };
 
@@ -2314,66 +2358,13 @@ document.addEventListener('click', (e) => {
   if (pop?.classList.contains('open') && !pop.contains(e.target) && e.target?.id !== 'profileChip') pop.classList.remove('open');
 });
 window.resendVerification = async () => {
-  // If the verify interstitial is open, report inline; otherwise use alert (profile popup).
-  const onVerifyScreen = document.getElementById('verifyCard')?.style.display !== 'none'
-    && document.getElementById('verifyCard');
-  const vErr = document.getElementById('verifyErr');
   try {
     if (window.firebaseUser) {
       await sendEmailVerification(window.firebaseUser);
-      if (onVerifyScreen && vErr) {
-        vErr.style.color = 'var(--gr, #22c55e)';
-        vErr.textContent = 'הקישור נשלח מחדש ✓ בדקו את תיבת הדואר (גם בספאם)';
-      } else {
-        alert('מייל אימות נשלח שוב ✓ בדוק את תיבת הדואר (גם בספאם)');
-      }
+      alert('מייל אימות נשלח שוב ✓ בדוק את תיבת הדואר (גם בספאם)');
     }
   } catch (e) {
-    const msg = e.code === 'auth/too-many-requests' ? 'נשלחו יותר מדי מיילים — נסה שוב מאוחר יותר' : 'שליחה נכשלה: ' + (e.message || '');
-    if (onVerifyScreen && vErr) { vErr.style.color = ''; vErr.textContent = msg; }
-    else alert(msg);
-  }
-};
-
-// ── Email-verification interstitial (shown after signup) ──
-window.showVerifyScreen = (email) => {
-  window._awaitingEmailVerify = true;
-  const card = document.getElementById('lockScreen')?.querySelector('.lock-card:not(.verify-card)');
-  const vCard = document.getElementById('verifyCard');
-  const vEmail = document.getElementById('verifyEmail');
-  const vErr = document.getElementById('verifyErr');
-  if (vEmail) vEmail.textContent = email || (window.firebaseUser?.email || '');
-  if (vErr) { vErr.textContent = ''; vErr.style.color = ''; }
-  if (card) card.style.display = 'none';
-  if (vCard) vCard.style.display = '';
-};
-window.backToAuthFromVerify = () => {
-  window._awaitingEmailVerify = false;
-  const card = document.getElementById('lockScreen')?.querySelector('.lock-card:not(.verify-card)');
-  const vCard = document.getElementById('verifyCard');
-  if (vCard) vCard.style.display = 'none';
-  if (card) card.style.display = '';
-};
-window.checkVerifiedAndProceed = async () => {
-  const lbl = document.getElementById('verifyContinueLbl');
-  const vErr = document.getElementById('verifyErr');
-  if (vErr) { vErr.textContent = ''; vErr.style.color = ''; }
-  if (lbl) lbl.textContent = 'בודק...';
-  try {
-    // Reload the user so emailVerified reflects the latest state from Firebase.
-    await window.firebaseUser?.reload?.();
-    const u = window.firebaseAuth?.currentUser || window.firebaseUser;
-    if (u?.emailVerified) {
-      window._awaitingEmailVerify = false;
-      if (lbl) lbl.textContent = 'אומת! ✓';
-      setTimeout(() => window.proceedToApp(), 400);
-    } else {
-      if (lbl) lbl.textContent = 'אימתתי — המשך';
-      if (vErr) vErr.textContent = 'עדיין לא זיהינו אימות. לחצו על הקישור במייל ואז נסו שוב.';
-    }
-  } catch (e) {
-    if (lbl) lbl.textContent = 'אימתתי — המשך';
-    if (vErr) vErr.textContent = 'שגיאה בבדיקה — נסו שוב';
+    alert(e.code === 'auth/too-many-requests' ? 'נשלחו יותר מדי מיילים — נסה שוב מאוחר יותר' : 'שליחה נכשלה: ' + (e.message || ''));
   }
 };
 
@@ -2391,20 +2382,17 @@ window.doProviderLogin = async (name) => {
     provider.addScope('email');
   } else return;
   try {
-    // Popup first (cookie-independent, works on iOS); redirect only as fallback.
+    if (isIOS && name !== 'apple') {
+      localStorage.setItem('google_pending_redirect', '1');
+      localStorage.setItem('google_auth_mode', mode);
+      await signInWithRedirect(auth, provider);
+      return;
+    }
     const result = await signInWithPopup(auth, provider);
     await finishAuth(result.user, mode);
+    await offerBiometricEnroll();
     setTimeout(() => window.proceedToApp(), 600);
   } catch (e) {
-    const popupBlocked = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code);
-    if (popupBlocked) {
-      try {
-        localStorage.setItem('google_pending_redirect', '1');
-        localStorage.setItem('google_auth_mode', mode);
-        await signInWithRedirect(auth, provider);
-        return;
-      } catch(_) {}
-    }
     if (e.code === 'auth/operation-not-allowed') {
       err.textContent = name === 'apple'
         ? 'התחברות Apple עדיין לא הופעלה (דורשת חשבון Apple Developer + הפעלה ב-Firebase Console)'
@@ -2435,9 +2423,6 @@ window.checkAuthAndShow = () => {
     localStorage.setItem('google_auth_ts', Date.now().toString());
     localStorage.setItem('google_auth_email', user.email || '');
     localStorage.setItem('google_auth_uid', user.uid);
-    // Hold on the "verify your email" interstitial after a fresh signup —
-    // don't auto-enter the app until the user chooses to continue.
-    if (window._awaitingEmailVerify) return;
     if (typeof window.proceedToApp === 'function') window.proceedToApp();
     else window._proceedAfterAppBoot = true;
     return;
@@ -2450,7 +2435,10 @@ window.checkAuthAndShow = () => {
   if (lockNote) lockNote.style.display = authMode === 'signup' ? 'block' : 'none';
   if (aForm) aForm.style.display = '';
   if (aDivG) aDivG.style.display = '';
-  if (bioBtn) bioBtn.style.display = 'none';
+  // ⚡ Biometric quick-login: show it only if this device previously enrolled a
+  // credential (bio_cred) tied to the last account that logged in here.
+  const hasBio = !!localStorage.getItem('bio_cred') && !!window.PublicKeyCredential;
+  if (bioBtn) bioBtn.style.display = hasBio ? 'flex' : 'none';
 };
 
 window.doBiometric = async () => {
@@ -2484,7 +2472,11 @@ window.doBiometric = async () => {
     }
     sessionStorage.setItem('bio_ts', Date.now().toString());
     ico.innerHTML = '<i class="ph-thin ph-check-circle"></i>'; lbl.textContent = 'אומת!';
-    setTimeout(() => window.proceedToApp(), 400);
+    // The Firebase session persists (browserLocalPersistence), so a verified biometric
+    // unlocks straight into the app with the same account. If the session somehow
+    // expired, fall back to normal sign-in.
+    if (auth.currentUser) { setCloudUser(auth.currentUser); setTimeout(() => window.proceedToApp(), 400); }
+    else { err.textContent = 'הפעלת מחדש נדרשת — התחבר עם החשבון פעם אחת'; ico.innerHTML = '<i class="ph-thin ph-fingerprint"></i>'; lbl.textContent = 'טביעת אצבע / זיהוי פנים'; }
   } catch(e) {
     ico.innerHTML = '<i class="ph-thin ph-fingerprint"></i>'; lbl.textContent = 'טביעת אצבע / זיהוי פנים';
     if (e.name === 'NotAllowedError') err.textContent = 'האימות נכשל — נסה שוב';
@@ -2499,6 +2491,8 @@ window.doLogout = async () => {
   localStorage.removeItem('google_auth_email');
   localStorage.removeItem('google_auth_uid');
   localStorage.removeItem('bio_cred');
+  localStorage.removeItem('bio_owner_uid');
+  localStorage.removeItem('bio_declined');
   sessionStorage.removeItem('bio_ts');
   if (window.fbSignOut) await window.fbSignOut();
   setCloudUser(null);
@@ -2510,41 +2504,28 @@ setPersistence(auth, browserLocalPersistence).catch(error => {
   console.warn('Could not enable local Firebase Auth persistence:', error);
 });
 
-// If we're returning from a Google redirect, show a "connecting" state right
-// away so the user isn't confused by a fresh-looking login screen.
-if (localStorage.getItem('google_pending_redirect') === '1') {
-  const gl = document.getElementById('gLbl');
-  if (gl) gl.textContent = 'מתחבר לגוגל...';
-  const le = document.getElementById('lockErr');
-  if (le) { le.style.color = ''; le.textContent = 'משלים התחברות דרך גוגל...'; }
-}
-
 getRedirectResult(auth).then(async result => {
   if (result?.user) {
     const mode = localStorage.getItem('google_auth_mode') || 'login';
     localStorage.removeItem('google_auth_mode');
     localStorage.removeItem('google_pending_redirect');
-    const le = document.getElementById('lockErr');
-    if (le) { le.style.color = 'var(--gr, #22c55e)'; le.textContent = 'מחוברת! ✓'; }
+    // Restore investment picks captured before the iOS redirect round-trip.
+    if (mode === 'signup') {
+      try {
+        const saved = JSON.parse(localStorage.getItem('google_pending_prefs') || '[]');
+        if (Array.isArray(saved) && saved.length) {
+          localStorage.setItem('invest_prefs', JSON.stringify(saved));
+          window._pendingPrefs = saved;
+        }
+      } catch(_) {}
+      localStorage.removeItem('google_pending_prefs');
+    }
     await finishAuth(result.user, mode);
+    await offerBiometricEnroll();
   }
 }).catch(error => {
   localStorage.removeItem('google_pending_redirect');
-  localStorage.removeItem('google_auth_mode');
   console.warn('Google redirect result failed:', error);
-  // Surface the failure to the user instead of silently doing nothing.
-  const err = document.getElementById('lockErr');
-  if (err) {
-    if (error.code === 'auth/unauthorized-domain') {
-      err.textContent = 'הדומיין של האתר לא מאושר ב-Firebase. יש להוסיף אותו ל-Authorized domains.';
-    } else if (error.code === 'auth/account-exists-with-different-credential') {
-      err.textContent = 'כבר קיים חשבון לכתובת הזו דרך ספק אחר — התחברי איתו';
-    } else if (error.code === 'auth/network-request-failed') {
-      err.textContent = 'אין חיבור לאינטרנט — נסי שוב';
-    } else {
-      err.textContent = 'ההתחברות דרך גוגל נכשלה — נסי שוב. (' + (error.code || error.message || '') + ')';
-    }
-  }
 });
 
 onAuthStateChanged(auth, async user => {
@@ -2603,12 +2584,7 @@ onAuthStateChanged(auth, async user => {
       <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       <span class="gbtn-lbl" id="gLbl">היכנס באמצעות Google</span>
     </button>
-    <!-- Apple / Facebook: hidden until enabled in Firebase Console. To re-enable, remove style="display:none" below. -->
-    <button class="gbtn provider-apple" onclick="doProviderLogin('apple')" style="display:none">
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.86-3.08.38-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.38C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
-      <span class="gbtn-lbl">היכנס באמצעות Apple</span>
-    </button>
-    <button class="gbtn provider-facebook" onclick="doProviderLogin('facebook')" style="display:none">
+    <button class="gbtn provider-facebook" onclick="doProviderLogin('facebook')">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
       <span class="gbtn-lbl">היכנס באמצעות Facebook</span>
     </button>
@@ -2621,20 +2597,6 @@ onAuthStateChanged(auth, async user => {
     </button>
     <div class="lock-err" id="lockErr"></div>
     <button class="lock-skip" onclick="skipAuth()">כניסה ללא אימות (מצב מקומי)</button>
-  </div>
-
-  <!-- Email verification interstitial (shown right after signup) -->
-  <div class="lock-card verify-card" id="verifyCard" style="display:none">
-    <div class="verify-ico"><i class="ph-thin ph-envelope-simple-open"></i></div>
-    <div class="lock-title">אימות אימייל</div>
-    <div class="verify-msg">שלחנו קישור אימות לכתובת:<br><strong id="verifyEmail" dir="ltr"></strong></div>
-    <div class="verify-sub">פִּתחו את המייל ולחצו על הקישור כדי להשלים את ההרשמה. אם לא הגיע תוך דקה, בדקו גם בתיקיית הספאם.</div>
-    <button class="auth-submit" id="verifyContinueBtn" onclick="checkVerifiedAndProceed()">
-      <span id="verifyContinueLbl">אימתתי — המשך</span>
-    </button>
-    <button class="auth-forgot" id="verifyResendBtn" onclick="resendVerification()">שליחת הקישור מחדש</button>
-    <button class="lock-swap" onclick="backToAuthFromVerify()">חזרה / שינוי כתובת</button>
-    <div class="lock-err" id="verifyErr"></div>
   </div>
 </div>
 
@@ -4563,31 +4525,15 @@ function isUsRegularMarketOpenNow(value = Date.now()) {
 }
 
 const cpnl = (a) => {
-  // Crypto trades continuously. Daily P&L follows the same rule as the period panel:
-  //   • a lot bought TODAY is measured from the price paid
-  //   • everything else is measured from 00:00 in the user's local timezone (openToday)
+  // Crypto trades continuously. Daily P&L is measured from 00:00 in the user's local
+  // timezone, not from Binance's rolling 24h change and not from 00:00 UTC.
   const p = S.cp[a.id];
-  if (!p?.usd) return null;
-  const todayK = todayLocalDateKey();
-  const haveOpen = p.openToday && p.openTodayDateKey === todayK;
-  const lots = (a.lots && a.lots.length)
-    ? a.lots
-    : [{ qty: cQty(a), price: 0, date: null }];
-  let pnlUsd = 0, matched = false;
-  for (const lot of lots) {
-    const qty = parseFloat(lot.qty) || 0;
-    if (!qty) continue;
-    const lotKey = lot.date ? dashLotDateKey(lot.date) : null;
-    const boughtToday = lotKey === todayK && (parseFloat(lot.price) || 0) > 0;
-    let basis;
-    if (boughtToday) basis = parseFloat(lot.price);
-    else if (haveOpen) basis = p.openToday;
-    else return null; // no calendar-day baseline yet — don't guess
-    pnlUsd += qty * (p.usd - basis);
-    matched = true;
+  if (!p?.usd || !cQty(a)) return null;
+  if (p.openToday && p.openTodayDateKey === todayLocalDateKey()) {
+    return (p.usd - p.openToday) * cQty(a) * S.fx;
   }
-  if (!matched) return null;
-  return pnlUsd * S.fx;
+  // Never substitute a rolling 24h figure for a calendar-day figure.
+  return null;
 };
 
 const sv = (s) => {
@@ -4603,29 +4549,18 @@ const sv = (s) => {
 const spnl = (s) => {
   const p = S.sp[s.sym];
   if (!p?.price) return null;
-  if (!p.prevClose) { return s.baseILS ? null : null; }
-  const cur = p.currency || 'USD';
-  const todayK = todayLocalDateKey();
-  // Match the period-summary engine exactly so the hero header and the
-  // "כלל התיק / היום" panel can never disagree:
-  //   • a lot BOUGHT TODAY is measured from the price you actually paid
-  //   • a lot held from before is measured from the market's previous close
-  const lots = (s.lots && s.lots.length)
-    ? s.lots
-    : [{ qty: getShares(s), price: 0, date: null }];
-  let pnlNative = 0, matched = false;
-  for (const lot of lots) {
-    const qty = parseFloat(lot.qty) || 0;
-    if (!qty) continue;
-    const lotKey = lot.date ? dashLotDateKey(lot.date) : null;
-    const boughtToday = lotKey === todayK && (parseFloat(lot.price) || 0) > 0;
-    const basis = boughtToday ? parseFloat(lot.price) : p.prevClose;
-    if (!(basis > 0)) continue;
-    pnlNative += qty * (p.price - basis);
-    matched = true;
-  }
-  if (!matched) return null;
-  return nativeToILS(pnlNative, cur);
+
+  // A stock contributes to today's P&L only after its data source has emitted
+  // a quote whose timestamp belongs to today's calendar date in Israel.
+  // Before the US market opens, Yahoo/Finnhub still report the previous session;
+  // that quote is intentionally treated as 0 for the new Israeli day.
+  if (!timestampIsTodayLocal(p.quoteTime)) return 0;
+
+  const sh = getShares(s);
+  // ⚡ FIX: convert the per-share gain in the stock's native currency to ILS.
+  if (sh && p.prevClose) return nativeToILS(sh * (p.price - p.prevClose), p.currency || 'USD');
+  if (s.baseILS && p.prevClose) return s.baseILS * ((p.price - p.prevClose) / p.prevClose);
+  return null;
 };
 // ═══════════════════════════════════════════
 // MODULAR VIEW — user controls which asset categories appear
@@ -9488,7 +9423,10 @@ function goPage(id, btn) {
 // ═══════════════════════════════════════════
 // SPARKLINES
 // ═══════════════════════════════════════════
-async function drawSpark(cid, key, isCrypto, isUp) {
+async function drawSpark(cid, key, isCrypto, isUp, sourceSym) {
+  // sourceSym lets commodities pass their Yahoo futures symbol (GC=F) while the
+  // cache key / element id stays the friendly symbol (GOLD).
+  const fetchSym = sourceSym || key;
   // Find ALL elements with this ID — the same symbol can appear on dashboard AND on stocks/crypto page simultaneously.
   // getElementById returns only the first; we need to draw on all of them.
   const containers = Array.from(document.querySelectorAll(`[id="${cid}"]`));
@@ -9507,12 +9445,12 @@ async function drawSpark(cid, key, isCrypto, isUp) {
     } else {
       // Paint cached data immediately, then refresh in the background. If a monthly
       // series is unavailable, an actual intraday series is still a truthful fallback.
-      const cached = peekStockHist(key, '1mo') || peekStockHist(key, '1d');
+      const cached = peekStockHist(fetchSym, '1mo') || peekStockHist(fetchSym, '1d');
       if (cached?.length >= 2) prices = cached.map(d => d.p).filter(Number.isFinite);
-      const fresh = await getStockHist(key, '1mo');
+      const fresh = await getStockHist(fetchSym, '1mo');
       if (fresh?.length >= 2) prices = fresh.map(d => d.p).filter(Number.isFinite);
       if (!prices?.length) {
-        const day = await getStockHist(key, '1d');
+        const day = await getStockHist(fetchSym, '1d');
         if (day?.length >= 2) prices = day.map(d => d.p).filter(Number.isFinite);
       }
       if (!prices?.length) {
@@ -9571,16 +9509,7 @@ async function drawSpark(cid, key, isCrypto, isUp) {
 // ═══════════════════════════════════════════
 function cardHTML(o) {
   const {sym, name, icon, color, type, value, qtyLabel, priceStr, priceUSD, change, pnlDay, pnlTotal, id} = o;
-  // Keep the daily % in lock-step with the daily ₪: derive the percentage from the
-  // same P&L figure (gain ÷ starting value), so a lot bought today shows a % measured
-  // from your buy price — exactly like the shekel amount. Fall back to the raw
-  // market change only when there's no P&L (e.g. a manual holding with no price data).
-  let dayPct = change;
-  if (pnlDay != null && Number.isFinite(value)) {
-    const basisVal = value - pnlDay;               // portfolio value at the measurement start
-    dayPct = basisVal > 0 ? (pnlDay / basisVal) * 100 : change;
-  }
-  const up = (dayPct != null ? dayPct : 0) >= 0, pup = (pnlDay || 0) >= 0;
+  const up = change >= 0, pup = (pnlDay || 0) >= 0;
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
@@ -9595,7 +9524,7 @@ function cardHTML(o) {
     <div class="spk" id="spk_${sym}"></div>
     <div class="cb">
       <div class="pb">
-        <div class="pp ${up?'up':'dn'}" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'▲':'▼'} ${dayPct!=null?Math.abs(dayPct).toFixed(2):'--'}%</div>
+        <div class="pp ${up?'up':'dn'}" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'▲':'▼'} ${change!=null?Math.abs(change).toFixed(2):'--'}%</div>
         ${pnlDay!=null?`<div class="pn ${pup?'up':'dn'}" style="color:${pup?'var(--gr)':'var(--rd)'}">${pup?'+':''}${fILS(pnlDay)}</div>`:''}
         <div class="pl">P&L יומי</div>
         ${pnlTotal!=null?`<div class="pn pn-total ${pnlTotal>=0?'up':'dn'}" style="color:${pnlTotal>=0?'var(--gr)':'var(--rd)'};margin-top:6px;border-top:1px solid var(--b1);padding-top:4px">${pnlTotal>=0?'+':''}${fILS(pnlTotal)}</div><div class="pl pl-total">P&L מצטבר</div>`:''}
@@ -9711,6 +9640,10 @@ function renderExtraCategories() {
           : (spq?.price > 0 ? `${fPriceNative(spq.price, spq.currency, 2)}`
           : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>'));
         const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${cat.icon}"></i>`);
+        // ⚡ Live assets (commodities with a catalog entry, ETFs/bonds with a quote) get
+        // a sparkline just like stocks/crypto.
+        const liveSpark = (cat.key === 'commodities' && entry) || ((cat.key === 'etfs' || cat.key === 'bonds') && spq?.price > 0);
+        const sparkHTML = liveSpark ? `<div class="spk" id="spk_${a.sym}"></div>` : '';
         return `
           <div class="card manual-card" onclick="${cat.key==='commodities' && entry ? `openDet('${a.sym}','commodity')` : ((cat.key==='etfs'||cat.key==='bonds') && spq?.price>0 ? `openDet('${a.sym}','${cat.key}')` : `openEditor('${cat.key}')`)}">
             <div class="cg" style="background:${a.color || entry?.color || 'var(--gd)'}"></div>
@@ -9720,6 +9653,7 @@ function renderExtraCategories() {
               </div>
               <div class="tag tm" style="margin-left:auto;">${(cat.label||'').toUpperCase()}</div>
             </div>
+            ${sparkHTML}
             <div class="cb">
               <div class="pb">${chgHTML}</div>
               <div style="text-align:left;"><div class="vv">${fILS(valILS)}</div><div class="vq">${fNum(qty)} ${unitLbl}</div></div>
@@ -9729,6 +9663,18 @@ function renderExtraCategories() {
             </div>
           </div>`;
       }).join('');
+      // ⚡ Draw sparklines for live assets in this category (after layout).
+      items.forEach(a => {
+        const entry = cat.key === 'commodities' ? commodityCatalogFor(a.sym) : null;
+        const spq = (cat.key === 'etfs' || cat.key === 'bonds') ? S.sp?.[a.sym] : null;
+        if (cat.key === 'commodities' && entry) {
+          const up = (S.mp?.[entry.key]?.changePct ?? 0) >= 0;
+          setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, false, up, entry.yahoo), 40);
+        } else if ((cat.key === 'etfs' || cat.key === 'bonds') && spq?.price > 0) {
+          const up = (Number.isFinite(spq.change) ? spq.change : 0) >= 0;
+          setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, false, up), 40);
+        }
+      });
     }
   });
 }
@@ -9769,6 +9715,8 @@ function manualCardsHTML(catKey, catIcon, catLabel) {
       : (spq?.price > 0 ? `${fPriceNative(spq.price, spq.currency, 2)}`
       : (price ? `${curr}${fP(price)}` : '<span style="color:var(--t3)">—</span>'));
     const ico = entry ? `<i class="${entry.icon}" style="color:${entry.color}"></i>` : (a.icon || `<i class="ph-thin ${catIcon}"></i>`);
+    const liveSpark = (catKey === 'commodities' && entry) || ((catKey === 'etfs' || catKey === 'bonds') && spq?.price > 0);
+    const sparkHTML = liveSpark ? `<div class="spk" id="spk_${a.sym}"></div>` : '';
     return `
       <div class="card manual-card" onclick="${catKey==='commodities' && entry ? `openDet('${a.sym}','commodity')` : ((catKey==='etfs'||catKey==='bonds') && spq?.price>0 ? `openDet('${a.sym}','${catKey}')` : `openEditor('${catKey}')`)}">
         <div class="cg" style="background:${a.color || (entry ? entry.color : '') || 'var(--gd)'}"></div>
@@ -9778,6 +9726,7 @@ function manualCardsHTML(catKey, catIcon, catLabel) {
           </div>
           <div class="tag tm" style="margin-left:auto;">${(catLabel||'').toUpperCase()}</div>
         </div>
+        ${sparkHTML}
         <div class="cb">
           <div class="pb">${chgHTML}</div>
           <div style="text-align:left;"><div class="vv">${fILS(valILS)}</div><div class="vq">${fNum(qty)} ${unitLbl}</div></div>
@@ -9797,6 +9746,19 @@ function renderManualPage(catKey) {
   const cfg = map[catKey]; if (!cfg) return;
   const grid = document.getElementById(cfg.grid);
   if (grid) grid.innerHTML = manualCardsHTML(catKey, cfg.icon, cfg.label);
+  // ⚡ Draw sparklines for live assets on the dedicated page too.
+  const items = S[catKey] || [];
+  items.forEach(a => {
+    const entry = catKey === 'commodities' ? commodityCatalogFor(a.sym) : null;
+    const spq = (catKey === 'etfs' || catKey === 'bonds') ? S.sp?.[a.sym] : null;
+    if (catKey === 'commodities' && entry) {
+      const up = (S.mp?.[entry.key]?.changePct ?? 0) >= 0;
+      setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, false, up, entry.yahoo), 40);
+    } else if ((catKey === 'etfs' || catKey === 'bonds') && spq?.price > 0) {
+      const up = (Number.isFinite(spq.change) ? spq.change : 0) >= 0;
+      setTimeout(() => drawSpark(`spk_${a.sym}`, a.sym, false, up), 40);
+    }
+  });
 }
 // ═══════════════════════════════════════════
 // ADS SYSTEM + PRO MODE
@@ -10165,13 +10127,15 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  // Daily P&L — computed live from spnl()/cpnl(). The panel's "today" numbers are
-  // patched synchronously below (syncTodayPanel) with these EXACT same figures, in the
-  // same tick — so the hero and the panel can never be even one price-tick apart.
-  const _cryptoPnl = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0;
-  const _stocksPnl = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0;
-  let pnlTotal = _cryptoPnl + _stocksPnl + (Number(S._todayOthersPnl) || 0);
-  let pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : (g > 0 ? (pnlTotal / g) * 100 : 0);
+  // Daily P&L only sums categories that are included in the total.
+  let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
+                 + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
+  let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
+  // ⚡ Single source of truth: when the "סיכום ביצועים לפי תקופה" engine has a FRESH
+  // result for TODAY, the hero shows the exact same number — no more mismatched totals
+  // between the header and the period summary (they used different fx/crypto windows).
+  const tp = S._todayPeriod;
+  if (tp && Date.now() - tp.ts < 6 * 60 * 1000) { pnlTotal = tp.pnl; pnlPct = tp.pct; }
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
@@ -10221,13 +10185,6 @@ function updateKPIs() {
 
   applyWidgetTiles();
   renderAlloc(c, st);
-  // Patch the "today" panel numbers in the SAME tick, from the SAME figures the hero
-  // just displayed. No async, no debounce, no cache — they cannot diverge.
-  try {
-    const _stocksEnd = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (sv(s) || 0), 0) : 0;
-    const _cryptoEnd = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cv(x) || 0), 0) : 0;
-    if (typeof syncTodayPanel === 'function') syncTodayPanel(_stocksPnl, _cryptoPnl, _stocksEnd, _cryptoEnd);
-  } catch(_){ /* panel not mounted yet — fine */ }
 }
 
 // Show/hide the optional KPI tiles per the view config.
@@ -14010,13 +13967,7 @@ async function dashComputeStock(asset,range,fxMap){
     else if(!boughtInside&&range.fromKey===todayLocalDateKey()&&live?.prevClose>0) startPrice=Number(live.prevClose);
     else startPrice=dashPickPrice(series,effective,{strictBefore:!boughtInside});
     if(!(startPrice>0))continue;
-    // For a single-day "today" range, an older holding's basis (prevClose) and its
-    // end price are two points on the SAME day — they must convert with the SAME rate.
-    // Using a cached historical USD→ILS rate for the start while the end uses the live
-    // S.fx introduced a currency-drift gap (hundreds of ₪) between this panel and the
-    // hero header. Pin both sides to the live rate when the range includes today.
-    const sameDayLive = range.includesToday && !boughtInside && !useEntryFallback;
-    const startFx=isIls?1:(sameDayLive?S.fx:(useEntryFallback?endFx:dashFxAt(fxMap,effective)));
+    const startFx=isIls?1:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
     startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
     if(useEntryFallback) usedEntryFallback=true;
@@ -14040,10 +13991,7 @@ async function dashComputeCrypto(asset,range,fxMap){
     const effective=boughtInside?lot.dateKey:range.fromKey;
     const startPrice=(boughtInside||useEntryFallback)&&lot.price>0?lot.price:await dashGetCryptoBoundary(asset,effective);
     if(!(startPrice>0))continue;
-    // Same-day range: pin start FX to the live rate (see stock note above) so the
-    // crypto panel and the hero header agree instead of drifting on currency.
-    const sameDayLive = range.includesToday && !boughtInside && !useEntryFallback;
-    const startFx=sameDayLive?S.fx:(useEntryFallback?endFx:dashFxAt(fxMap,effective));
+    const startFx=useEntryFallback?endFx:dashFxAt(fxMap,effective);
     startValue+=lot.qty*startPrice*startFx;
     endValue+=lot.qty*endPrice*endFx;
     if(useEntryFallback) usedEntryFallback=true;
@@ -14053,57 +14001,21 @@ async function dashComputeCrypto(asset,range,fxMap){
   return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive,basis:usedEntryFallback?'entry':'date'};
 }
 async function dashComputePeriod(range){
-  const _todayK = todayLocalDateKey();
-  const isToday = range.fromKey === range.endKey && range.endKey === _todayK;
-  // ══ SINGLE ENGINE FOR "TODAY" ══
-  // For today's range we compute stocks & crypto with the EXACT same spnl()/cpnl()
-  // functions the hero header uses. This makes the header and this panel structurally
-  // identical — same lots, same baseline rules, same FX — so their totals can never
-  // drift. Longer ranges still use the historical dashComputeStock/Crypto engine
-  // (they need daily candle series that spnl/cpnl don't have).
-  if (isToday) {
-    const items = [];
-    if (catInTotal('stocks')) for (const s of S.stocks) {
-      const end = sv(s); const pnl = spnl(s);
-      if (pnl == null) continue;
-      items.push({ type:'stock', sym:s.sym, name:s.name, icon:s.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
-    }
-    if (catInTotal('crypto')) for (const a of S.crypto) {
-      const end = cv(a); const pnl = cpnl(a);
-      if (pnl == null) continue;
-      items.push({ type:'crypto', sym:a.sym, name:a.name, icon:a.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
-    }
-    // Commodities / ETFs / bonds: keep the existing live-quote logic below by falling
-    // through to the shared assembly, but seed items with the ones already computed.
-    if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
-      const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
-      cItems.filter(Boolean).forEach(x => items.push(x));
-    }
-    for (const extraType of ['etfs','bonds']) {
-      if (typeof catInTotal !== 'function' || !catInTotal(extraType)) continue;
-      const liveAssets = (S[extraType] || []).filter(a => S.sp?.[a.sym]?.price > 0);
-      if (!liveAssets.length) continue;
-      const fxMap = await dashGetFxMap(range, []);
-      const eItems = await dashMapLimit(liveAssets, 4, async a => {
-        const it = await dashComputeStock(a, range, fxMap);
-        if (it) it.type = extraType;
-        return it;
-      });
-      eItems.filter(Boolean).forEach(x => items.push(x));
-    }
-    const group=type=>{
-      const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
-      return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
-    };
-    const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity'),etfs=group('etfs'),bonds=group('bonds');
-    const startValue=stocks.startValue+crypto.startValue+commodities.startValue+etfs.startValue+bonds.startValue;
-    const endValue=stocks.endValue+crypto.endValue+commodities.endValue+etfs.endValue+bonds.endValue;
-    return {range,items,stocks,crypto,commodities,etfs,bonds,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
-  }
   const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
   const fxMap=await dashGetFxMap(range,lotDates);
   const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
+  // 'היום' כשהשוק עוד לא נסחר: הציטוט ה"חי" של מניה עדיין נושא את התנועה של יום
+  // המסחר האחרון. אם הציטוט אינו מהיום — ה-P&L של היום הוא 0 (כמו שבת).
+  const _todayK = todayLocalDateKey();
+  if (range.fromKey === range.endKey && range.endKey === _todayK) {
+    for (const it of items) {
+      if (it.type !== 'stock') continue;
+      const q = S.sp[it.sym];
+      const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null;
+      if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; }
+    }
+  }
   // סחורות: P&L חי לתקופה (זהב, נפט...) — מצטרף לפירוט, לקוביות ולסה"כ.
   if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
     const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
@@ -14117,7 +14029,7 @@ async function dashComputePeriod(range){
     if (!liveAssets.length) continue;
     const eItems = await dashMapLimit(liveAssets, 4, async a => {
       const it = await dashComputeStock(a, range, fxMap);
-      if (it) { it.type = extraType; }
+      if (it) { it.type = extraType; if (range.fromKey === range.endKey && range.endKey === _todayK) { const q = S.sp[a.sym]; const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null; if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; } } }
       return it;
     });
     eItems.filter(Boolean).forEach(x => items.push(x));
@@ -14170,50 +14082,19 @@ async function dashComputeCommodity(a, range) {
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
 function dashSummaryCell(label,g,primary){
   const up=g.pnl>=0;
-  const keyMap={'כלל התיק':'total','מניות':'stocks','קריפטו':'crypto','סחורות':'commodities','תעודות סל':'etfs','אג"ח':'bonds'};
   const meta={'כלל התיק':['ph-briefcase','var(--ac)'],'מניות':['ph-chart-line-up','var(--bl)'],'קריפטו':['ph-coins','var(--ac)'],'סחורות':['ph-medal','var(--gd)'],'תעודות סל':['ph-chart-pie-slice','#9b8cff'],'אג"ח':['ph-bank','var(--gr)']}[label]||['ph-squares-four','var(--ac)'];
-  return `<div class="psc${primary?' is-primary':''}" data-psc="${keyMap[label]||''}" style="--psc-c:${meta[1]}">
+  return `<div class="psc${primary?' is-primary':''}" style="--psc-c:${meta[1]}">
     <div class="psc-head"><span class="psc-ico"><i class="ph-thin ${meta[0]}"></i></span><span class="psc-lbl">${label}</span><span class="psc-pill ${up?'up':'dn'}">${up?'▲':'▼'} ${fPct(g.pct).replace('+','').replace('-','')}</span></div>
     <div class="psc-val" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div>
   </div>`;
 }
-// ── Synchronous today-panel updater ──
-// Runs in the SAME tick as the hero update, from the SAME in-memory prices, so the
-// hero and the panel numbers can never be one price-tick apart. Stocks & crypto are
-// recomputed with spnl()/cpnl(); slower-moving categories (commodities/ETF/bonds)
-// keep the value from the last full async compute (stored in S._todayOthersPnl).
-function syncTodayPanel(stocksPnl, cryptoPnl, stocksEnd, cryptoEnd) {
-  try {
-    if (typeof dashPeriod === 'undefined' || dashPeriod !== 'today') return;
-    const grid = document.getElementById('dashPeriodGrid');
-    if (!grid) return;
-    const others = Number(S._todayOthersPnl) || 0;
-    const totalPnl = stocksPnl + cryptoPnl + others;
-    const patch = (key, pnl, endVal) => {
-      const cell = grid.querySelector(`[data-psc="${key}"]`);
-      if (!cell) return;
-      const up = pnl >= 0;
-      const basis = endVal - pnl;
-      const pct = basis > 0 ? (pnl / basis) * 100 : 0;
-      const pill = cell.querySelector('.psc-pill');
-      const val = cell.querySelector('.psc-val');
-      if (pill) { pill.className = 'psc-pill ' + (up ? 'up' : 'dn'); pill.innerHTML = `${up?'▲':'▼'} ${fPct(pct).replace('+','').replace('-','')}`; }
-      if (val) { val.style.color = up ? 'var(--gr)' : 'var(--rd)'; val.textContent = (up?'+':'') + fILS(pnl); }
-    };
-    patch('stocks', stocksPnl, stocksEnd);
-    patch('crypto', cryptoPnl, cryptoEnd);
-    patch('total', totalPnl, stocksEnd + cryptoEnd + (Number(S._todayOthersEnd) || 0));
-  } catch(_){}
-}
 function dashRenderPeriodData(data,{cached=false}={}){
-  // Note: the hero header no longer reads this panel's stocks/crypto (both compute via
-  // spnl/cpnl). We only remember the slow-moving categories' contribution here so the
-  // hero total can include commodities/ETFs/bonds consistently between async recomputes.
+  // Publish today's result so the hero header shows the SAME number as this summary.
   try {
     const tk = todayLocalDateKey();
-    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk) {
-      S._todayOthersPnl = (data.commodities?.pnl || 0) + (data.etfs?.pnl || 0) + (data.bonds?.pnl || 0);
-      S._todayOthersEnd = (data.commodities?.endValue || 0) + (data.etfs?.endValue || 0) + (data.bonds?.endValue || 0);
+    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk && data.total) {
+      S._todayPeriod = { pnl: data.total.pnl, pct: data.total.pct, ts: Date.now() };
+      updateKPIs?.();
     }
   } catch(_){}
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
@@ -14247,17 +14128,12 @@ function dashPeriodCacheKey(range){return `result:${dashPortfolioSignature()}:${
 async function renderDashPeriod(period=dashPeriod,customFrom,customTo){
   dashPeriod=period;
   const range=dashResolveRange(period,customFrom,customTo), key=dashPeriodCacheKey(range), grid=document.getElementById('dashPeriodGrid');
-  const isTodayRange = range.fromKey === range.endKey && range.includesToday;
-  const req=++dashPeriodRequestId, entry=isTodayRange?null:dashCacheEntry(key), ttl=24*60*60*1000;
-  // "today" is NEVER served from cache: its stocks+crypto legs are computed in-memory
-  // with the same spnl()/cpnl() the hero header uses, so recomputing is instant and a
-  // stale cached copy (up to minutes old, possibly from an older engine) was the source
-  // of the hero-vs-panel mismatch. Historical ranges keep the 24h cache.
+  const req=++dashPeriodRequestId, entry=dashCacheEntry(key), ttl=range.includesToday?5*60*1000:24*60*60*1000;
   if(entry?.data){dashRenderPeriodData(entry.data,{cached:true});if(Date.now()-entry.ts<ttl){dashSetStatus('מהזיכרון · עדכני','fresh');return entry.data;}dashSetStatus('מהזיכרון · מעדכן ברקע','updating');}
-  else if(grid && !isTodayRange)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
+  else if(grid)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
   let promise=dashPeriodInFlight.get(key);
   if(!promise){promise=dashComputePeriod(range).finally(()=>dashPeriodInFlight.delete(key));dashPeriodInFlight.set(key,promise);}
-  try{const data=await promise;if(!isTodayRange)dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
+  try{const data=await promise;dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
   catch(e){console.error('[Period summary]',e);if(req===dashPeriodRequestId&&!entry?.data){grid.innerHTML=`<div class="period-error">לא הצלחנו לחשב את התקופה כרגע. נסה שוב בעוד רגע.</div>`;dashSetStatus('שגיאת טעינה','error');}return null;}
 }
 function setDashPeriod(p,btn){
@@ -14571,17 +14447,17 @@ window.proceedToApp = async function() {
 
 
 
-  // After signup: jump to the tab matching the user's investment interest
+  // After signup: enable exactly the categories the user chose, then open the app
+  // on the first one — so a new account starts tailored to their interests.
   if (window._pendingPrefs && window._pendingPrefs.length) {
     const prefs = window._pendingPrefs;
     window._pendingPrefs = null;
-    const target = prefs.includes('crypto') && !prefs.includes('stocks') ? 'crypto'
-                 : prefs.includes('stocks') ? 'stocks'
-                 : prefs.includes('crypto') ? 'crypto'
-                 : 'stocks';
+    applyInvestPrefs(prefs);
+    const order = ['stocks','crypto','commodities','bonds','etfs'];
+    const firstCat = order.find(c => prefs.map(p => PREF_TO_CAT[p]).includes(c)) || 'stocks';
     setTimeout(() => {
-      const btn = document.querySelector(`[data-p="${target}"]`);
-      if (typeof goPage === 'function') goPage(target, btn);
+      const btn = document.querySelector(`[data-p="${firstCat}"]`);
+      if (typeof goPage === 'function') goPage(firstCat, btn);
     }, 700);
   }
 };
