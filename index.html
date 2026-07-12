@@ -702,6 +702,7 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-cards-toggle span { display:flex; align-items:center; gap:7px; }
 .period-cards-caret { transition:transform .2s ease; font-size:13px; }
 .period-cards-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
+.period-side { display:flex; flex-direction:column; gap:10px; min-width:0; }
 .period-asset-card { background:var(--s3); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:12px; cursor:pointer; min-width:0; transition:border-color .15s, transform .15s; }
 .period-asset-card:hover { border-color:var(--ac); transform:translateY(-1px); }
 .period-asset-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; min-width:0; }
@@ -713,6 +714,14 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-asset-pnl { font-size:11px; font-weight:600; font-family:var(--font-mono); }
 .period-asset-from { font-size:8.5px; color:var(--t3); margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .period-summary { background:var(--s1); border:1px solid var(--b2); border-radius:var(--radius-sm); padding:13px; }
+/* Desktop: summary and asset-detail sit side by side — summary in the first column
+   (the right side in RTL), detail beside it filling the rest. Mobile keeps the
+   stacked full-width layout. */
+@media (min-width:1024px){
+  .period-result-grid { display:grid !important; grid-template-columns:minmax(430px, 38%) 1fr; gap:14px; align-items:start; }
+  .period-summary { position:sticky; top:10px; }
+  .period-side { min-width:0; }
+}
 .period-summary-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
 .period-summary-title { font-size:11px; color:var(--t2); font-weight:700; }
 .period-summary-range { font-size:9.5px; color:var(--t3); font-family:var(--font-mono); }
@@ -10198,6 +10207,10 @@ window.closeViewModal = closeViewModal;
 
 // ── Privacy: hide ONLY the grand total (everything else stays visible) ──
 function balanceHidden() { return localStorage.getItem('balanceHidden') === '1'; }
+// KPI tiles that display MONEY amounts and must be masked together with the main
+// balance. Rate (fxKpi), % performers and asset-count tiles stay visible — they
+// don't reveal portfolio size.
+const MONEY_KPI_IDS = ['sKpi','cKpi','commoditiesKpi','bondsKpi','etfsKpi','totalPnlKpi'];
 function applyBalanceHidden() {
   const hidden = balanceHidden();
   const wrap = document.getElementById('grandNumWrap');
@@ -10214,6 +10227,13 @@ function applyBalanceHidden() {
   if (sym) sym.style.opacity = hidden ? '.35' : '';
   if (usd) usd.style.visibility = hidden ? 'hidden' : '';
   if (eye) eye.innerHTML = hidden ? '<i class="ph-thin ph-eye-slash"></i>' : '<i class="ph-thin ph-eye"></i>';
+  // Mask/unmask the money KPI tiles in the same click.
+  MONEY_KPI_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (hidden) { if (!el.dataset.real) el.dataset.real = el.textContent; el.textContent = '••••'; }
+    else if (el.dataset.real !== undefined) { delete el.dataset.real; /* refreshed by updateKPIs */ }
+  });
 }
 function toggleBalanceHidden() {
   localStorage.setItem('balanceHidden', balanceHidden() ? '0' : '1');
@@ -10295,15 +10315,13 @@ function updateKPIs() {
     usdEl.style.display = '';
     usdEl.textContent = '≈ $' + (g / S.fx).toLocaleString('en', {maximumFractionDigits:0});
   }
-  // Daily P&L only sums categories that are included in the total.
-  let pnlTotal = (catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0)
-                 + (catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0);
-  let pnlPct = g > 0 ? (pnlTotal / g) * 100 : 0;
-  // ⚡ Single source of truth: when the "סיכום ביצועים לפי תקופה" engine has a FRESH
-  // result for TODAY, the hero shows the exact same number — no more mismatched totals
-  // between the header and the period summary (they used different fx/crypto windows).
-  const tp = S._todayPeriod;
-  if (tp && Date.now() - tp.ts < 6 * 60 * 1000) { pnlTotal = tp.pnl; pnlPct = tp.pct; }
+  // Daily P&L — computed live from spnl()/cpnl(). The panel's "today" numbers are
+  // patched synchronously at the end of this function (syncTodayPanel) with these
+  // EXACT figures, in the same tick — hero and panel can never diverge.
+  const _cryptoPnl = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cpnl(x) || 0), 0) : 0;
+  const _stocksPnl = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (spnl(s) || 0), 0) : 0;
+  let pnlTotal = _cryptoPnl + _stocksPnl + (Number(S._todayOthersPnl) || 0);
+  let pnlPct = (g - pnlTotal) > 0 ? (pnlTotal / (g - pnlTotal)) * 100 : (g > 0 ? (pnlTotal / g) * 100 : 0);
   const badge = document.getElementById('chgBadge');
   badge.textContent = fPct(pnlPct); badge.className = 'badge ' + (pnlPct >= 0 ? 'up' : 'dn');
   const pnlEl = document.getElementById('chgAbs');
@@ -10354,6 +10372,16 @@ function updateKPIs() {
   applyWidgetTiles();
   renderAlloc(c, st);
   fitStatValues();   // ⚡ shrink any KPI value that would overflow its card (no clipping)
+  // Patch the "today" panel numbers in the SAME tick, from the SAME figures the hero
+  // just displayed. No async, no debounce, no cache — they cannot diverge.
+  try {
+    const _stocksEnd = catInTotal('stocks') ? S.stocks.reduce((a, s) => a + (sv(s) || 0), 0) : 0;
+    const _cryptoEnd = catInTotal('crypto') ? S.crypto.reduce((a, x) => a + (cv(x) || 0), 0) : 0;
+    if (typeof syncTodayPanel === 'function') syncTodayPanel(_stocksPnl, _cryptoPnl, _stocksEnd, _cryptoEnd);
+  } catch(_){ /* panel not mounted yet — fine */ }
+  // Re-apply the privacy mask AFTER all tile writes above, so fresh values can't
+  // overwrite the censored state when the eye is closed.
+  applyBalanceHidden();
 }
 
 // Auto-shrink stat-card values so long numbers fit instead of being clipped to "…".
@@ -14189,21 +14217,54 @@ async function dashComputeCrypto(asset,range,fxMap){
   return {sym:asset.sym,name:asset.name,icon:asset.icon,type:'crypto',startValue,endValue,pnl:endValue-startValue,pct:(endValue-startValue)/startValue*100,activeFrom:firstActive,basis:usedEntryFallback?'entry':'date'};
 }
 async function dashComputePeriod(range){
+  const _todayK = todayLocalDateKey();
+  const isToday = range.fromKey === range.endKey && range.endKey === _todayK;
+  // ══ SINGLE ENGINE FOR "TODAY" ══
+  // Today's stocks & crypto are computed with the EXACT same spnl()/cpnl() functions
+  // the hero header uses — same lots, same baselines, same FX — so the header and this
+  // panel are structurally identical and can never drift. Longer ranges use the
+  // historical engine below (they need daily candle series spnl/cpnl don't have).
+  if (isToday) {
+    const items = [];
+    if (catInTotal('stocks')) for (const s of S.stocks) {
+      const end = sv(s); const pnl = spnl(s);
+      if (pnl == null) continue;
+      items.push({ type:'stock', sym:s.sym, name:s.name, icon:s.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
+    }
+    if (catInTotal('crypto')) for (const a of S.crypto) {
+      const end = cv(a); const pnl = cpnl(a);
+      if (pnl == null) continue;
+      items.push({ type:'crypto', sym:a.sym, name:a.name, icon:a.icon, startValue:end - pnl, endValue:end, pnl, pct:(end-pnl)?pnl/(end-pnl)*100:0 });
+    }
+    if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
+      const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
+      cItems.filter(Boolean).forEach(x => items.push(x));
+    }
+    for (const extraType of ['etfs','bonds']) {
+      if (typeof catInTotal !== 'function' || !catInTotal(extraType)) continue;
+      const liveAssets = (S[extraType] || []).filter(a => S.sp?.[a.sym]?.price > 0);
+      if (!liveAssets.length) continue;
+      const fxMap = await dashGetFxMap(range, []);
+      const eItems = await dashMapLimit(liveAssets, 4, async a => {
+        const it = await dashComputeStock(a, range, fxMap);
+        if (it) it.type = extraType;
+        return it;
+      });
+      eItems.filter(Boolean).forEach(x => items.push(x));
+    }
+    const group=type=>{
+      const arr=items.filter(i=>i.type===type),start=arr.reduce((a,i)=>a+i.startValue,0),end=arr.reduce((a,i)=>a+i.endValue,0);
+      return {startValue:start,endValue:end,pnl:end-start,pct:start?(end-start)/start*100:0,count:arr.length};
+    };
+    const stocks=group('stock'),crypto=group('crypto'),commodities=group('commodity'),etfs=group('etfs'),bonds=group('bonds');
+    const startValue=stocks.startValue+crypto.startValue+commodities.startValue+etfs.startValue+bonds.startValue;
+    const endValue=stocks.endValue+crypto.endValue+commodities.endValue+etfs.endValue+bonds.endValue;
+    return {range,items,stocks,crypto,commodities,etfs,bonds,total:{startValue,endValue,pnl:endValue-startValue,pct:startValue?(endValue-startValue)/startValue*100:0},computedAt:Date.now()};
+  }
   const lotDates=[...S.stocks,...S.crypto].flatMap(a=>(a.lots||[]).map(l=>dashLotDateKey(l.date))).filter(k=>k>=range.fromKey&&k<=range.endKey);
   const fxMap=await dashGetFxMap(range,lotDates);
   const descriptors=[...(catInTotal('crypto')?S.crypto.map(asset=>({asset,type:'crypto'})):[]),...(catInTotal('stocks')?S.stocks.map(asset=>({asset,type:'stock'})):[])];
   const items=(await dashMapLimit(descriptors,5,async d=>d.type==='stock'?dashComputeStock(d.asset,range,fxMap):dashComputeCrypto(d.asset,range,fxMap))).filter(Boolean);
-  // 'היום' כשהשוק עוד לא נסחר: הציטוט ה"חי" של מניה עדיין נושא את התנועה של יום
-  // המסחר האחרון. אם הציטוט אינו מהיום — ה-P&L של היום הוא 0 (כמו שבת).
-  const _todayK = todayLocalDateKey();
-  if (range.fromKey === range.endKey && range.endKey === _todayK) {
-    for (const it of items) {
-      if (it.type !== 'stock') continue;
-      const q = S.sp[it.sym];
-      const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null;
-      if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; }
-    }
-  }
   // סחורות: P&L חי לתקופה (זהב, נפט...) — מצטרף לפירוט, לקוביות ולסה"כ.
   if (typeof catInTotal === 'function' && catInTotal('commodities') && (S.commodities || []).length) {
     const cItems = await Promise.all((S.commodities || []).map(a => dashComputeCommodity(a, range)));
@@ -14217,7 +14278,7 @@ async function dashComputePeriod(range){
     if (!liveAssets.length) continue;
     const eItems = await dashMapLimit(liveAssets, 4, async a => {
       const it = await dashComputeStock(a, range, fxMap);
-      if (it) { it.type = extraType; if (range.fromKey === range.endKey && range.endKey === _todayK) { const q = S.sp[a.sym]; const qKey = q?.quoteTime ? dateKeyInTimeZone(q.quoteTime, APP_TIME_ZONE) : null; if (qKey !== _todayK) { it.endValue = it.startValue; it.pnl = 0; it.pct = 0; } } }
+      if (it) { it.type = extraType; }
       return it;
     });
     eItems.filter(Boolean).forEach(x => items.push(x));
@@ -14270,19 +14331,48 @@ async function dashComputeCommodity(a, range) {
 function dashPnlHtml(value){const up=value>=0;return `<span style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(value)}</span>`;}
 function dashSummaryCell(label,g,primary){
   const up=g.pnl>=0;
+  const keyMap={'כלל התיק':'total','מניות':'stocks','קריפטו':'crypto','סחורות':'commodities','תעודות סל':'etfs','אג"ח':'bonds'};
   const meta={'כלל התיק':['ph-briefcase','var(--ac)'],'מניות':['ph-chart-line-up','var(--bl)'],'קריפטו':['ph-coins','var(--ac)'],'סחורות':['ph-medal','var(--gd)'],'תעודות סל':['ph-chart-pie-slice','#9b8cff'],'אג"ח':['ph-bank','var(--gr)']}[label]||['ph-squares-four','var(--ac)'];
-  return `<div class="psc${primary?' is-primary':''}" style="--psc-c:${meta[1]}">
+  return `<div class="psc${primary?' is-primary':''}" data-psc="${keyMap[label]||''}" style="--psc-c:${meta[1]}">
     <div class="psc-head"><span class="psc-ico"><i class="ph-thin ${meta[0]}"></i></span><span class="psc-lbl">${label}</span><span class="psc-pill ${up?'up':'dn'}">${up?'▲':'▼'} ${fPct(g.pct).replace('+','').replace('-','')}</span></div>
     <div class="psc-val" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(g.pnl)}</div>
   </div>`;
 }
+// ── Synchronous today-panel updater ──
+// Runs in the SAME tick as the hero update, from the SAME in-memory figures, so the
+// hero and the panel can never be one price-tick apart. Slow categories
+// (commodities/ETF/bonds) keep their last full-compute contribution (S._todayOthers*).
+function syncTodayPanel(stocksPnl, cryptoPnl, stocksEnd, cryptoEnd) {
+  try {
+    if (typeof dashPeriod === 'undefined' || dashPeriod !== 'today') return;
+    const grid = document.getElementById('dashPeriodGrid');
+    if (!grid) return;
+    const others = Number(S._todayOthersPnl) || 0;
+    const totalPnl = stocksPnl + cryptoPnl + others;
+    const patch = (key, pnl, endVal) => {
+      const cell = grid.querySelector(`[data-psc="${key}"]`);
+      if (!cell) return;
+      const up = pnl >= 0;
+      const basis = endVal - pnl;
+      const pct = basis > 0 ? (pnl / basis) * 100 : 0;
+      const pill = cell.querySelector('.psc-pill');
+      const val = cell.querySelector('.psc-val');
+      if (pill) { pill.className = 'psc-pill ' + (up ? 'up' : 'dn'); pill.innerHTML = `${up?'▲':'▼'} ${fPct(pct).replace('+','').replace('-','')}`; }
+      if (val) { val.style.color = up ? 'var(--gr)' : 'var(--rd)'; val.textContent = (up?'+':'') + fILS(pnl); }
+    };
+    patch('stocks', stocksPnl, stocksEnd);
+    patch('crypto', cryptoPnl, cryptoEnd);
+    patch('total', totalPnl, stocksEnd + cryptoEnd + (Number(S._todayOthersEnd) || 0));
+  } catch(_){}
+}
 function dashRenderPeriodData(data,{cached=false}={}){
-  // Publish today's result so the hero header shows the SAME number as this summary.
+  // Remember slow-category contributions so the hero total includes them consistently
+  // between async recomputes. (Hero stocks/crypto come from spnl/cpnl directly.)
   try {
     const tk = todayLocalDateKey();
-    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk && data.total) {
-      S._todayPeriod = { pnl: data.total.pnl, pct: data.total.pct, ts: Date.now() };
-      updateKPIs?.();
+    if (data?.range && data.range.fromKey === data.range.endKey && data.range.endKey === tk) {
+      S._todayOthersPnl = (data.commodities?.pnl || 0) + (data.etfs?.pnl || 0) + (data.bonds?.pnl || 0);
+      S._todayOthersEnd = (data.commodities?.endValue || 0) + (data.etfs?.endValue || 0) + (data.bonds?.endValue || 0);
     }
   } catch(_){}
   const grid=document.getElementById('dashPeriodGrid'); if(!grid)return;
@@ -14293,9 +14383,9 @@ function dashRenderPeriodData(data,{cached=false}={}){
     return `<div class="period-asset-card" onclick="openDet('${x.sym}','${x.type}')"><div class="period-asset-head"><div class="period-asset-icon">${x.icon||''}</div><div class="period-asset-meta"><div class="period-asset-symbol">${x.sym}</div><div class="period-asset-name">${x.name||''}</div></div></div><div class="period-asset-pct" style="color:${up?'var(--gr)':'var(--rd)'}">${fPct(x.pct)}</div><div class="period-asset-pnl" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'+':''}${fILS(x.pnl)}</div><div class="period-asset-from">${from}</div></div>`;
   }).join('');
   const rangeText=dashRangeLabel(data.range);
-  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${dashSummaryCell('מניות',data.stocks)}${dashSummaryCell('קריפטו',data.crypto)}${data.commodities&&data.commodities.count?dashSummaryCell('סחורות',data.commodities):''}${data.etfs&&data.etfs.count?dashSummaryCell('תעודות סל',data.etfs):''}${data.bonds&&data.bonds.count?dashSummaryCell('אג"ח',data.bonds):''}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
+  const summary=`<div class="period-summary"><div class="period-summary-head"><div class="period-summary-title">סיכום רווח והפסד בתקופה</div><div class="period-summary-range">${rangeText}</div></div><div class="period-summary-grid">${dashSummaryCell('כלל התיק',data.total,true)}${catInTotal('stocks')&&data.stocks&&data.stocks.count?dashSummaryCell('מניות',data.stocks):''}${catInTotal('crypto')&&data.crypto&&data.crypto.count?dashSummaryCell('קריפטו',data.crypto):''}${data.commodities&&data.commodities.count?dashSummaryCell('סחורות',data.commodities):''}${data.etfs&&data.etfs.count?dashSummaryCell('תעודות סל',data.etfs):''}${data.bonds&&data.bonds.count?dashSummaryCell('אג"ח',data.bonds):''}</div><div class="period-summary-note">רכישות שבוצעו בתוך התקופה מחושבות ממחיר ותאריך הקנייה שהוזנו — ולא מתחילת הטווח. כך הוספת נכס חדש אינה נרשמת בטעות כרווח.</div></div>`;
   const cardsBlock = cards
-    ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
+    ? `<div class="period-side"><div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div></div>`
     : '';
   grid.innerHTML = summary + (cardsBlock || '');
   // restore open/closed state (default: open after a period click)
@@ -14312,16 +14402,25 @@ function applyPeriodCardsState(){
   if(caret) caret.style.transform=_periodCardsOpen?'rotate(180deg)':'rotate(0deg)';
 }
 window.togglePeriodCards=togglePeriodCards;
-function dashPeriodCacheKey(range){return `result:${dashPortfolioSignature()}:${range.fromKey}:${range.endKey}`;}
+function dashPeriodCacheKey(range){
+  // Include the visible-categories config so toggling "שינוי תצוגה" invalidates
+  // cached results instead of serving a summary computed with the old category set.
+  const viewSig = ['stocks','crypto','commodities','etfs','bonds'].map(k=>catInTotal(k)?'1':'0').join('');
+  return `result:${dashPortfolioSignature()}:${viewSig}:${range.fromKey}:${range.endKey}`;
+}
 async function renderDashPeriod(period=dashPeriod,customFrom,customTo){
   dashPeriod=period;
   const range=dashResolveRange(period,customFrom,customTo), key=dashPeriodCacheKey(range), grid=document.getElementById('dashPeriodGrid');
-  const req=++dashPeriodRequestId, entry=dashCacheEntry(key), ttl=range.includesToday?5*60*1000:24*60*60*1000;
+  const isTodayRange = range.fromKey === range.endKey && range.includesToday;
+  // "today" is NEVER served from cache: it's computed in-memory with the same
+  // spnl()/cpnl() the hero uses, so recomputing is instant and a stale cached copy
+  // was the source of the hero-vs-panel mismatch. Historical ranges keep 24h cache.
+  const req=++dashPeriodRequestId, entry=isTodayRange?null:dashCacheEntry(key), ttl=24*60*60*1000;
   if(entry?.data){dashRenderPeriodData(entry.data,{cached:true});if(Date.now()-entry.ts<ttl){dashSetStatus('מהזיכרון · עדכני','fresh');return entry.data;}dashSetStatus('מהזיכרון · מעדכן ברקע','updating');}
-  else if(grid)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
+  else if(grid && !isTodayRange)grid.innerHTML='<div class="period-loading"><i class="fi fi-tr-hourglass fi-spin"></i>מחשב לפי תאריכי הקנייה… בפעם הבאה התוצאה תופיע מיד</div>';
   let promise=dashPeriodInFlight.get(key);
   if(!promise){promise=dashComputePeriod(range).finally(()=>dashPeriodInFlight.delete(key));dashPeriodInFlight.set(key,promise);}
-  try{const data=await promise;dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
+  try{const data=await promise;if(!isTodayRange)dashCachePut(key,data);if(req===dashPeriodRequestId)dashRenderPeriodData(data);return data;}
   catch(e){console.error('[Period summary]',e);if(req===dashPeriodRequestId&&!entry?.data){grid.innerHTML=`<div class="period-error">לא הצלחנו לחשב את התקופה כרגע. נסה שוב בעוד רגע.</div>`;dashSetStatus('שגיאת טעינה','error');}return null;}
 }
 function setDashPeriod(p,btn){
