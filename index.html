@@ -158,6 +158,20 @@ body.light::before { opacity: 0; }
 .pro-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px color-mix(in srgb, var(--gd) 25%, transparent); }
 .pro-btn.on { background: var(--gd); color: #0A0F1F; border-color: var(--gd); }
 .pro-btn.on::after { content: ' ✓'; }
+/* Balance privacy eye */
+.balance-eye { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-inline-start:10px; background:var(--s3); border:1px solid var(--b1); border-radius:8px; color:var(--t2); cursor:pointer; font-size:15px; vertical-align:middle; transition:all .12s; padding:0; }
+.balance-eye:hover { border-color:var(--ac); color:var(--ac); }
+/* First-run welcome screen */
+.welcome-ov { position:fixed; inset:0; z-index:950; display:none; align-items:center; justify-content:center; background:color-mix(in srgb, var(--bg,#070B18) 80%, transparent); backdrop-filter:blur(16px); }
+.welcome-ov.show { display:flex; animation:fadeIn .25s ease; }
+.welcome-box { width:min(430px,90vw); background:linear-gradient(160deg, color-mix(in srgb, var(--ac) 10%, var(--s2)), var(--s2)); border:1px solid var(--b2); border-radius:22px; padding:32px 26px; text-align:center; box-shadow:0 40px 100px rgba(0,0,0,.55); }
+.welcome-ico { width:66px; height:66px; margin:0 auto 16px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:color-mix(in srgb, var(--ac) 18%, transparent); color:var(--ac); font-size:32px; }
+.welcome-title { font-size:22px; font-weight:800; color:var(--t1); margin-bottom:10px; }
+.welcome-sub { font-size:13.5px; color:var(--t2); line-height:1.6; margin-bottom:22px; }
+.welcome-cta { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:var(--ac); color:#fff; border:none; border-radius:12px; padding:13px; font-family:var(--font-body); font-size:14.5px; font-weight:800; cursor:pointer; transition:transform .12s, box-shadow .12s; }
+.welcome-cta:hover { transform:translateY(-2px); box-shadow:0 10px 30px color-mix(in srgb, var(--ac) 35%, transparent); }
+.welcome-skip { margin-top:12px; background:none; border:none; color:var(--t3); font-size:12.5px; cursor:pointer; text-decoration:underline; }
+.welcome-skip:hover { color:var(--t2); }
 /* ── Profile chip + popover ── */
 .profile-chip { display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; overflow:hidden; border:2px solid color-mix(in srgb, var(--ac) 55%, var(--b1)); background:var(--s3); cursor:pointer; padding:0; transition:transform .12s, box-shadow .12s; }
 .profile-chip:hover { transform:scale(1.06); box-shadow:0 0 0 3px color-mix(in srgb, var(--ac) 20%, transparent); }
@@ -687,13 +701,6 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-cards-toggle:hover { border-color:var(--ac); color:var(--t1); }
 .period-cards-toggle span { display:flex; align-items:center; gap:7px; }
 .period-cards-caret { transition:transform .2s ease; font-size:13px; }
-/* Hide-balance eye button next to the total */
-.balance-eye { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; margin-inline-start:8px; vertical-align:middle; background:var(--s3); border:1px solid var(--b1); border-radius:7px; color:var(--t2); cursor:pointer; font-size:14px; transition:all .12s; }
-.balance-eye:hover { border-color:var(--ac); color:var(--ac); }
-/* Period-summary collapsible header + spacing when open */
-.period-summary-toggle { margin-bottom:9px; }
-.period-summary-toggle .pss-total { font-family:var(--font-mono); font-weight:800; font-size:13px; }
-.period-summary-body { display:flex; flex-direction:column; gap:9px; }
 .period-cards-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:7px; }
 .period-asset-card { background:var(--s3); border:1px solid var(--b1); border-radius:var(--radius-sm); padding:12px; cursor:pointer; min-width:0; transition:border-color .15s, transform .15s; }
 .period-asset-card:hover { border-color:var(--ac); transform:translateY(-1px); }
@@ -710,13 +717,34 @@ body.light .news-chip.active { color: #F4EFE5; }
 .period-summary-title { font-size:11px; color:var(--t2); font-weight:700; }
 .period-summary-range { font-size:9.5px; color:var(--t3); font-family:var(--font-mono); }
 .period-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:9px; }
+/* Collapsible period panel */
+.period-panel-toggle { cursor:pointer; user-select:none; align-items:center; }
+.period-panel-caret { margin-inline-start:auto; color:var(--t3); transition:transform .2s; font-size:16px; }
+.period-panel.collapsed .period-panel-caret { transform:rotate(-90deg); }
+.period-panel-body { overflow:hidden; transition:max-height .28s ease, opacity .2s ease, margin .2s; max-height:1600px; opacity:1; }
+.period-panel.collapsed .period-panel-body { max-height:0; opacity:0; margin:0; pointer-events:none; }
+/* Mobile: period summary cards stack cleanly instead of cramming */
+@media (max-width: 640px) {
+  /* KPI stat cards: smaller labels/values so nothing gets clipped on narrow screens */
+  .stat { padding: 13px; }
+  .s-lbl { font-size: 10.5px; letter-spacing: .2px; }
+  .s-val { font-size: clamp(14px, 6.5vw, 20px); }
+  .s-sub { font-size: 11px; }
+  .period-summary-grid { grid-template-columns:1fr 1fr; gap:7px; }
+  .psc.is-primary { grid-column:1 / -1; }
+  .psc-val { font-size:15px; }
+  .psc.is-primary .psc-val { font-size:19px; }
+  .psc-lbl { font-size:10px; }
+  .psc-pill { font-size:9px; padding:2px 5px; }
+  .period-result-grid { grid-template-columns:1fr !important; }
+}
 /* ── Redesigned period summary cards ── */
 .psc { position:relative; background:linear-gradient(150deg, color-mix(in srgb, var(--psc-c) 6%, var(--s2)), var(--s2)); border:1px solid var(--b1); border-radius:12px; padding:12px 13px 11px; min-width:0; overflow:hidden; transition:transform .15s, border-color .15s; }
 .psc::before { content:''; position:absolute; inset-inline-start:0; top:10px; bottom:10px; width:3px; border-radius:3px; background:var(--psc-c); opacity:.85; }
 .psc:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--psc-c) 45%, var(--b1)); }
 .psc-head { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
 .psc-ico { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px; background:color-mix(in srgb, var(--psc-c) 14%, transparent); color:var(--psc-c); font-size:14px; flex:0 0 24px; }
-.psc-lbl { font-size:11px; font-weight:700; color:var(--t2); letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psc-lbl { font-size:11px; font-weight:700; color:var(--t2); letter-spacing:.02em; line-height:1.2; overflow-wrap:anywhere; min-width:0; }
 .psc-pill { margin-inline-start:auto; font-family:var(--font-mono); font-size:9.5px; font-weight:800; padding:2.5px 7px; border-radius:999px; white-space:nowrap; }
 .psc-pill.up { color:var(--gr); background:color-mix(in srgb, var(--gr) 12%, transparent); }
 .psc-pill.dn { color:var(--rd); background:color-mix(in srgb, var(--rd) 12%, transparent); }
@@ -739,14 +767,7 @@ body.light .period-summary-cell.is-primary { background:#fff; border:1px solid c
   .period-presets { flex-wrap:wrap; gap:6px; }
   .period-presets .pb2 { flex:1 1 auto; min-width:0; text-align:center; padding:8px 10px; font-size:12px; }
   .period-cards-wrap { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  /* ⚡ Mobile: readable stacked summary cards instead of a cramped 3-across grid.
-     Primary (כלל התיק) full width, the rest 2-up. */
-  .period-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-  .psc.is-primary { grid-column:1 / -1; }
-  .psc-val { font-size:15px; }
-  .psc.is-primary .psc-val { font-size:20px; }
-  .psc-lbl { font-size:10.5px; }
-  .psc-pill { font-size:9px; padding:2px 6px; }
+  .period-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
   .period-summary-cell { padding:9px 7px; }
   .period-summary-value { font-size:13px; letter-spacing:-0.4px; }
   .period-summary-pct { font-size:9px; }
@@ -1035,8 +1056,10 @@ body.light .total::before { display:none; }
   .hero-block .stat-g[data-count="10"] { grid-template-columns: repeat(5, 1fr); }
   .hero-block .stat { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 14px 16px; }
 }
-.s-lbl { font-size: 12px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.s-val { font-family: var(--font-mono); font-size: 23px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-lbl { font-size: 12px; color: var(--t3); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; line-height: 1.25; display: flex; align-items: center; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.s-lbl i { flex: 0 0 auto; }
+.s-lbl > * { min-width: 0; }
+.s-val { font-family: var(--font-mono); font-size: clamp(15px, 5.2vw, 23px); font-weight: 700; white-space: nowrap; overflow: visible; min-width: 0; }
 .s-sub { font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-size: 13px; font-weight: 300; color: var(--t2); margin-top: 4px; }
 .bar { height: 3px; background: var(--s3); margin-top: 10px; border-radius: 2px; overflow: hidden; }
 .bar-f { height: 100%; transition: width 0.8s cubic-bezier(.55,.2,.2,1); }
@@ -1385,6 +1408,8 @@ body.light .view-done-btn { color: var(--bg); }
 .mkpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px; }
 @media(min-width: 480px) { .mkpis { grid-template-columns: repeat(4, 1fr); } }
 .mkpi { background: var(--s3); border: 1px solid var(--b1); border-radius: var(--radius-sm); padding: 12px; }
+.mkpi.avg-toggle { transition:background .12s, border-color .12s; }
+.mkpi.avg-toggle:hover { background:color-mix(in srgb, var(--gd) 8%, transparent); border-color:color-mix(in srgb, var(--gd) 30%, var(--b1)); }
 .mkpi-l { font-size: 11px; color: var(--t3); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
 .mkpi-v { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }
 .mkpi-v.up { color: var(--gr); }
@@ -2184,25 +2209,21 @@ async function finishAuth(user, mode) {
   }
 
   if (!exists && !window.firebaseLastError) {
-    // real account creation: profile doc + starting portfolio
-    // (migrates local-mode work if this device belonged to no one / to this user)
-    const seed = (prevOwner && prevOwner !== uid)
+    // real account creation: profile doc + starting portfolio.
+    // ⚡ A brand-new SIGNUP always starts EMPTY (never inherits demo/other-user data).
+    // Only a genuine login that migrates this same device's local work keeps it.
+    const freshSignup = (mode === 'signup') || (prevOwner && prevOwner !== uid);
+    const seed = freshSignup
       ? { crypto: [], stocks: [], commodities: [], bonds: [], etfs: [] }
       : localPortfolio();
-    // ⚡ Build the initial VIEW from the signup investment picks, so the new account
-    // is created already tailored — no race with a later applyInvestPrefs call.
-    let seedView = null;
-    if (mode === 'signup' && window._signupPrefs && window._signupPrefs.size) {
-      const want = Array.from(window._signupPrefs).map(p => PREF_TO_CAT[p]).filter(Boolean);
-      const show = {};
-      ['stocks','crypto','etfs','bonds','commodities'].forEach(cat => { show[cat] = want.includes(cat); });
-      if (!Object.values(show).some(Boolean)) show.stocks = true;
-      seedView = { show, widgets: (VIEW_DEFAULT?.widgets || {}) };
-      // Apply locally right away too, before any cloud round-trip.
-      try { S.view = { show: { ...(VIEW_DEFAULT?.show||{}), ...show }, widgets: { ...(VIEW_DEFAULT?.widgets||{}) } }; saveView?.(); applyViewEverywhere?.(); } catch(_){}
+    // On a fresh signup, wipe any demo data sitting in localStorage so the empty
+    // cloud doc isn't overwritten by the local defaults on the next save.
+    if (mode === 'signup') {
+      try { ['pc','ps','pcom','pbnd','petf'].forEach(k => localStorage.setItem(k, '[]')); } catch(_){}
+      S.crypto = []; S.stocks = []; S.commodities = []; S.bonds = []; S.etfs = [];
     }
     try {
-      const docPayload = {
+      await setDoc(DOC, {
         ownerUid: uid,
         profile: { email: user.email || '', name: user.displayName || '', photo: user.photoURL || '' },
         createdAt: Date.now(),
@@ -2210,12 +2231,10 @@ async function finishAuth(user, mode) {
         updatedAtServer: serverTimestamp(),
         crypto: seed.crypto,
         stocks: seed.stocks,
-        commodities: seed.commodities || [],
-        bonds: seed.bonds || [],
-        etfs: seed.etfs || [],
-      };
-      if (seedView) docPayload.view = seedView;
-      await setDoc(DOC, docPayload, { merge: true });
+        commodities: seed.commodities,
+        bonds: seed.bonds,
+        etfs: seed.etfs,
+      }, { merge: true });
       window.firebaseSyncState = 'synced';
       window.firebaseLastError = null;
       if (mode === 'login' && err) err.textContent = 'לא נמצא תיק קיים — נפתח עבורך תיק ענן חדש';
@@ -2669,10 +2688,7 @@ onAuthStateChanged(auth, async user => {
           </button>
         </div>
         <div class="t-lbl">שווי שוק כולל — נכסים</div>
-        <div class="t-val">
-          <span id="grandNumWrap"><span id="grandNum">---</span></span><span class="sym" id="grandSym">ILS</span>
-          <button class="balance-eye" id="balanceEye" onclick="toggleBalanceHidden()" title="הסתר/הצג סכום" aria-label="הסתר סכום"><i class="ph-thin ph-eye"></i></button>
-        </div>
+        <div class="t-val"><span id="grandNumWrap"><span id="grandNum">---</span></span><span class="sym" id="grandSym">ILS</span><button class="balance-eye" id="balanceEye" onclick="toggleBalanceHidden()" title="הסתר/הצג סכום" aria-label="הסתר סכום"><i class="ph-thin ph-eye"></i></button></div>
         <div class="t-meta">
           <div style="display:flex;align-items:center;gap:12px;">
             <div class="badge up" id="chgBadge">---</div>
@@ -2701,10 +2717,12 @@ onAuthStateChanged(auth, async user => {
     </div>
 
     <div class="filter-block period-panel" style="border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-      <div class="period-panel-head">
+      <div class="period-panel-head period-panel-toggle" onclick="togglePeriodPanel()">
         <div class="period-panel-title"><i class="ph-thin ph-chart-line-up ph-sm"></i> סיכום ביצועים לפי תקופה</div>
         <div class="period-cache-status" id="dashPeriodStatus" aria-live="polite"></div>
+        <i class="ph-thin ph-caret-down period-panel-caret" id="periodCaret"></i>
       </div>
+      <div class="period-panel-body" id="periodPanelBody">
       <div class="period-presets" id="dashPeriodRow">
         <button class="pb2 active" onclick="setDashPeriod('today',this)">היום</button>
         <button class="pb2" onclick="setDashPeriod('week',this)">7 ימים</button>
@@ -2725,6 +2743,7 @@ onAuthStateChanged(auth, async user => {
         <div class="period-result-grid" id="dashPeriodGrid">
           <div class="period-initial"><i class="fi fi-tr-hourglass fi-spin"></i> הנתונים יופיעו מיד לאחר טעינת התיק</div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -4922,6 +4941,36 @@ function nativeToILS(amountNative, nativeCur) {
   if (rate) return amountNative * rate * S.fx;       // native → USD → ILS
   return amountNative * S.fx;                        // best-effort fallback
 }
+// Avg-entry price cell that toggles between the NATIVE (purchase) currency and the
+// user's DISPLAY currency on click. Both values are precomputed; a data-attr flips.
+function avgEntryCellHTML(avg, nativeCode) {
+  if (avg == null) return '';
+  const nat = (nativeCode || 'USD').toUpperCase();
+  const nativeStr = fPriceNative(avg, nat, 2);
+  // Convert native → ILS → display currency.
+  const ils = (typeof nativeToILS === 'function') ? nativeToILS(avg, nat) : avg * S.fx;
+  const disp = (S.currency || 'ils').toUpperCase();
+  const dispDef = CURRENCIES[disp] || CURRENCIES.ILS;
+  const dispVal = (typeof convertFromILS === 'function') ? convertFromILS(ils, disp) : ils;
+  const dispStr = dispDef.sym + dispVal.toLocaleString(dispDef.locale || 'en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  // If native == display currency, no toggle needed.
+  const same = nat === disp || (nat === 'ILA' && disp === 'ILS');
+  if (same) {
+    return `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${nativeStr}</div></div>`;
+  }
+  return `<div class="mkpi avg-toggle" onclick="toggleAvgCell(this)" title="לחץ להחלפת מטבע" data-native="${nativeStr.replace(/"/g,'&quot;')}" data-disp="${dispStr.replace(/"/g,'&quot;')}" data-mode="native" style="cursor:pointer">
+    <div class="mkpi-l">מחיר כניסה ממוצע <i class="ph-thin ph-arrows-left-right" style="font-size:10px;opacity:.6"></i></div>
+    <div class="mkpi-v gd avg-toggle-val" style="color:var(--gd)">${nativeStr}</div>
+  </div>`;
+}
+window.toggleAvgCell = function(el) {
+  const valEl = el.querySelector('.avg-toggle-val');
+  if (!valEl) return;
+  const next = el.dataset.mode === 'native' ? 'disp' : 'native';
+  el.dataset.mode = next;
+  valEl.textContent = next === 'native' ? el.dataset.native : el.dataset.disp;
+};
+
 function fPriceNative(pu, nativeCode, decimals = 2) {
   if (pu == null || isNaN(pu)) return '--';
   // Prices are already normalized (ILA→ILS done in fetchYahooQuote). Just format.
@@ -9516,15 +9565,21 @@ async function drawSpark(cid, key, isCrypto, isUp, sourceSym) {
   // fill area path (closed, no animation — just fades in with the line)
   const fillD = d + ` L ${W},${H} L 0,${H} Z`;
 
+  // Unique gradient id per render so multiple sparks don't collide.
+  const gid = `sg_${cid}_${Math.random().toString(36).slice(2,8)}`;
+  // Light mode gets a slightly stronger top opacity so the thin-line + downward
+  // gradient reads clearly on a bright background, just like in dark mode.
+  const isLight = document.body.classList.contains('light');
+  const topOp = isLight ? '0.28' : '0.22';
   const svgHTML = `
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
       <defs>
-        <linearGradient id="sg_${cid}_${Math.random().toString(36).slice(2,8)}" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stop-color="${col}" stop-opacity="0.18"/>
+        <linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="${col}" stop-opacity="${topOp}"/>
           <stop offset="1" stop-color="${col}" stop-opacity="0"/>
         </linearGradient>
       </defs>
-      <path d="${fillD}" fill="${col}" fill-opacity="0.12" opacity="0" style="animation:fadeIn 2.4s cubic-bezier(.55,.2,.2,1) .3s forwards"/>
+      <path d="${fillD}" fill="url(#${gid})" opacity="0" style="animation:fadeIn 2.4s cubic-bezier(.55,.2,.2,1) .3s forwards"/>
       <path class="spark-path" d="${d}" fill="none"
         stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
         style="--dash-len:${len}; stroke-dasharray:${len}; stroke-dashoffset:${len};
@@ -9877,6 +9932,37 @@ function injectAdCards() {
 setInterval(() => { try { injectAdCards(); } catch(_){} }, 2500);
 
 // ── Interstitial: full-screen ad shown once per session right after login/app open ──
+// ── First-run welcome: greet a brand-new user and open the editor so they can start
+// building their portfolio immediately (shown instead of an ad on the first open). ──
+function showWelcomeNewUser(firstCat) {
+  let ov = document.getElementById('welcomeOv');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'welcomeOv';
+    ov.className = 'welcome-ov';
+    ov.innerHTML = `
+      <div class="welcome-box">
+        <div class="welcome-ico"><i class="ph-thin ph-rocket-launch"></i></div>
+        <h2 class="welcome-title">ברוך הבא ל-Vector Equities!</h2>
+        <p class="welcome-sub">התיק שלך עדיין ריק — בוא נתחיל להרכיב אותו. הוסף את הנכסים הראשונים שלך ותראה הכל מתעדכן בזמן אמת.</p>
+        <button class="welcome-cta" id="welcomeStart"><i class="ph-thin ph-plus-circle"></i> הוסף את הנכס הראשון</button>
+        <button class="welcome-skip" id="welcomeSkip">אעשה זאת מאוחר יותר</button>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#welcomeStart').addEventListener('click', () => {
+      ov.classList.remove('show');
+      window._welcomeFlowActive = true;
+      setTimeout(() => {
+        try { openEditor(firstCat === 'crypto' ? 'crypto' : firstCat === 'commodities' ? 'commodities' : firstCat === 'bonds' ? 'bonds' : firstCat === 'etfs' ? 'etfs' : 'stock'); } catch(_){}
+        setTimeout(() => { window._welcomeFlowActive = false; }, 1000);
+      }, 250);
+    });
+    ov.querySelector('#welcomeSkip').addEventListener('click', () => ov.classList.remove('show'));
+  }
+  requestAnimationFrame(() => ov.classList.add('show'));
+}
+window.showWelcomeNewUser = showWelcomeNewUser;
+
 function maybeShowInterstitial(sessionKey = null) {
   // sessionKey null → show EVERY time it's called. With a key → once per tab session.
   if (isPro()) return;
@@ -10100,23 +10186,49 @@ function closeViewModal() {
 }
 window.closeViewModal = closeViewModal;
 
-// ── Hide/show the total balance (privacy) — masks ONLY the grand total ──
+// ── Privacy: hide ONLY the grand total (everything else stays visible) ──
 function balanceHidden() { return localStorage.getItem('balanceHidden') === '1'; }
+function applyBalanceHidden() {
+  const hidden = balanceHidden();
+  const wrap = document.getElementById('grandNumWrap');
+  const sym = document.getElementById('grandSym');
+  const usd = document.getElementById('usdVal');
+  const eye = document.getElementById('balanceEye');
+  if (wrap) {
+    const el = document.getElementById('grandNum');
+    if (el) {
+      if (hidden) { if (!el.dataset.real) el.dataset.real = el.textContent; el.textContent = '••••••'; }
+      else if (el.dataset.real !== undefined) { delete el.dataset.real; /* real value restored on next updateKPIs */ }
+    }
+  }
+  if (sym) sym.style.opacity = hidden ? '.35' : '';
+  if (usd) usd.style.visibility = hidden ? 'hidden' : '';
+  if (eye) eye.innerHTML = hidden ? '<i class="ph-thin ph-eye-slash"></i>' : '<i class="ph-thin ph-eye"></i>';
+}
 function toggleBalanceHidden() {
   localStorage.setItem('balanceHidden', balanceHidden() ? '0' : '1');
-  syncBalanceEye();
-  updateKPIs();
+  updateKPIs();   // re-render the total, then applyBalanceHidden runs inside it
 }
 window.toggleBalanceHidden = toggleBalanceHidden;
-function syncBalanceEye() {
-  const btn = document.getElementById('balanceEye');
-  if (!btn) return;
-  const hidden = balanceHidden();
-  btn.innerHTML = `<i class="ph-thin ${hidden ? 'ph-eye-slash' : 'ph-eye'}"></i>`;
-  btn.title = hidden ? 'הצג סכום' : 'הסתר סכום';
-}
 
-function updateKPIs() {  const {c, st, g} = tots();
+function togglePeriodPanel() {
+  const panel = document.querySelector('.period-panel');
+  if (!panel) return;
+  const collapsed = panel.classList.toggle('collapsed');
+  try { localStorage.setItem('periodPanelCollapsed', collapsed ? '1' : '0'); } catch(_){}
+}
+window.togglePeriodPanel = togglePeriodPanel;
+// Restore collapsed state on load.
+setTimeout(() => {
+  try {
+    if (localStorage.getItem('periodPanelCollapsed') === '1') {
+      document.querySelector('.period-panel')?.classList.add('collapsed');
+    }
+  } catch(_){}
+}, 100);
+
+function updateKPIs() {
+  const {c, st, g} = tots();
   const prevTotal = S._lastTotal || 0;
   S._lastTotal = g;
   // grandNum — simple, no splitting
@@ -10128,7 +10240,8 @@ function updateKPIs() {  const {c, st, g} = tots();
   const symEl = document.querySelector('.t-val .sym');
   if (symEl) symEl.textContent = curCode;
   const grandEl = document.getElementById('grandNum');
-  if (grandEl) grandEl.textContent = balanceHidden() ? '•••••' : (displayVal > 0 ? displayVal.toLocaleString(curDef.locale, {maximumFractionDigits:0}) : '---');
+  if (grandEl) grandEl.textContent = displayVal > 0 ? displayVal.toLocaleString(curDef.locale, {maximumFractionDigits:0}) : '---';
+  applyBalanceHidden();   // ⚡ honor the privacy eye toggle on every render
   // Price-tick flash on the grand total — fires whenever the total moved between updates.
   const wrap = document.getElementById('grandNumWrap');
   if (wrap && prevTotal > 0 && g > 0 && g !== prevTotal) {
@@ -10230,7 +10343,26 @@ function updateKPIs() {  const {c, st, g} = tots();
 
   applyWidgetTiles();
   renderAlloc(c, st);
+  fitStatValues();   // ⚡ shrink any KPI value that would overflow its card (no clipping)
 }
+
+// Auto-shrink stat-card values so long numbers fit instead of being clipped to "…".
+function fitStatValues() {
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.stat .s-val').forEach(el => {
+      el.style.fontSize = '';                 // reset to CSS default first
+      const parent = el.parentElement;
+      if (!parent) return;
+      let size = parseFloat(getComputedStyle(el).fontSize) || 20;
+      let guard = 0;
+      // Shrink until it fits the card width (with a small margin) or hits a floor.
+      while (el.scrollWidth > parent.clientWidth - 2 && size > 11 && guard < 30) {
+        size -= 1; el.style.fontSize = size + 'px'; guard++;
+      }
+    });
+  });
+}
+window.fitStatValues = fitStatValues;
 
 // Show/hide the optional KPI tiles per the view config.
 function applyWidgetTiles() {
@@ -11387,7 +11519,7 @@ async function renderCryptoModal(a, el) {
       <div class="mkpi"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${pu?'$'+fP(pu):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">שינוי 24ש</div><div class="mkpi-v ${ch24>=0?'up':'dn'}" style="color:${ch24>=0?'var(--gr)':'var(--rd)'}">${fPct(ch24)}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${fILS(pnl)}</div></div>
-      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${avgEntryCellHTML(avg, 'USD')}
       ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
@@ -11479,7 +11611,7 @@ function renderCommodityModal(a, el) {
       <div class="mkpi"><div class="mkpi-l">מחיר שוק</div><div class="mkpi-v">${q?.usd ? '$'+fP(q.usd) : '--'}<span style="font-size:10px;color:var(--t3)"> / ${puLbl}</span></div></div>
       <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
-      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">$${fP(avg)}</div></div>` : ''}
+      ${avgEntryCellHTML(avg, 'USD')}
     </div>
     <div class="mch">
       <div class="mchl">אינטגרציית גרף שוק <span id="liveBadge" class="live-badge"><span class="lb-dot"></span>LIVE</span></div>
@@ -11593,7 +11725,7 @@ function renderStockModal(s, el, assetType = 'stock') {
       <div class="mkpi"><div class="mkpi-l">מחיר מנייה</div><div class="mkpi-v">${pu?fPriceNative(pu, p?.currency, 2):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">שינוי יומי</div><div class="mkpi-v ${chg>=0?'up':'dn'}" style="color:${chg>=0?'var(--gr)':'var(--rd)'}">${chg!=null?fPct(chg):'--'}</div></div>
       <div class="mkpi"><div class="mkpi-l">רווח יומי</div><div class="mkpi-v ${pnl>=0?'up':'dn'}" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl!=null?(pnl>=0?'+':'')+fILS(pnl):'--'}</div></div>
-      ${avg!=null ? `<div class="mkpi"><div class="mkpi-l">מחיר כניסה ממוצע</div><div class="mkpi-v gd" style="color:var(--gd)">${fPriceCur(avg,2)}</div></div>` : ''}
+      ${avgEntryCellHTML(avg, p?.currency || 'USD')}
       ${totalPnl!=null ? `<div class="mkpi"><div class="mkpi-l">P&L מצטבר</div><div class="mkpi-v ${totalPnl>=0?'up':'dn'}" style="color:${totalPnl>=0?'var(--gr)':'var(--rd)'}">${totalPnl>=0?'+':''}${fILS(totalPnl)}</div></div>` : ''}
     </div>
     <div class="mch">
@@ -12421,8 +12553,9 @@ function openEditor(tab) {
   document.getElementById('edOv').classList.add('open'); document.body.style.overflow = 'hidden'; renderEd();
   setTimeout(() => { if (typeof syncStatusRefresh === 'function') syncStatusRefresh(); }, 0);
   // Interstitial ad on every editor open — regardless of where it was opened from
-  // (dashboard button, FAB, category pages, modal edit, etc.).
-  setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 350);
+  // (dashboard button, FAB, category pages, modal edit, etc.). Skipped during the
+  // brand-new-user welcome flow so we don't stack an ad on the greeting.
+  if (!window._welcomeFlowActive) setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 350);
 }
 
 // From the asset detail modal: jump straight to the editor for this asset.
@@ -12544,7 +12677,7 @@ function renderEd() {
           <div class="erow-info">
             <div class="erow-sym">${a.sym}</div>
             <div class="erow-name">${a.name||''}</div>
-            ${avg!=null ? `<div style="font-size:10px;color:var(--gd);font-family:var(--font-mono);margin-top:2px">@ ${fPriceCur(avg,2)} ממוצע</div>` : ''}
+            ${avg!=null ? `<div style="font-size:10px;color:var(--gd);font-family:var(--font-mono);margin-top:2px">@ ${fPriceNative(avg, nativeCurrencyForAsset(a, edTab==='crypto'?'crypto':'stock'), 2)} ממוצע</div>` : ''}
           </div>
           <input class="einput" type="number" value="${totalQty}" step="any" placeholder="${cat.unit}" ${hasLots?'disabled title="מנוהל דרך קניות"':''} oninput="${qtyBind}">
           ${(cat.live || ['commodities','etfs','bonds'].includes(edTab)) ? `<button class="lots-toggle" onclick="toggleLots(${i})" title="ניהול קניות">${hasLots?'<i class="ph-thin ph-gear"></i> '+a.lots.length:'<i class="ph-thin ph-plus"></i> הוסף קנייה'}</button>` : ''}
@@ -14154,33 +14287,11 @@ function dashRenderPeriodData(data,{cached=false}={}){
   const cardsBlock = cards
     ? `<div class="period-cards-toggle" id="periodCardsToggle" onclick="togglePeriodCards()"><span><i class="ph-thin ph-squares-four ph-sm"></i> פירוט נכסים (${data.items.length})</span><i class="ph-thin ph-caret-down period-cards-caret" id="periodCardsCaret"></i></div><div class="period-cards-wrap" id="periodCardsWrap">${cards}</div>`
     : '';
-  // ⚡ Wrap the whole summary in a collapsible header (like the asset breakdown).
-  const totalPnlUp = (data.total?.pnl || 0) >= 0;
-  const headerRight = `<span class="pss-total" style="color:${totalPnlUp?'var(--gr)':'var(--rd)'}">${totalPnlUp?'+':''}${fILS(data.total?.pnl||0)}</span>`;
-  grid.innerHTML = `
-    <div class="period-cards-toggle period-summary-toggle" id="periodSummaryToggle" onclick="togglePeriodSummary()">
-      <span><i class="ph-thin ph-chart-bar ph-sm"></i> סיכום ביצועים לפי תקופה</span>
-      <span style="display:flex;align-items:center;gap:10px">${headerRight}<i class="ph-thin ph-caret-down period-cards-caret" id="periodSummaryCaret"></i></span>
-    </div>
-    <div class="period-summary-body" id="periodSummaryBody">
-      ${summary}
-      ${cardsBlock || ''}
-    </div>`;
+  grid.innerHTML = summary + (cardsBlock || '');
   // restore open/closed state (default: open after a period click)
   applyPeriodCardsState();
-  applyPeriodSummaryState();
   dashSetStatus(cached?'מוצג מהזיכרון':'עודכן עכשיו',cached?'updating':'fresh');
 }
-// ── Collapsible whole period-summary section ──
-let _periodSummaryOpen = (localStorage.getItem('periodSummaryOpen') !== '0');
-function togglePeriodSummary(){ _periodSummaryOpen = !_periodSummaryOpen; localStorage.setItem('periodSummaryOpen', _periodSummaryOpen?'1':'0'); applyPeriodSummaryState(); }
-function applyPeriodSummaryState(){
-  const body=document.getElementById('periodSummaryBody'), caret=document.getElementById('periodSummaryCaret');
-  if(!body)return;
-  body.style.display=_periodSummaryOpen?'':'none';
-  if(caret) caret.style.transform=_periodSummaryOpen?'rotate(180deg)':'rotate(0deg)';
-}
-window.togglePeriodSummary=togglePeriodSummary;
 // ── Collapsible asset detail under the period summary ──
 let _periodCardsOpen = false;
 function togglePeriodCards(){ _periodCardsOpen = !_periodCardsOpen; applyPeriodCardsState(); }
@@ -14479,17 +14590,20 @@ window.proceedToApp = async function() {
   appStarted = true;
   tkStart();   // start ticker + market bar ONCE (after the guard, to avoid duplicate intervals)
   applyProState();                                    // PRO button state + hide ads if PRO
-  try { syncBalanceEye(); } catch(_){}                // restore hide-balance eye state
   migrateEtfsFromStocks();                            // QQQ & friends move from stocks → ETFs
   try { applyViewOrder(); } catch(_){}                // dashboard sections follow the saved hierarchy
   setTimeout(() => {
     try {
-      // ⚡ New signups: instead of an ad, open the add-asset editor so the user can
-      // start building their portfolio immediately. Everyone else sees the usual ad.
-      if (window._pendingPrefs && window._pendingPrefs.length) return;   // handled below
-      maybeShowInterstitial();
+      // New user's first run → greet with the "build your portfolio" screen and open
+      // the editor, instead of showing an ad.
+      if (window._newUserFirstRun) {
+        window._newUserFirstRun = false;
+        showWelcomeNewUser(window._newUserFirstCat || 'stocks');
+      } else {
+        maybeShowInterstitial();   // returning users: normal ad
+      }
     } catch(_){}
-  }, 900);   // interstitial ad — every app open (except right after signup)
+  }, 900);
   setTimeout(() => { try { injectAdCards(); } catch(_){} }, 1500);
 
   // ⚡ SPEED: kick off market-price fetching IMMEDIATELY, in parallel with Firebase.
@@ -14530,13 +14644,13 @@ window.proceedToApp = async function() {
     applyInvestPrefs(prefs);
     const order = ['stocks','crypto','commodities','bonds','etfs'];
     const firstCat = order.find(c => prefs.map(p => PREF_TO_CAT[p]).includes(c)) || 'stocks';
-    // Map the first chosen category to its editor tab and open the add-asset editor
-    // so the new user can start building their portfolio right away.
-    const catToTab = { stocks:'stock', crypto:'crypto', commodities:'commodities', bonds:'bonds', etfs:'etfs' };
+    // ⚡ Brand-new user: mark that we should greet them with the "build your portfolio"
+    // screen (instead of an ad) on first app open.
+    window._newUserFirstRun = true;
+    window._newUserFirstCat = firstCat;
     setTimeout(() => {
       const btn = document.querySelector(`[data-p="${firstCat}"]`);
       if (typeof goPage === 'function') goPage(firstCat, btn);
-      setTimeout(() => { try { openEditor(catToTab[firstCat] || 'stock'); } catch(_){} }, 500);
     }, 700);
   }
 };
@@ -14716,6 +14830,9 @@ function toggleTheme() {
     updateKPIs();
     if (S.curPage === 'stocks') renderStocksPage();
     if (S.curPage === 'crypto') renderCryptoPage();
+    // Re-render dashboard cards so sparklines pick up the light/dark gradient.
+    try { renderDashStocks?.(); renderDashCrypto?.(); renderManualCategories?.(); } catch(_){}
+    if (['commodities','bonds','etfs'].includes(S.curPage)) { try { renderManualPage?.(S.curPage); } catch(_){} }
   }
 }
 
