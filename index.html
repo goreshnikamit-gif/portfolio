@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-finviz-heatmap-v3-correct-1d">
+<meta name="app-version" content="2026-07-19-finviz-heatmap-v4-live-market-cap">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-finviz-heatmap-v3-correct-1d");
+console.info("Vector build: 2026-07-19-finviz-heatmap-v4-live-market-cap");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -15565,7 +15565,10 @@ function launchConfetti() {
   // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
   var spSnap = null, spSnapAt = 0;
   var SP_TTL = 15*60*1000; // 15 minutes: instant revisits; manual refresh always bypasses
-  var SP_STORE='vector_sp_heatmap_v4';
+  var SP_STORE='vector_sp_heatmap_v5_live_market_cap';
+  var SP_MCAP_STORE='vector_sp_market_caps_v1';
+  var SP_MCAP_TTL=6*60*60*1000; // fundamentals change slowly; refresh every 6 hours
+  var spCapCache=null;
 
   function el(id){ return document.getElementById(id); }
 
@@ -15815,7 +15818,7 @@ function launchConfetti() {
   // of silently assigning the same median size to every company. Live market caps,
   // when returned, always take precedence over these fallbacks.
   var SP_CAPS = {
-    NVDA:4300, MSFT:3700, AAPL:3200, AVGO:1500, ORCL:900, CRM:290, AMD:290, ADBE:180,
+    NVDA:4300, MSFT:3700, AAPL:4900, AVGO:1500, ORCL:900, CRM:290, AMD:290, ADBE:180,
     QCOM:180, TXN:190, CSCO:260, INTC:105, IBM:275, NOW:210, MU:165, AMAT:170,
     GOOGL:2900, META:1900, NFLX:520, DIS:210, TMUS:330, CMCSA:130, VZ:185, T:210,
     AMZN:2500, TSLA:1250, HD:410, MCD:230, NKE:105, LOW:130, SBUX:105, BKNG:190,
@@ -15836,6 +15839,71 @@ function launchConfetti() {
     'Industrials': [['GE','GE Aerospace'],['CAT','Caterpillar'],['BA','Boeing'],['HON','Honeywell'],['UNP','Union Pacific'],['RTX','RTX'],['UBER','Uber']],
     'Energy': [['XOM','Exxon'],['CVX','Chevron'],['COP','ConocoPhillips']]
   };
+
+  function validSpMarketCap(v){
+    v=Number(v);
+    return Number.isFinite(v) && v>1e8 && v<2e13 ? v : null;
+  }
+
+  function loadSpCapCache(){
+    if(spCapCache) return spCapCache;
+    spCapCache={};
+    try{
+      var raw=localStorage.getItem(SP_MCAP_STORE), parsed=raw&&JSON.parse(raw);
+      if(parsed&&typeof parsed==='object') spCapCache=parsed;
+    }catch(_){}
+    return spCapCache;
+  }
+
+  function saveSpCapCache(){
+    try{ localStorage.setItem(SP_MCAP_STORE,JSON.stringify(loadSpCapCache())); }catch(_){}
+  }
+
+  // Resolve a genuinely current market cap. Yahoo's chart meta frequently omits
+  // this field, which previously forced stale hard-coded weights (AAPL was 3.20T).
+  // Finnhub profile2 is preferred; Yahoo quote is a secondary source; chart meta
+  // and the embedded table are only final fallbacks.
+  async function fetchSpMarketCap(sym, chartCap, force){
+    var cache=loadSpCapCache(), hit=cache[sym];
+    if(!force && hit && validSpMarketCap(hit.v) && (Date.now()-Number(hit.at||0))<SP_MCAP_TTL){
+      return Number(hit.v);
+    }
+
+    var cap=null;
+    try{
+      var fr=await fetch(viaProxy('https://finnhub.io/api/v1/stock/profile2?symbol='+encodeURIComponent(sym)),{
+        cache:'no-store', signal:AbortSignal.timeout(6000)
+      });
+      if(fr.ok){
+        var fj=await fr.json();
+        cap=validSpMarketCap(Number(fj&&fj.marketCapitalization)*1e6);
+      }
+    }catch(_){}
+
+    if(!cap){
+      try{
+        var qOrigin='https://query1.finance.yahoo.com/v7/finance/quote?symbols='+encodeURIComponent(sym);
+        var qUrls=[];
+        var worker=String(typeof MY_PROXY!=='undefined'?MY_PROXY:'').replace(/\/$/,'');
+        if(worker) qUrls.push(worker+'/?url='+encodeURIComponent(qOrigin));
+        qUrls.push('https://corsproxy.io/?url='+encodeURIComponent(qOrigin));
+        for(var qi=0;qi<qUrls.length&&!cap;qi++){
+          try{
+            var qr=await fetch(qUrls[qi],{cache:'no-store',signal:AbortSignal.timeout(4500)});
+            if(!qr.ok) continue;
+            var qt=await qr.text(), qj; try{qj=JSON.parse(qt);}catch(__){continue;}
+            if(typeof qj.contents==='string'){try{qj=JSON.parse(qj.contents);}catch(__){continue;}}
+            var qrow=qj&&qj.quoteResponse&&qj.quoteResponse.result&&qj.quoteResponse.result[0];
+            cap=validSpMarketCap(qrow&&qrow.marketCap);
+          }catch(__){}
+        }
+      }catch(_){}
+    }
+
+    cap=cap||validSpMarketCap(chartCap)||validSpMarketCap((SP_CAPS[sym]||0)*1e9);
+    if(cap){ cache[sym]={v:cap,at:Date.now()}; saveSpCapCache(); }
+    return cap;
+  }
 
   // Fetch one symbol's 1y daily chart straight from Yahoo (racing the same
   // public proxies the app uses). Returns { series:[{t,p}], mcap } — series for
@@ -15924,27 +15992,41 @@ function launchConfetti() {
     var flat=[];
     Object.keys(SP_UNIVERSE).forEach(function(sec){ SP_UNIVERSE[sec].forEach(function(row){ flat.push({sec:sec,t:row[0],n:row[1]}); }); });
 
-    // bounded concurrency: much faster than serial batches, without flooding proxies
-    var data={}, cursor=0, workers=[];
-    var CONCURRENCY=Math.min(18,flat.length);
-    async function worker(){
-      while(cursor<flat.length){
-        var it=flat[cursor++];
+    // Two bounded pools run together: prices/history and live market caps.
+    // This keeps the map fast while preventing stale fallback weights.
+    var data={}, caps={}, chartCursor=0, capCursor=0, workers=[];
+    var CHART_CONCURRENCY=Math.min(16,flat.length);
+    var CAP_CONCURRENCY=Math.min(8,flat.length);
+    async function chartWorker(){
+      while(chartCursor<flat.length){
+        var it=flat[chartCursor++];
         try{ var d=await fetchSpSymbol(it.t); if(d)data[it.t]=d; }catch(_){}
       }
     }
-    for(var wi=0;wi<CONCURRENCY;wi++) workers.push(worker());
+    async function capWorker(){
+      while(capCursor<flat.length){
+        var it=flat[capCursor++];
+        try{
+          var chartCap=data[it.t]&&data[it.t].mcap;
+          var cap=await fetchSpMarketCap(it.t,chartCap,!!force);
+          if(cap)caps[it.t]=cap;
+        }catch(_){}
+      }
+    }
+    for(var wi=0;wi<CHART_CONCURRENCY;wi++) workers.push(chartWorker());
+    for(var ci=0;ci<CAP_CONCURRENCY;ci++) workers.push(capWorker());
     await Promise.all(workers);
 
     var sectors=Object.keys(SP_UNIVERSE).map(function(sec){
       return { name:sec, rows:SP_UNIVERSE[sec].map(function(row){
         var t=row[0], d=data[t];
         var disp=(t==='BRK-B'?'BRK.B':t);
-        if(!d) return { t:disp, n:row[1], cap:(SP_CAPS[t]||null), price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
+        var resolvedCap=caps[t]||((d&&d.mcap)||null)||((SP_CAPS[t]||0)*1e9)||null;
+        if(!d) return { t:disp, n:row[1], cap:(resolvedCap?+(resolvedCap/1e9).toFixed(2):null), price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
         var last=d.last;
         return {
           t:disp, n:row[1],
-          cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):(SP_CAPS[t]||null)),
+          cap:(resolvedCap?+(resolvedCap/1e9).toFixed(2):null),
           price:+(+last).toFixed(2),
           d1:(d.d1!=null?d.d1:pctFromSeries(d.series,last,DAY)),
           w1: pctFromSeries(d.series,last,7*DAY),
@@ -15982,7 +16064,7 @@ function launchConfetti() {
     return sectors;
   }
 
-  async function update(){
+  async function update(force){
     if(scope==='mine'){
       loading(true); setStatus('loading');
       try{ var g=await buildMine(); render(g); setStatus('mine'); }
@@ -15993,7 +16075,7 @@ function launchConfetti() {
     // S&P
     loading(true); setStatus('loading');
     try{
-      var snap=await fetchSP();
+      var snap=await fetchSP(!!force);
       render(shapeSP(snap));
       setStatus('live');
     }catch(err){
@@ -16039,7 +16121,7 @@ function launchConfetti() {
 
   // public entry points
   window.renderMapPage=function(){ buildUI(); update(); };
-  window.mapRefresh=function(){ spSnap=null; spSnapAt=0; try{localStorage.removeItem(SP_STORE);}catch(_){} update(); };
+  window.mapRefresh=function(){ spSnap=null; spSnapAt=0; spCapCache={}; try{localStorage.removeItem(SP_STORE);localStorage.removeItem(SP_MCAP_STORE);}catch(_){} update(true); };
 })();
 </script>
 
