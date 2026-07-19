@@ -15511,9 +15511,10 @@ function launchConfetti() {
    MAP PAGE — heatmap treemap
    · "התיק שלי": reads live quotes already in S.sp[] (0 extra requests
      for 1D); longer intervals reuse getStockPeriodChange() cache.
-   · "S&P 500": one cached snapshot from the Worker (/sp500-map),
-     refreshed server-side every ~15 min → ~96 upstream calls/day total,
-     shared across all users. Browser only ever hits the Worker cache.
+   · "S&P 500": fetched CLIENT-SIDE from Yahoo (browser → proxy race, the
+     same path the rest of the app uses). One 1y-chart call per symbol gives
+     price + market cap (meta) + full history → all intervals computed locally.
+     Loads on demand and refreshes live — no Worker dependency, no waiting.
    ═══════════════════════════════════════════════════════════ */
 (function(){
   var scope = 'mine', interval = '1d', built = false;
@@ -15531,7 +15532,7 @@ function launchConfetti() {
 
   // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
   var spSnap = null, spSnapAt = 0;
-  var SP_TTL = 15*60*1000;
+  var SP_TTL = 60*1000;   // 60s: switching intervals is instant from cache, but refresh re-pulls live
 
   function el(id){ return document.getElementById(id); }
 
@@ -15739,16 +15740,108 @@ function launchConfetti() {
   }
 
   // ── S&P data (worker cache) ──
+  // ── S&P universe (symbols + sectors), fetched CLIENT-SIDE from Yahoo ──
+  // Same data path the rest of the app uses (browser → Yahoo via proxy race),
+  // so it works instantly and refreshes on demand — no Worker, no waiting.
+  var SP_UNIVERSE = {
+    'Technology': [['NVDA','Nvidia'],['MSFT','Microsoft'],['AAPL','Apple'],['AVGO','Broadcom'],['ORCL','Oracle'],['CRM','Salesforce'],['AMD','AMD'],['ADBE','Adobe'],['QCOM','Qualcomm'],['TXN','Texas Instr.'],['CSCO','Cisco'],['INTC','Intel'],['IBM','IBM'],['NOW','ServiceNow'],['MU','Micron'],['AMAT','Applied Mat.']],
+    'Comm. Services': [['GOOGL','Alphabet'],['META','Meta'],['NFLX','Netflix'],['DIS','Disney'],['TMUS','T-Mobile'],['CMCSA','Comcast'],['VZ','Verizon'],['T','AT&T']],
+    'Consumer Disc.': [['AMZN','Amazon'],['TSLA','Tesla'],['HD','Home Depot'],['MCD','McDonald\u2019s'],['NKE','Nike'],['LOW','Lowe\u2019s'],['SBUX','Starbucks'],['BKNG','Booking']],
+    'Consumer Staples': [['WMT','Walmart'],['PG','P&G'],['COST','Costco'],['KO','Coca-Cola'],['PEP','PepsiCo'],['PM','Philip Morris']],
+    'Financials': [['BRK-B','Berkshire'],['JPM','JPMorgan'],['V','Visa'],['MA','Mastercard'],['BAC','Bank of Am.'],['WFC','Wells Fargo'],['GS','Goldman Sachs'],['MS','Morgan Stanley']],
+    'Health Care': [['LLY','Eli Lilly'],['UNH','UnitedHealth'],['JNJ','J&J'],['ABBV','AbbVie'],['MRK','Merck'],['TMO','Thermo Fisher'],['ABT','Abbott'],['PFE','Pfizer']],
+    'Industrials': [['GE','GE Aerospace'],['CAT','Caterpillar'],['BA','Boeing'],['HON','Honeywell'],['UNP','Union Pacific'],['RTX','RTX'],['UBER','Uber']],
+    'Energy': [['XOM','Exxon'],['CVX','Chevron'],['COP','ConocoPhillips']]
+  };
+
+  // Fetch one symbol's 1y daily chart straight from Yahoo (racing the same
+  // public proxies the app uses). Returns { series:[{t,p}], mcap } — series for
+  // all period calcs, mcap (from meta) for cell size. No extra requests beyond
+  // this single call per symbol.
+  async function fetchSpSymbol(sym){
+    var origin='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1y&includePrePost=false&events=div%2Csplits';
+    var worker=String(typeof MY_PROXY!=='undefined'?MY_PROXY:'').replace(/\/$/,'');
+    var urls=[];
+    if(worker) urls.push(worker+'/?url='+encodeURIComponent(origin));
+    urls.push('https://corsproxy.io/?url='+encodeURIComponent(origin));
+    urls.push('https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(origin));
+    urls.push('https://api.allorigins.win/get?url='+encodeURIComponent(origin));
+    for(var u=0;u<urls.length;u++){
+      try{
+        var r=await fetch(urls[u],{cache:'no-store'});
+        if(!r.ok) continue;
+        var txt=await r.text();
+        var j; try{ j=JSON.parse(txt); }catch(_){ continue; }
+        if(typeof j.contents==='string'){ try{ j=JSON.parse(j.contents); }catch(_){ continue; } }
+        var res=j&&j.chart&&j.chart.result&&j.chart.result[0];
+        if(!res) continue;
+        var meta=res.meta||{};
+        var ts=res.timestamp||[];
+        var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+        var adj=(res.indicators&&res.indicators.adjclose&&res.indicators.adjclose[0]&&res.indicators.adjclose[0].adjclose)||null;
+        var closes=adj||q.close||[];
+        var series=[];
+        for(var k=0;k<ts.length;k++){ var c=Number(closes[k]); if(Number.isFinite(ts[k])&&Number.isFinite(c)&&c>0) series.push({t:Number(ts[k])*1000,p:c}); }
+        if(series.length<2) continue;
+        var last=(meta.regularMarketPrice!=null)?+meta.regularMarketPrice:series[series.length-1].p;
+        return { series:series, last:last, mcap:(meta.marketCap!=null?+meta.marketCap:null) };
+      }catch(_){}
+    }
+    return null;
+  }
+
+  function pctFromSeries(series, last, msAgo){
+    if(!series||!series.length) return null;
+    var target=Date.now()-msAgo, idx=-1;
+    for(var i=series.length-1;i>=0;i--){ if(series[i].t<=target){ idx=i; break; } }
+    if(idx<0) return null;
+    var base=series[idx].p; if(!base) return null;
+    var ratio=last/base; if(ratio>25||ratio<0.04) return null;   // spinoff guard
+    return ((last-base)/base)*100;
+  }
+  function ytdMsAgo(){ var d=new Date(); var jan1=Date.UTC(d.getUTCFullYear(),0,1); return Date.now()-jan1; }
+
   async function fetchSP(){
     if(spSnap && (Date.now()-spSnapAt)<SP_TTL) return spSnap;
-    if(typeof MY_PROXY==='undefined' || !MY_PROXY) throw new Error('no proxy');
-    var url=String(MY_PROXY).replace(/\/$/,'')+'/sp500-map';
-    var r=await fetch(url,{cache:'no-store'});
-    if(!r.ok) throw new Error('sp '+r.status);
-    var j=await r.json();
-    // expected shape: { asOf, sectors:[{name, rows:[{t,n,cap,d1,w1,m1,m3,m6,ytd,y1}]}] }
-    spSnap=j; spSnapAt=Date.now();
-    return j;
+    var DAY=86400000;
+    var flat=[];
+    Object.keys(SP_UNIVERSE).forEach(function(sec){ SP_UNIVERSE[sec].forEach(function(row){ flat.push({sec:sec,t:row[0],n:row[1]}); }); });
+
+    // fetch all symbols in parallel-ish batches (browser handles it fast)
+    var data={};
+    var BATCH=10;
+    for(var i=0;i<flat.length;i+=BATCH){
+      var slice=flat.slice(i,i+BATCH);
+      await Promise.all(slice.map(async function(it){
+        try{
+          var d=await fetchSpSymbol(it.t);
+          if(d) data[it.t]=d;
+        }catch(_){}
+      }));
+    }
+
+    var sectors=Object.keys(SP_UNIVERSE).map(function(sec){
+      return { name:sec, rows:SP_UNIVERSE[sec].map(function(row){
+        var t=row[0], d=data[t];
+        var disp=(t==='BRK-B'?'BRK.B':t);
+        if(!d) return { t:disp, n:row[1], cap:null, price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
+        var last=d.last;
+        return {
+          t:disp, n:row[1],
+          cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):null),
+          price:+(+last).toFixed(2),
+          d1: pctFromSeries(d.series,last,DAY),
+          w1: pctFromSeries(d.series,last,7*DAY),
+          m1: pctFromSeries(d.series,last,30*DAY),
+          m3: pctFromSeries(d.series,last,91*DAY),
+          m6: pctFromSeries(d.series,last,182*DAY),
+          ytd:pctFromSeries(d.series,last,ytdMsAgo()),
+          y1: pctFromSeries(d.series,last,365*DAY)
+        };
+      })};
+    });
+    spSnap={ asOf:Date.now(), sectors:sectors }; spSnapAt=Date.now();
+    return spSnap;
   }
   var SP_FIELD={ '1d':'d1','1w':'w1','1m':'m1','3m':'m3','6m':'m6','ytd':'ytd','1y':'y1' };
   function shapeSP(snap){
@@ -15782,13 +15875,12 @@ function launchConfetti() {
     try{
       var snap=await fetchSP();
       render(shapeSP(snap));
-      setStatus('cache');
+      setStatus('live');
     }catch(err){
       console.warn('map S&P',err);
       setStatus('err');
-      // graceful message inside canvas
       var cv=el('mapCanvas');
-      if(cv) cv.innerHTML='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;text-align:center;padding:20px">מפת S&P עדיין לא זמינה — ה-Worker צריך את route ה-<code>/sp500-map</code>.<br>תצוגת "התיק שלי" עובדת כרגיל.</div>';
+      if(cv) cv.innerHTML='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;text-align:center;padding:20px">לא הצלחנו לטעון את נתוני S&P כרגע. נסה לרענן.<br>תצוגת "התיק שלי" עובדת כרגיל.</div>';
     }finally{ loading(false); }
   }
 
