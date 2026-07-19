@@ -15758,43 +15758,33 @@ function launchConfetti() {
   // public proxies the app uses). Returns { series:[{t,p}], mcap } — series for
   // all period calcs, mcap (from meta) for cell size. No extra requests beyond
   // this single call per symbol.
+  // Pull a symbol's 1y series via the app's OWN proven fetcher (getStockHist),
+  // the same one the portfolio view uses — split-adjusted, proxy-raced, cached.
+  // Returns { series:[{t,p}], last, mcap } or null.
   async function fetchSpSymbol(sym){
-    var origin='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?interval=1d&range=1y&includePrePost=false&events=div%2Csplits';
-    var worker=String(typeof MY_PROXY!=='undefined'?MY_PROXY:'').replace(/\/$/,'');
-    var urls=[];
-    if(worker) urls.push(worker+'/?url='+encodeURIComponent(origin));
-    urls.push('https://corsproxy.io/?url='+encodeURIComponent(origin));
-    urls.push('https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(origin));
-    urls.push('https://api.allorigins.win/get?url='+encodeURIComponent(origin));
-    for(var u=0;u<urls.length;u++){
-      try{
-        var r=await fetch(urls[u],{cache:'no-store'});
-        if(!r.ok) continue;
-        var txt=await r.text();
-        var j; try{ j=JSON.parse(txt); }catch(_){ continue; }
-        if(typeof j.contents==='string'){ try{ j=JSON.parse(j.contents); }catch(_){ continue; } }
-        var res=j&&j.chart&&j.chart.result&&j.chart.result[0];
-        if(!res) continue;
-        var meta=res.meta||{};
-        var ts=res.timestamp||[];
-        var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
-        var adj=(res.indicators&&res.indicators.adjclose&&res.indicators.adjclose[0]&&res.indicators.adjclose[0].adjclose)||null;
-        var closes=adj||q.close||[];
-        var series=[];
-        for(var k=0;k<ts.length;k++){ var c=Number(closes[k]); if(Number.isFinite(ts[k])&&Number.isFinite(c)&&c>0) series.push({t:Number(ts[k])*1000,p:c}); }
-        if(series.length<2) continue;
-        var last=(meta.regularMarketPrice!=null)?+meta.regularMarketPrice:series[series.length-1].p;
-        return { series:series, last:last, mcap:(meta.marketCap!=null?+meta.marketCap:null) };
-      }catch(_){}
-    }
-    return null;
+    try{
+      var data=await getStockHist(sym, '1y');
+      if(!data || data.length<2) return null;
+      var last=data[data.length-1].p;
+      var mcap=null;
+      var ent=(typeof S!=='undefined' && S.sp) ? S.sp[sym] : null;
+      if(ent && ent.marketCap) mcap=+ent.marketCap;
+      return { series:data, last:last, mcap:mcap };
+    }catch(_){ return null; }
   }
 
   function pctFromSeries(series, last, msAgo){
-    if(!series||!series.length) return null;
+    if(!series||series.length<2) return null;
     var target=Date.now()-msAgo, idx=-1;
     for(var i=series.length-1;i>=0;i--){ if(series[i].t<=target){ idx=i; break; } }
-    if(idx<0) return null;
+    if(idx<0){
+      // no bar that old — only accept the oldest bar if the series actually
+      // reaches back near the requested age (within ~20%); else we can't tell
+      // the period change, so return null (grey) rather than a false 0.00%.
+      var span=Date.now()-series[0].t;
+      if(span < msAgo*0.8) return null;
+      idx=0;
+    }
     var base=series[idx].p; if(!base) return null;
     var ratio=last/base; if(ratio>25||ratio<0.04) return null;   // spinoff guard
     return ((last-base)/base)*100;
@@ -15825,18 +15815,23 @@ function launchConfetti() {
         var t=row[0], d=data[t];
         var disp=(t==='BRK-B'?'BRK.B':t);
         if(!d) return { t:disp, n:row[1], cap:null, price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
-        var last=d.last;
+        var last=d.last, s=d.series;
+        // daily change: prefer the app's live quote; else last bar vs the bar before it
+        var d1=null;
+        var live=(typeof S!=='undefined' && S.sp) ? S.sp[t] : null;
+        if(live && live.change!=null) d1=+live.change;
+        else if(s.length>=2){ var prev=s[s.length-2].p; if(prev) d1=((last-prev)/prev)*100; }
         return {
           t:disp, n:row[1],
           cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):null),
           price:+(+last).toFixed(2),
-          d1: pctFromSeries(d.series,last,DAY),
-          w1: pctFromSeries(d.series,last,7*DAY),
-          m1: pctFromSeries(d.series,last,30*DAY),
-          m3: pctFromSeries(d.series,last,91*DAY),
-          m6: pctFromSeries(d.series,last,182*DAY),
-          ytd:pctFromSeries(d.series,last,ytdMsAgo()),
-          y1: pctFromSeries(d.series,last,365*DAY)
+          d1: d1,
+          w1: pctFromSeries(s,last,7*DAY),
+          m1: pctFromSeries(s,last,30*DAY),
+          m3: pctFromSeries(s,last,91*DAY),
+          m6: pctFromSeries(s,last,182*DAY),
+          ytd:pctFromSeries(s,last,ytdMsAgo()),
+          y1: pctFromSeries(s,last,365*DAY)
         };
       })};
     });
