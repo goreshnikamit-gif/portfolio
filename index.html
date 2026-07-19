@@ -4457,8 +4457,23 @@ async function getCryptoHist(sym, days) {
 
 async function getStockPeriodChange(sym, period) {
   if (period === '1d') return S.sp[sym]?.change ?? null;
-  const rangeMap = {'1w':'5d','1m':'1mo','3m':'3mo','ytd':'ytd'};
-  const data = await getStockHist(sym, rangeMap[period] || '1mo');
+  const rangeMap = {'1w':'5d','1m':'1mo','3m':'3mo','6m':'6mo','ytd':'ytd','1y':'1y'};
+  const range = rangeMap[period] || '1mo';
+
+  // For multi-day periods prefer Yahoo's SPLIT/SPINOFF-ADJUSTED series. Finnhub
+  // candles don't adjust for events like the WDC→SNDK spinoff, which produces
+  // wildly wrong % (e.g. a +3,000% mover showing as negative). Yahoo requests
+  // include events=div,splits, so its history is corporate-action-adjusted.
+  let data = null;
+  try {
+    if (typeof fetchYahooSeries === 'function') {
+      data = trimStockSeriesToRange(await fetchYahooSeries(sym, range), range, sym);
+    }
+  } catch (_) {}
+  // Fall back to the normal best-source path only if Yahoo gave nothing.
+  if (!data || data.length < 2) {
+    data = await getStockHist(sym, range);
+  }
   if (!data || data.length < 2) return null;
   return ((data[data.length-1].p - data[0].p) / data[0].p) * 100;
 }
