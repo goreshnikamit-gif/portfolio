@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-finviz-heatmap-v3-correct-1d">
+<meta name="app-version" content="2026-07-19-google-auth-ios-safari-v1">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-finviz-heatmap-v3-correct-1d");
+console.info("Vector build: 2026-07-19-google-auth-ios-safari-v1");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1159,57 +1159,6 @@ body.light .total::before { display:none; }
 .map-legend .ml-l { font-size:12px; color:var(--t2); margin:0 8px; }
 .map-legend .ml-s { width:32px; height:13px; }
 .map-cap { color:var(--t3); font-size:12px; text-align:center; margin-top:11px; line-height:1.6; }
-
-/* ── Forecast tab ── */
-.fc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
-.fc-head-txt { max-width:640px; }
-.fc-head-txt h2 { font-size:22px; font-weight:800; margin:0 0 6px; letter-spacing:-.5px; }
-.fc-head-txt p { color:var(--t2); font-size:13px; line-height:1.7; margin:0; }
-.fc-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
-.fc-horizon { display:inline-flex; background:var(--s2); border:1px solid var(--bd); border-radius:11px; padding:3px; gap:2px; }
-.fc-horizon button { background:transparent; border:0; color:var(--t2); font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit; transition:.15s; }
-.fc-horizon button.on { background:var(--ac); color:#fff; }
-.fc-pdf { background:var(--s2); border:1px solid var(--bd); color:var(--t1); font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:10px; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:6px; transition:.15s; }
-.fc-pdf:hover { background:var(--s3); }
-.fc-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:11px; margin-bottom:16px; }
-.fc-kpi { background:var(--s2); border:1px solid var(--bd); border-radius:14px; padding:14px 16px; }
-.fc-kpi .k-lbl { color:var(--t3); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; margin-bottom:7px; }
-.fc-kpi .k-val { font-size:23px; font-weight:800; letter-spacing:-.5px; font-family:var(--font-mono,monospace); }
-.fc-kpi .k-sub { font-size:12px; color:var(--t3); margin-top:3px; }
-.fc-table-wrap { background:var(--s2); border:1px solid var(--bd); border-radius:16px; overflow:hidden; margin-bottom:16px; }
-.fc-table { width:100%; border-collapse:collapse; font-size:13px; }
-.fc-table thead th { text-align:right; padding:12px 14px; font-size:11px; color:var(--t3); font-weight:700; text-transform:uppercase; letter-spacing:.3px; border-bottom:1px solid var(--bd); white-space:nowrap; }
-.fc-table tbody td { padding:13px 14px; border-bottom:1px solid var(--bd); vertical-align:middle; }
-.fc-table tbody tr:last-child td { border-bottom:0; }
-.fc-table tbody tr.fc-total td { background:var(--s1); font-weight:800; }
-.fc-sym { font-weight:800; font-size:14px; }
-.fc-sym small { display:block; color:var(--t3); font-weight:400; font-size:11px; margin-top:1px; }
-.fc-num { font-family:var(--font-mono,monospace); white-space:nowrap; }
-.fc-pill { display:inline-block; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; font-family:var(--font-mono,monospace); }
-.fc-pill.up { background:color-mix(in srgb, var(--gr) 16%, transparent); color:var(--gr); }
-.fc-pill.dn { background:color-mix(in srgb, var(--rd) 16%, transparent); color:var(--rd); }
-.fc-pill.fl { background:var(--s3); color:var(--t2); }
-.fc-rec { font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:7px; white-space:nowrap; }
-.fc-rec.buy { background:color-mix(in srgb, var(--gr) 18%, transparent); color:var(--gr); }
-.fc-rec.hold { background:color-mix(in srgb, #e8a020 20%, transparent); color:#e8a020; }
-.fc-rec.sell { background:color-mix(in srgb, var(--rd) 18%, transparent); color:var(--rd); }
-.fc-rec.na { background:var(--s3); color:var(--t3); }
-.fc-scen { display:flex; gap:4px; align-items:center; font-family:var(--font-mono,monospace); font-size:12px; white-space:nowrap; }
-.fc-scen .bear { color:var(--rd); } .fc-scen .base { color:var(--t1); font-weight:700; } .fc-scen .bull { color:var(--gr); } .fc-scen .sep { color:var(--t3); }
-.fc-insights { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-bottom:16px; }
-.fc-ins-card { background:var(--s2); border:1px solid var(--bd); border-radius:14px; padding:15px 16px; }
-.fc-ins-card .ic-tag { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--ac); background:color-mix(in srgb,var(--ac) 12%, transparent); padding:3px 9px; border-radius:20px; margin-bottom:9px; }
-.fc-ins-card h4 { font-size:14.5px; font-weight:800; margin:0 0 6px; }
-.fc-ins-card p { font-size:12.5px; color:var(--t2); line-height:1.6; margin:0; }
-.fc-disc { background:color-mix(in srgb,#e8a020 8%, var(--s2)); border:1px solid color-mix(in srgb,#e8a020 30%, var(--bd)); border-radius:12px; padding:13px 16px; font-size:12px; color:var(--t2); line-height:1.6; display:flex; gap:10px; align-items:flex-start; }
-.fc-disc i { color:#e8a020; font-size:18px; flex-shrink:0; margin-top:1px; }
-.fc-empty, .fc-loading { text-align:center; padding:50px 20px; color:var(--t2); font-size:14px; }
-.fc-spin { width:30px; height:30px; border:3px solid var(--bd); border-top-color:var(--ac); border-radius:50%; animation:fcspin .8s linear infinite; margin:0 auto 16px; }
-@keyframes fcspin { to { transform:rotate(360deg); } }
-@media (max-width:640px){
-  .fc-table thead th:nth-child(4), .fc-table tbody td:nth-child(4){ display:none; }
-  .fc-head-txt h2 { font-size:19px; }
-}
 .map-tip { position:fixed; pointer-events:none; background:var(--bg); border:1px solid var(--b2); border-radius:10px; padding:9px 12px; font-size:12.5px; opacity:0; transition:opacity .12s; z-index:9999; direction:ltr; text-align:left; min-width:135px; box-shadow:0 12px 30px -12px rgba(0,0,0,.6); }
 .map-tip .mt-t { font-family:var(--font-body); font-weight:800; font-size:14px; color:var(--t1); }
 .map-tip .mt-n { color:var(--t3); font-size:11px; margin-bottom:5px; }
@@ -2058,7 +2007,6 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="nit" id="navBonds" data-p="bonds" onclick="goPage('bonds',this)" style="display:none">אג"ח</button>
     <button class="nit" id="navEtfs" data-p="etfs" onclick="goPage('etfs',this)" style="display:none">תעודות סל</button>
     <button class="nit" data-p="insights" onclick="goPage('insights',this)">תובנות</button>
-    <button class="nit" data-p="forecast" onclick="goPage('forecast',this)">תחזית</button>
     <button class="nit" data-p="map" onclick="goPage('map',this)">מפה</button>
   </nav>
 <div class="topbar">
@@ -2116,7 +2064,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
-import { getAuth, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, OAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence, signInWithPopup, getRedirectResult, GoogleAuthProvider, OAuthProvider, FacebookAuthProvider, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8keJwQPbKsL_JxEcOgsThjCxEVPMeE8s",
@@ -2252,8 +2200,12 @@ window.fbSignOut = async () => {
   await signOut(auth);
 };
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-const isWebView = isIOS && !window.navigator.standalone && /Safari/i.test(navigator.userAgent) === false;
+const userAgent = navigator.userAgent || '';
+const isIOS = /iPhone|iPad|iPod/i.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true;
+const isSafari = /Safari/i.test(userAgent) && !/(CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo)/i.test(userAgent);
+const isKnownIOSBrowser = /(Safari|CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo)/i.test(userAgent);
+const isWebView = isIOS && !isStandalone && !isKnownIOSBrowser;
 
 if (isWebView) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -2521,46 +2473,67 @@ window.doForgot = async () => {
   }
 };
 
+function providerAuthErrorMessage(error) {
+  const code = error?.code || '';
+  const messages = {
+    'auth/popup-closed-by-user': 'חלון Google נסגר לפני סיום ההתחברות — נסו שוב',
+    'auth/popup-blocked': 'Safari חסם את חלון Google. אפשרו חלונות קופצים לאתר ולחצו שוב',
+    'auth/cancelled-popup-request': 'כבר נפתח ניסיון התחברות — השלימו אותו או נסו שוב',
+    'auth/network-request-failed': 'אין חיבור תקין לרשת — בדקו את האינטרנט ונסו שוב',
+    'auth/unauthorized-domain': 'הדומיין של האתר אינו מורשה ב-Firebase Authentication',
+    'auth/web-storage-unsupported': 'הדפדפן חוסם אחסון הנדרש להתחברות. פתחו את האתר ישירות ב-Safari',
+    'auth/operation-not-supported-in-this-environment': 'התחברות Google אינה נתמכת בתוך הדפדפן הפנימי. פתחו את האתר ב-Safari',
+    'auth/internal-error': 'Google לא הצליח להשלים את ההתחברות. נסו שוב בעוד רגע',
+  };
+  return messages[code] || ('התחברות Google נכשלה: ' + (error?.message || code || 'שגיאה לא ידועה'));
+}
+
+async function popupProviderSignIn(provider) {
+  // Redirect auth breaks on Safari when the app and Firebase helper use different
+  // origins, because Safari blocks the third-party storage used to recover the result.
+  // A popup launched directly from the user's tap keeps the OAuth result attached to
+  // this page and works reliably on GitHub Pages / custom static hosting.
+  await window.firebasePersistenceReady;
+  localStorage.removeItem('google_pending_redirect');
+  localStorage.removeItem('google_auth_mode');
+  return signInWithPopup(auth, provider);
+}
+
 window.doGoogleLogin = async () => {
   const err = document.getElementById('lockErr');
   const lbl = document.getElementById('gLbl');
+  const btn = document.getElementById('googleBtn');
   const mode = authMode;
   err.textContent = '';
+  err.style.color = '';
   lbl.textContent = mode === 'signup' ? 'נרשם...' : 'מתחבר לגוגל...';
-  // In SIGNUP mode, require at least one investment area first (same as email signup),
-  // so the account opens tailored to the user's picks.
   if (mode === 'signup' && (!window._signupPrefs || window._signupPrefs.size === 0)) {
     err.textContent = 'בחר/י לפחות תחום השקעה אחד לפני ההרשמה';
     lbl.textContent = 'הרשמה עם Google';
     return;
   }
+  if (btn) btn.disabled = true;
   try {
     const provider = new GoogleAuthProvider();
-    // ⚡ Always let the user pick which Google account — never silently reuse the one
-    // already signed into the browser/device. 'select_account' forces the chooser.
     provider.setCustomParameters({ prompt: 'select_account' });
-    if (isIOS) {
-      localStorage.setItem('google_pending_redirect', '1');
-      localStorage.setItem('google_auth_mode', mode);
-      // Preserve any signup investment picks across the redirect round-trip.
-      if (mode === 'signup') localStorage.setItem('google_pending_prefs', JSON.stringify(Array.from(window._signupPrefs || [])));
-      await signInWithRedirect(auth, provider);
-    } else {
-      const result = await signInWithPopup(auth, provider);
-      // Carry signup investment picks into the app (same path as email signup).
-      if (mode === 'signup' && window._signupPrefs?.size) {
-        const prefs = Array.from(window._signupPrefs);
-        try { localStorage.setItem('invest_prefs', JSON.stringify(prefs)); } catch(_) {}
-        window._pendingPrefs = prefs;
-      }
-      await finishAuth(result.user, mode);
-      lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
-      await offerBiometricEnroll();
-      setTimeout(() => window.proceedToApp(), 600);
+    const result = await popupProviderSignIn(provider);
+    if (!result?.user) throw Object.assign(new Error('Google returned no authenticated user'), { code: 'auth/internal-error' });
+
+    if (mode === 'signup' && window._signupPrefs?.size) {
+      const prefs = Array.from(window._signupPrefs);
+      try { localStorage.setItem('invest_prefs', JSON.stringify(prefs)); } catch(_) {}
+      window._pendingPrefs = prefs;
     }
+    await finishAuth(result.user, mode);
+    lbl.textContent = mode === 'signup' ? 'נרשמת!' : 'מחובר!';
+    await offerBiometricEnroll();
+    setTimeout(() => window.proceedToApp(), 350);
   } catch(e) {
+    console.error('Google sign-in failed:', e);
     lbl.textContent = mode === 'signup' ? 'הרשמה עם Google' : 'היכנס באמצעות Google';
-    err.textContent = e.code === 'auth/popup-closed-by-user' ? 'החלון נסגר — נסה שוב' : 'שגיאה: ' + e.message;
+    err.textContent = providerAuthErrorMessage(e);
+  } finally {
+    if (btn) btn.disabled = false;
   }
 };
 
@@ -2619,13 +2592,8 @@ window.doProviderLogin = async (name) => {
     provider.addScope('email');
   } else return;
   try {
-    if (isIOS && name !== 'apple') {
-      localStorage.setItem('google_pending_redirect', '1');
-      localStorage.setItem('google_auth_mode', mode);
-      await signInWithRedirect(auth, provider);
-      return;
-    }
-    const result = await signInWithPopup(auth, provider);
+    const result = await popupProviderSignIn(provider);
+    if (!result?.user) throw Object.assign(new Error('Provider returned no authenticated user'), { code: 'auth/internal-error' });
     await finishAuth(result.user, mode);
     await offerBiometricEnroll();
     setTimeout(() => window.proceedToApp(), 600);
@@ -2735,43 +2703,78 @@ window.doLogout = async () => {
   setCloudUser(null);
   location.reload();
 };
-// Firebase Auth is the source of truth. Persist the session on this domain and
-// bind the Firestore document whenever the authenticated user changes.
-setPersistence(auth, browserLocalPersistence).catch(error => {
-  console.warn('Could not enable local Firebase Auth persistence:', error);
-});
-
-getRedirectResult(auth).then(async result => {
-  if (result?.user) {
-    const mode = localStorage.getItem('google_auth_mode') || 'login';
-    localStorage.removeItem('google_auth_mode');
-    localStorage.removeItem('google_pending_redirect');
-    // Restore investment picks captured before the iOS redirect round-trip.
-    if (mode === 'signup') {
-      try {
-        const saved = JSON.parse(localStorage.getItem('google_pending_prefs') || '[]');
-        if (Array.isArray(saved) && saved.length) {
-          localStorage.setItem('invest_prefs', JSON.stringify(saved));
-          window._pendingPrefs = saved;
-        }
-      } catch(_) {}
-      localStorage.removeItem('google_pending_prefs');
+// Firebase Auth is the source of truth. Configure durable persistence before any
+// OAuth operation. Safari/private modes differ in which storage backend is usable,
+// so try the durable options in order and keep a session/memory fallback.
+window.firebasePersistenceReady = (async () => {
+  const options = [
+    ['indexedDB', indexedDBLocalPersistence],
+    ['localStorage', browserLocalPersistence],
+    ['sessionStorage', browserSessionPersistence],
+    ['memory', inMemoryPersistence],
+  ];
+  let lastError = null;
+  for (const [name, persistence] of options) {
+    try {
+      await setPersistence(auth, persistence);
+      window.firebasePersistence = name;
+      return name;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Firebase persistence ${name} unavailable:`, error);
     }
-    await finishAuth(result.user, mode);
-    await offerBiometricEnroll();
   }
-}).catch(error => {
-  localStorage.removeItem('google_pending_redirect');
-  console.warn('Google redirect result failed:', error);
-});
+  window.firebaseLastError = lastError;
+  return 'memory';
+})();
+
+// Complete a redirect started by an older cached build, then retire that flow.
+// New sign-ins use popupProviderSignIn(), avoiding Safari's third-party-storage trap.
+window.firebaseRedirectReady = (async () => {
+  await window.firebasePersistenceReady;
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) {
+      const mode = localStorage.getItem('google_auth_mode') || 'login';
+      localStorage.removeItem('google_auth_mode');
+      localStorage.removeItem('google_pending_redirect');
+      if (mode === 'signup') {
+        try {
+          const saved = JSON.parse(localStorage.getItem('google_pending_prefs') || '[]');
+          if (Array.isArray(saved) && saved.length) {
+            localStorage.setItem('invest_prefs', JSON.stringify(saved));
+            window._pendingPrefs = saved;
+          }
+        } catch(_) {}
+        localStorage.removeItem('google_pending_prefs');
+      }
+      await finishAuth(result.user, mode);
+      await offerBiometricEnroll();
+      return result;
+    }
+    // Safari often returns null for the old cross-origin redirect flow. Clear the
+    // stale marker so the login screen does not remain in a fake pending state.
+    localStorage.removeItem('google_pending_redirect');
+    localStorage.removeItem('google_auth_mode');
+    return null;
+  } catch (error) {
+    localStorage.removeItem('google_pending_redirect');
+    localStorage.removeItem('google_auth_mode');
+    console.warn('Legacy Google redirect result failed:', error);
+    return null;
+  }
+})();
 
 onAuthStateChanged(auth, async user => {
   setTimeout(() => { try { window.updateProfileChip?.(); } catch(_){} }, 50);
   try {
+    await window.firebasePersistenceReady;
+    await window.firebaseRedirectReady;
+    // The redirect completion may have populated auth.currentUser after this callback
+    // was queued with null, so always use the freshest Firebase value.
+    user = auth.currentUser || user;
     setCloudUser(user);
     if (user) {
-      // Ensure the per-user document exists even when the session was restored
-      // after a reload, on another tab, or after a redirect login.
       const snapshot = await getDoc(DOC);
       if (!snapshot.exists()) await finishAuth(user, 'login');
     }
@@ -3102,11 +3105,6 @@ onAuthStateChanged(auth, async user => {
     <div class="map-cap">גודל הריבוע = שווי שוק · צבע = שינוי בתקופה הנבחרת · העבר עכבר/אצבע לפרטים.</div>
   </div>
 
-  <div class="page" id="page-forecast">
-    <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>תחזית</div></div>
-    <div id="fcHost"></div>
-  </div>
-
   <div class="page" id="page-commodities">
     <div class="ad-banner-top">
       <span class="ad-badge">פרסומת</span>
@@ -3163,7 +3161,6 @@ onAuthStateChanged(auth, async user => {
   <button class="ni" id="navBondsM" data-p="bonds" onclick="goPage('bonds',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-bank"></i></span><span class="ni-lbl">אג"ח</span></button>
   <button class="ni" id="navEtfsM" data-p="etfs" onclick="goPage('etfs',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-briefcase"></i></span><span class="ni-lbl">תעודות סל</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
-  <button class="ni" data-p="forecast" onclick="goPage('forecast',this)"><span class="ni-ico"><i class="ph-thin ph-crystal-ball"></i></span><span class="ni-lbl">תחזית</span></button>
   <button class="ni" data-p="map" onclick="goPage('map',this)"><span class="ni-ico"><i class="ph-thin ph-grid-nine"></i></span><span class="ni-lbl">מפה</span></button>
 </nav>
 
@@ -9782,7 +9779,6 @@ function goPage(id, btn) {
   if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
   if (id === 'map') renderMapPage();
-  if (id === 'forecast') renderForecastPage();
 }
 
 // ═══════════════════════════════════════════
@@ -15035,7 +15031,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260702-sell-currency-52w-v13');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260719-google-auth-ios-v1');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -15624,7 +15620,10 @@ function launchConfetti() {
   // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
   var spSnap = null, spSnapAt = 0;
   var SP_TTL = 15*60*1000; // 15 minutes: instant revisits; manual refresh always bypasses
-  var SP_STORE='vector_sp_heatmap_v4';
+  var SP_STORE='vector_sp_heatmap_v5_live_market_cap';
+  var SP_MCAP_STORE='vector_sp_market_caps_v1';
+  var SP_MCAP_TTL=6*60*60*1000; // fundamentals change slowly; refresh every 6 hours
+  var spCapCache=null;
 
   function el(id){ return document.getElementById(id); }
 
@@ -15874,7 +15873,7 @@ function launchConfetti() {
   // of silently assigning the same median size to every company. Live market caps,
   // when returned, always take precedence over these fallbacks.
   var SP_CAPS = {
-    NVDA:4300, MSFT:3700, AAPL:3200, AVGO:1500, ORCL:900, CRM:290, AMD:290, ADBE:180,
+    NVDA:4300, MSFT:3700, AAPL:4900, AVGO:1500, ORCL:900, CRM:290, AMD:290, ADBE:180,
     QCOM:180, TXN:190, CSCO:260, INTC:105, IBM:275, NOW:210, MU:165, AMAT:170,
     GOOGL:2900, META:1900, NFLX:520, DIS:210, TMUS:330, CMCSA:130, VZ:185, T:210,
     AMZN:2500, TSLA:1250, HD:410, MCD:230, NKE:105, LOW:130, SBUX:105, BKNG:190,
@@ -15895,6 +15894,71 @@ function launchConfetti() {
     'Industrials': [['GE','GE Aerospace'],['CAT','Caterpillar'],['BA','Boeing'],['HON','Honeywell'],['UNP','Union Pacific'],['RTX','RTX'],['UBER','Uber']],
     'Energy': [['XOM','Exxon'],['CVX','Chevron'],['COP','ConocoPhillips']]
   };
+
+  function validSpMarketCap(v){
+    v=Number(v);
+    return Number.isFinite(v) && v>1e8 && v<2e13 ? v : null;
+  }
+
+  function loadSpCapCache(){
+    if(spCapCache) return spCapCache;
+    spCapCache={};
+    try{
+      var raw=localStorage.getItem(SP_MCAP_STORE), parsed=raw&&JSON.parse(raw);
+      if(parsed&&typeof parsed==='object') spCapCache=parsed;
+    }catch(_){}
+    return spCapCache;
+  }
+
+  function saveSpCapCache(){
+    try{ localStorage.setItem(SP_MCAP_STORE,JSON.stringify(loadSpCapCache())); }catch(_){}
+  }
+
+  // Resolve a genuinely current market cap. Yahoo's chart meta frequently omits
+  // this field, which previously forced stale hard-coded weights (AAPL was 3.20T).
+  // Finnhub profile2 is preferred; Yahoo quote is a secondary source; chart meta
+  // and the embedded table are only final fallbacks.
+  async function fetchSpMarketCap(sym, chartCap, force){
+    var cache=loadSpCapCache(), hit=cache[sym];
+    if(!force && hit && validSpMarketCap(hit.v) && (Date.now()-Number(hit.at||0))<SP_MCAP_TTL){
+      return Number(hit.v);
+    }
+
+    var cap=null;
+    try{
+      var fr=await fetch(viaProxy('https://finnhub.io/api/v1/stock/profile2?symbol='+encodeURIComponent(sym)),{
+        cache:'no-store', signal:AbortSignal.timeout(6000)
+      });
+      if(fr.ok){
+        var fj=await fr.json();
+        cap=validSpMarketCap(Number(fj&&fj.marketCapitalization)*1e6);
+      }
+    }catch(_){}
+
+    if(!cap){
+      try{
+        var qOrigin='https://query1.finance.yahoo.com/v7/finance/quote?symbols='+encodeURIComponent(sym);
+        var qUrls=[];
+        var worker=String(typeof MY_PROXY!=='undefined'?MY_PROXY:'').replace(/\/$/,'');
+        if(worker) qUrls.push(worker+'/?url='+encodeURIComponent(qOrigin));
+        qUrls.push('https://corsproxy.io/?url='+encodeURIComponent(qOrigin));
+        for(var qi=0;qi<qUrls.length&&!cap;qi++){
+          try{
+            var qr=await fetch(qUrls[qi],{cache:'no-store',signal:AbortSignal.timeout(4500)});
+            if(!qr.ok) continue;
+            var qt=await qr.text(), qj; try{qj=JSON.parse(qt);}catch(__){continue;}
+            if(typeof qj.contents==='string'){try{qj=JSON.parse(qj.contents);}catch(__){continue;}}
+            var qrow=qj&&qj.quoteResponse&&qj.quoteResponse.result&&qj.quoteResponse.result[0];
+            cap=validSpMarketCap(qrow&&qrow.marketCap);
+          }catch(__){}
+        }
+      }catch(_){}
+    }
+
+    cap=cap||validSpMarketCap(chartCap)||validSpMarketCap((SP_CAPS[sym]||0)*1e9);
+    if(cap){ cache[sym]={v:cap,at:Date.now()}; saveSpCapCache(); }
+    return cap;
+  }
 
   // Fetch one symbol's 1y daily chart straight from Yahoo (racing the same
   // public proxies the app uses). Returns { series:[{t,p}], mcap } — series for
@@ -15983,27 +16047,41 @@ function launchConfetti() {
     var flat=[];
     Object.keys(SP_UNIVERSE).forEach(function(sec){ SP_UNIVERSE[sec].forEach(function(row){ flat.push({sec:sec,t:row[0],n:row[1]}); }); });
 
-    // bounded concurrency: much faster than serial batches, without flooding proxies
-    var data={}, cursor=0, workers=[];
-    var CONCURRENCY=Math.min(18,flat.length);
-    async function worker(){
-      while(cursor<flat.length){
-        var it=flat[cursor++];
+    // Two bounded pools run together: prices/history and live market caps.
+    // This keeps the map fast while preventing stale fallback weights.
+    var data={}, caps={}, chartCursor=0, capCursor=0, workers=[];
+    var CHART_CONCURRENCY=Math.min(16,flat.length);
+    var CAP_CONCURRENCY=Math.min(8,flat.length);
+    async function chartWorker(){
+      while(chartCursor<flat.length){
+        var it=flat[chartCursor++];
         try{ var d=await fetchSpSymbol(it.t); if(d)data[it.t]=d; }catch(_){}
       }
     }
-    for(var wi=0;wi<CONCURRENCY;wi++) workers.push(worker());
+    async function capWorker(){
+      while(capCursor<flat.length){
+        var it=flat[capCursor++];
+        try{
+          var chartCap=data[it.t]&&data[it.t].mcap;
+          var cap=await fetchSpMarketCap(it.t,chartCap,!!force);
+          if(cap)caps[it.t]=cap;
+        }catch(_){}
+      }
+    }
+    for(var wi=0;wi<CHART_CONCURRENCY;wi++) workers.push(chartWorker());
+    for(var ci=0;ci<CAP_CONCURRENCY;ci++) workers.push(capWorker());
     await Promise.all(workers);
 
     var sectors=Object.keys(SP_UNIVERSE).map(function(sec){
       return { name:sec, rows:SP_UNIVERSE[sec].map(function(row){
         var t=row[0], d=data[t];
         var disp=(t==='BRK-B'?'BRK.B':t);
-        if(!d) return { t:disp, n:row[1], cap:(SP_CAPS[t]||null), price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
+        var resolvedCap=caps[t]||((d&&d.mcap)||null)||((SP_CAPS[t]||0)*1e9)||null;
+        if(!d) return { t:disp, n:row[1], cap:(resolvedCap?+(resolvedCap/1e9).toFixed(2):null), price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
         var last=d.last;
         return {
           t:disp, n:row[1],
-          cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):(SP_CAPS[t]||null)),
+          cap:(resolvedCap?+(resolvedCap/1e9).toFixed(2):null),
           price:+(+last).toFixed(2),
           d1:(d.d1!=null?d.d1:pctFromSeries(d.series,last,DAY)),
           w1: pctFromSeries(d.series,last,7*DAY),
@@ -16041,7 +16119,7 @@ function launchConfetti() {
     return sectors;
   }
 
-  async function update(){
+  async function update(force){
     if(scope==='mine'){
       loading(true); setStatus('loading');
       try{ var g=await buildMine(); render(g); setStatus('mine'); }
@@ -16052,7 +16130,7 @@ function launchConfetti() {
     // S&P
     loading(true); setStatus('loading');
     try{
-      var snap=await fetchSP();
+      var snap=await fetchSP(!!force);
       render(shapeSP(snap));
       setStatus('live');
     }catch(err){
@@ -16098,303 +16176,8 @@ function launchConfetti() {
 
   // public entry points
   window.renderMapPage=function(){ buildUI(); update(); };
-  window.mapRefresh=function(){ spSnap=null; spSnapAt=0; try{localStorage.removeItem(SP_STORE);}catch(_){} update(); };
+  window.mapRefresh=function(){ spSnap=null; spSnapAt=0; spCapCache={}; try{localStorage.removeItem(SP_STORE);localStorage.removeItem(SP_MCAP_STORE);}catch(_){} update(true); };
 })();
-
-/* ═══════════════════════════════════════════════════════════
-   FORECAST TAB — "תחזית"
-   Per-user, per-holding analyst forecast built from Yahoo's free
-   quoteSummary/financialData module (real analyst price targets:
-   low / mean / high → bear / base / bull). Long-term (2027/2030)
-   is projected from the 12-month targets + implied growth. Plus
-   algorithmic insights and a PDF export. NOT investment advice.
-   ═══════════════════════════════════════════════════════════ */
-(function(){
-  var fcHorizon = '12m';            // '12m' | 'long'
-  var fcData = null;                // cached [{sym,name,...}]
-  var fcAt = 0;
-  var FC_TTL = 10*60*1000;
-
-  function elFC(id){ return document.getElementById(id); }
-  function ils(){ return (typeof S!=='undefined' && S.ils) ? S.ils : (typeof ILS_RATE!=='undefined'?ILS_RATE:3.05); }
-
-  // ── fetch analyst data for one symbol via Yahoo quoteSummary (proxy race) ──
-  async function fetchAnalyst(sym){
-    var origin='https://query1.finance.yahoo.com/v10/finance/quoteSummary/'+encodeURIComponent(sym)+'?modules=financialData%2CearningsTrend';
-    var worker=String(typeof MY_PROXY!=='undefined'?MY_PROXY:'').replace(/\/$/,'');
-    var urls=[];
-    if(worker) urls.push(worker+'/?url='+encodeURIComponent(origin));
-    urls.push('https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(origin));
-    urls.push('https://corsproxy.io/?url='+encodeURIComponent(origin));
-    urls.push('https://api.allorigins.win/raw?url='+encodeURIComponent(origin));
-    for(var u=0;u<urls.length;u++){
-      try{
-        var r=await fetch(urls[u],{cache:'no-store'});
-        if(!r.ok) continue;
-        var txt=await r.text();
-        var j; try{ j=JSON.parse(txt); }catch(_){ continue; }
-        if(typeof j.contents==='string'){ try{ j=JSON.parse(j.contents); }catch(_){ continue; } }
-        var res=j&&j.quoteSummary&&j.quoteSummary.result&&j.quoteSummary.result[0];
-        if(!res) continue;
-        var fd=res.financialData||{};
-        var pick=function(o){ return (o&&typeof o==='object'&&'raw' in o)?o.raw:(typeof o==='number'?o:null); };
-        return {
-          current: pick(fd.currentPrice),
-          low:     pick(fd.targetLowPrice),
-          mean:    pick(fd.targetMeanPrice),
-          high:    pick(fd.targetHighPrice),
-          median:  pick(fd.targetMedianPrice),
-          rec:     fd.recommendationKey || null,
-          nAnalysts: pick(fd.numberOfAnalystOpinions),
-          revGrowth: pick(fd.revenueGrowth),
-          earnGrowth: pick(fd.earningsGrowth)
-        };
-      }catch(_){}
-    }
-    return null;
-  }
-
-  // ── long-term projection from 12mo targets + implied annual growth ──
-  // base case compounds the implied 1-yr growth (capped to sane band);
-  // bear/bull scale off the analyst low/high spread.
-  function project(cur, a, years){
-    if(cur==null) return null;
-    var base1=a.mean!=null?a.mean:(a.median!=null?a.median:cur);
-    var g = base1/cur - 1;                        // implied 1-yr analyst growth
-    g = Math.max(-0.25, Math.min(0.40, g));       // clamp year-1 to a sane band
-    // Growth DECAYS over time — no company compounds its 1-yr analyst growth
-    // unchanged for years. Each subsequent year keeps ~65% of the prior rate,
-    // and long-run growth is floored/capped to a defensible range.
-    var v=cur;
-    for(var y=0;y<years;y++){
-      var gy = g*Math.pow(0.65,y);                // decaying growth
-      gy = Math.max(-0.12, Math.min(0.30, gy));   // per-year band
-      v *= (1+gy);
-    }
-    var base=v;
-    // bear/bull scale off the analyst low/high dispersion, widened over time
-    var loR = (a.low!=null? a.low/cur-1 : g*0.3);
-    var hiR = (a.high!=null? a.high/cur-1 : g*1.4);
-    loR=Math.max(-0.45,Math.min(0.05,loR)); hiR=Math.max(0.05,Math.min(0.8,hiR));
-    var bear=cur*Math.pow(1+loR*0.5, Math.min(years,3));
-    var bull=base*(1+hiR*0.7);
-    if(bear>base) bear=base*0.7;
-    if(bull<base) bull=base*1.3;
-    return { bear:bear, base:base, bull:bull };
-  }
-
-  function pctUp(cur, tgt){ if(cur==null||tgt==null||!cur) return null; return (tgt/cur-1)*100; }
-
-  async function buildForecast(){
-    if(fcData && (Date.now()-fcAt)<FC_TTL) return fcData;
-    var holdings=(typeof S!=='undefined' && Array.isArray(S.stocks))?S.stocks:[];
-    var rows=[];
-    var BATCH=6;
-    for(var i=0;i<holdings.length;i+=BATCH){
-      var slice=holdings.slice(i,i+BATCH);
-      var res=await Promise.all(slice.map(async function(h){
-        var a=await fetchAnalyst(h.sym);
-        var live=(typeof S!=='undefined'&&S.sp)?S.sp[h.sym]:null;
-        var cur=(a&&a.current!=null)?a.current: (live&&live.price!=null?live.price:null);
-        return { h:h, a:a, cur:cur };
-      }));
-      res.forEach(function(x){ rows.push(x); });
-    }
-    fcData=rows; fcAt=Date.now();
-    return rows;
-  }
-
-  // ── render ──
-  async function render(){
-    var host=elFC('fcHost'); if(!host) return;
-    var holdings=(typeof S!=='undefined' && Array.isArray(S.stocks))?S.stocks:[];
-    if(!holdings.length){
-      host.innerHTML='<div class="fc-empty">אין מניות בתיק עדיין.<br>הוסף מניות בלשונית "מניות" כדי לראות תחזית.</div>';
-      return;
-    }
-    host.innerHTML='<div class="fc-loading"><div class="fc-spin"></div>טוען תחזיות אנליסטים…</div>';
-    var rows;
-    try{ rows=await buildForecast(); }
-    catch(e){ host.innerHTML='<div class="fc-empty">לא הצלחנו לטעון תחזיות כרגע. נסה לרענן.</div>'; return; }
-
-    var R=ils();
-    // portfolio-level aggregation
-    var totNow=0, totBase=0, totBull=0, totBear=0, withData=0;
-    var perStock=rows.map(function(x){
-      var h=x.h, a=x.a, cur=x.cur;
-      var shares=h.shares||h.qty||0;
-      var nowV = cur!=null ? cur*shares*R : (typeof sv==='function'?sv(h):0);
-      var scen;
-      if(a && cur!=null){
-        withData++;
-        if(fcHorizon==='12m'){
-          scen={ bear:a.low!=null?a.low:cur*0.85, base:a.mean!=null?a.mean:cur, bull:a.high!=null?a.high:cur*1.2 };
-        } else {
-          var years=(new Date().getFullYear()>=2027)?4:2;   // to ~2030 vs ~2027
-          scen=project(cur,a,fcHorizon==='long'? (2030-new Date().getFullYear()):1);
-        }
-      } else { scen=null; }
-      var baseV = scen? scen.base*shares*R : nowV;
-      var bullV = scen? scen.bull*shares*R : nowV;
-      var bearV = scen? scen.bear*shares*R : nowV;
-      totNow+=nowV; totBase+=baseV; totBull+=bullV; totBear+=bearV;
-      return { h:h, a:a, cur:cur, shares:shares, nowV:nowV, scen:scen, baseV:baseV, bullV:bullV, bearV:bearV };
-    });
-
-    var basePct = totNow? (totBase/totNow-1)*100 : 0;
-    var bullPct = totNow? (totBull/totNow-1)*100 : 0;
-    var bearPct = totNow? (totBear/totNow-1)*100 : 0;
-
-    var horizonLbl = fcHorizon==='12m' ? '12 חודשים' : 'עד 2030';
-
-    var html='';
-    // header
-    html+='<div class="fc-head">'
-      +'<div class="fc-head-txt"><h2>תחזית התיק שלך</h2>'
-      +'<p>מבוסס על יעדי מחיר של אנליסטים (Yahoo Finance). היעד הנמוך/ממוצע/גבוה מתורגם לתרחיש דובי/בסיס/שורי. תחזית ארוכת-טווח מוקרנת מהיעדים + קצב צמיחה משתמע.</p></div>'
-      +'<div class="fc-actions">'
-      +'<div class="fc-horizon" id="fcHorizonSel">'
-      +'<button data-h="12m" class="'+(fcHorizon==='12m'?'on':'')+'">12 חודש</button>'
-      +'<button data-h="long" class="'+(fcHorizon==='long'?'on':'')+'">2030</button>'
-      +'</div>'
-      +'<button class="fc-pdf" id="fcPdfBtn"><i class="ph-thin ph-file-pdf"></i> PDF</button>'
-      +'</div></div>';
-
-    // KPIs
-    html+='<div class="fc-summary">'
-      +kpi('שווי נוכחי', fmtILS(totNow), '')
-      +kpi('תרחיש בסיס · '+horizonLbl, fmtILS(totBase), signPct(basePct))
-      +kpi('תרחיש שורי', fmtILS(totBull), signPct(bullPct))
-      +kpi('תרחיש דובי', fmtILS(totBear), signPct(bearPct))
-      +'</div>';
-
-    // table
-    html+='<div class="fc-table-wrap"><table class="fc-table"><thead><tr>'
-      +'<th>מניה</th><th>מחיר נוכחי</th><th>יעד ('+horizonLbl+')</th><th>אנליסטים</th><th>המלצה</th><th>פוטנציאל</th><th>דובי · בסיס · שורי</th>'
-      +'</tr></thead><tbody>';
-    perStock.forEach(function(p){
-      var a=p.a, cur=p.cur;
-      var tgt = a&&a.mean!=null? a.mean : null;
-      var up = pctUp(cur, p.scen?p.scen.base:null);
-      html+='<tr>'
-        +'<td><span class="fc-sym">'+p.h.sym+'<small>'+(p.h.name||'')+'</small></span></td>'
-        +'<td class="fc-num">'+(cur!=null?'$'+f2(cur):'—')+'</td>'
-        +'<td class="fc-num">'+(p.scen?'$'+f2(p.scen.base):'—')+'</td>'
-        +'<td class="fc-num">'+(a&&a.nAnalysts?a.nAnalysts:'—')+'</td>'
-        +'<td>'+recBadge(a?a.rec:null)+'</td>'
-        +'<td>'+pctPill(up)+'</td>'
-        +'<td>'+(p.scen?scenCell(cur,p.scen):'<span class="fc-scen"><span class="sep">אין כיסוי אנליסטים</span></span>')+'</td>'
-        +'</tr>';
-    });
-    // total row
-    html+='<tr class="fc-total"><td>סה״כ תיק</td><td class="fc-num">—</td><td class="fc-num">—</td><td>—</td><td>—</td><td>'+pctPill(basePct)+'</td>'
-      +'<td><span class="fc-scen"><span class="bear">'+fmtILS(totBear)+'</span><span class="sep">·</span><span class="base">'+fmtILS(totBase)+'</span><span class="sep">·</span><span class="bull">'+fmtILS(totBull)+'</span></span></td></tr>';
-    html+='</tbody></table></div>';
-
-    // insights
-    html+='<div class="fc-insights">'+buildInsights(perStock).join('')+'</div>';
-
-    // disclaimer
-    html+='<div class="fc-disc"><i class="ph-thin ph-warning-circle"></i><div>'
-      +'<strong>אינו ייעוץ השקעות.</strong> הנתונים מבוססים על תחזיות אנליסטים ציבוריות (Yahoo Finance) ומודל הקרנה מתמטי. תשואות עבר ותחזיות אינן מבטיחות תוצאות עתידיות. כל החלטת השקעה היא באחריותך בלבד.'
-      +'</div></div>';
-
-    host.innerHTML=html;
-
-    // wire controls
-    var sel=elFC('fcHorizonSel');
-    if(sel) sel.querySelectorAll('button').forEach(function(b){
-      b.onclick=function(){ fcHorizon=b.getAttribute('data-h'); render(); };
-    });
-    var pdf=elFC('fcPdfBtn');
-    if(pdf) pdf.onclick=function(){ exportPDF(perStock, {totNow:totNow,totBase:totBase,totBull:totBull,totBear:totBear,basePct:basePct,horizonLbl:horizonLbl}); };
-  }
-
-  // ── insight cards (algorithmic, no AI) ──
-  function buildInsights(ps){
-    var cards=[];
-    var withData=ps.filter(function(p){return p.a && p.cur!=null;});
-    if(!withData.length){ return ['<div class="fc-ins-card"><span class="ic-tag">תובנה</span><h4>אין מספיק נתונים</h4><p>לא נמצאו תחזיות אנליסטים למניות בתיק.</p></div>']; }
-
-    // 1) highest upside
-    var best=null,bestUp=-1e9;
-    withData.forEach(function(p){ var up=pctUp(p.cur,p.scen?p.scen.base:null); if(up!=null&&up>bestUp){bestUp=up;best=p;} });
-    if(best) cards.push('<div class="fc-ins-card"><span class="ic-tag">פוטנציאל</span><h4>'+best.h.sym+' — הכי הרבה מקום לעלייה</h4><p>לפי אנליסטים, '+(best.h.name||best.h.sym)+' עם פוטנציאל של '+signPct(bestUp)+' ליעד הבסיס. זו התחזית הגבוהה ביותר בתיק שלך.</p></div>');
-
-    // 2) most downside / risk
-    var worst=null,worstUp=1e9;
-    withData.forEach(function(p){ var up=pctUp(p.cur,p.scen?p.scen.base:null); if(up!=null&&up<worstUp){worstUp=up;worst=p;} });
-    if(worst && worstUp<5) cards.push('<div class="fc-ins-card"><span class="ic-tag">סיכון</span><h4>'+worst.h.sym+' — הכי מוגבל</h4><p>אנליסטים רואים ב-'+(worst.h.name||worst.h.sym)+' פוטנציאל של '+signPct(worstUp)+' בלבד ליעד — שווה לבדוק אם הפוזיציה עדיין מתאימה לך.</p></div>');
-
-    // 3) concentration by weight
-    var totV=ps.reduce(function(s,p){return s+p.nowV;},0);
-    var top=ps.slice().sort(function(a,b){return b.nowV-a.nowV;})[0];
-    if(top && totV){
-      var w=top.nowV/totV*100;
-      if(w>=35) cards.push('<div class="fc-ins-card"><span class="ic-tag">ריכוז</span><h4>ריכוז גבוה ב-'+top.h.sym+'</h4><p>'+top.h.sym+' מהווה '+w.toFixed(0)+'% מהתיק. ריכוז גבוה במניה אחת מגדיל תלות בביצועים שלה — פיזור עשוי להקטין סיכון.</p></div>');
-    }
-
-    // 4) buy consensus count
-    var buys=withData.filter(function(p){return p.a.rec&&/buy/i.test(p.a.rec);}).length;
-    cards.push('<div class="fc-ins-card"><span class="ic-tag">קונצנזוס</span><h4>'+buys+' מתוך '+withData.length+' בהמלצת קנייה</h4><p>לפי הקונצנזוס העדכני של אנליסטים, '+buys+' מהמניות בתיק שלך מדורגות "קנייה" או "קנייה חזקה".</p></div>');
-
-    return cards;
-  }
-
-  // ── PDF export via print (styled, RTL) ──
-  function exportPDF(ps, agg){
-    var R=ils();
-    var win=window.open('','_blank');
-    if(!win){ alert('חלון ההדפסה נחסם — אפשר חלונות קופצים ונסה שוב'); return; }
-    var rowsHtml=ps.map(function(p){
-      var up=pctUp(p.cur,p.scen?p.scen.base:null);
-      return '<tr><td class="s">'+p.h.sym+'<br><small>'+(p.h.name||'')+'</small></td>'
-        +'<td>'+(p.cur!=null?'$'+f2(p.cur):'—')+'</td>'
-        +'<td>'+(p.scen?'$'+f2(p.scen.base):'—')+'</td>'
-        +'<td>'+(p.a&&p.a.nAnalysts?p.a.nAnalysts:'—')+'</td>'
-        +'<td>'+(p.a&&p.a.rec?recHe(p.a.rec):'—')+'</td>'
-        +'<td class="'+(up>=0?'g':'r')+'">'+(up!=null?signPct(up):'—')+'</td>'
-        +'<td>'+(p.scen?('$'+f2(p.scen.bear)+' · $'+f2(p.scen.base)+' · $'+f2(p.scen.bull)):'—')+'</td></tr>';
-    }).join('');
-    var doc='<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>תחזית התיק</title>'
-      +'<style>body{font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;margin:32px;}h1{font-size:24px;margin:0 0 4px;}'
-      +'.sub{color:#666;font-size:13px;margin-bottom:20px;}.kpis{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}'
-      +'.k{border:1px solid #ddd;border-radius:10px;padding:12px 16px;min-width:130px;}.k .l{font-size:11px;color:#888;text-transform:uppercase;}'
-      +'.k .v{font-size:20px;font-weight:800;margin-top:4px;}table{width:100%;border-collapse:collapse;font-size:12.5px;}'
-      +'th{text-align:right;background:#f4f4f7;padding:9px 10px;font-size:11px;color:#555;text-transform:uppercase;border-bottom:2px solid #e0e0e8;}'
-      +'td{padding:9px 10px;border-bottom:1px solid #eee;}td.s{font-weight:800;}td small{color:#999;font-weight:400;}'
-      +'.g{color:#1a9d5e;font-weight:700;}.r{color:#d64545;font-weight:700;}'
-      +'.disc{margin-top:20px;padding:12px 14px;background:#fdf6e3;border:1px solid #e8d9a0;border-radius:8px;font-size:11px;color:#665;line-height:1.6;}'
-      +'.foot{margin-top:16px;font-size:10px;color:#aaa;}</style></head><body>'
-      +'<h1>תחזית התיק שלך</h1><div class="sub">B.G TRADING · תרחיש '+agg.horizonLbl+' · '+new Date().toLocaleDateString('he-IL')+'</div>'
-      +'<div class="kpis">'
-      +'<div class="k"><div class="l">שווי נוכחי</div><div class="v">'+fmtILS(agg.totNow)+'</div></div>'
-      +'<div class="k"><div class="l">בסיס</div><div class="v">'+fmtILS(agg.totBase)+'</div></div>'
-      +'<div class="k"><div class="l">שורי</div><div class="v">'+fmtILS(agg.totBull)+'</div></div>'
-      +'<div class="k"><div class="l">דובי</div><div class="v">'+fmtILS(agg.totBear)+'</div></div>'
-      +'</div>'
-      +'<table><thead><tr><th>מניה</th><th>מחיר</th><th>יעד</th><th>אנליסטים</th><th>המלצה</th><th>פוטנציאל</th><th>דובי·בסיס·שורי</th></tr></thead><tbody>'
-      +rowsHtml+'</tbody></table>'
-      +'<div class="disc"><strong>אינו ייעוץ השקעות.</strong> מבוסס על תחזיות אנליסטים ציבוריות (Yahoo Finance) ומודל הקרנה מתמטי. תשואות עבר ותחזיות אינן מבטיחות תוצאות. כל החלטה באחריותך.</div>'
-      +'<div class="foot">נוצר ע״י Vector · Equities</div>'
-      +'<script>setTimeout(function(){window.print();},400);<\/script></body></html>';
-    win.document.write(doc); win.document.close();
-  }
-
-  // ── small formatters ──
-  function kpi(l,v,sub){ return '<div class="fc-kpi"><div class="k-lbl">'+l+'</div><div class="k-val">'+v+'</div>'+(sub?'<div class="k-sub">'+sub+'</div>':'')+'</div>'; }
-  function f2(n){ return (Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-  function fmtILS(n){ return '₪'+Math.round(n).toLocaleString('en-US'); }
-  function signPct(p){ if(p==null||isNaN(p)) return '—'; return (p>=0?'+':'')+p.toFixed(1)+'%'; }
-  function pctPill(p){ if(p==null||isNaN(p)) return '<span class="fc-pill fl">—</span>'; var c=p>1?'up':(p<-1?'dn':'fl'); return '<span class="fc-pill '+c+'">'+(p>=0?'+':'')+p.toFixed(1)+'%</span>'; }
-  function scenCell(cur,s){ return '<span class="fc-scen"><span class="bear">$'+f2(s.bear)+'</span><span class="sep">·</span><span class="base">$'+f2(s.base)+'</span><span class="sep">·</span><span class="bull">$'+f2(s.bull)+'</span></span>'; }
-  function recBadge(r){ if(!r) return '<span class="fc-rec na">—</span>'; var k=String(r).toLowerCase(); var cls=/buy/.test(k)?'buy':(/sell|underperform/.test(k)?'sell':'hold'); return '<span class="fc-rec '+cls+'">'+recHe(r)+'</span>'; }
-  function recHe(r){ var k=String(r||'').toLowerCase(); if(/strong_buy/.test(k))return 'קנייה חזקה'; if(/buy/.test(k))return 'קנייה'; if(/underperform|sell/.test(k))return 'מכירה'; if(/hold|neutral/.test(k))return 'החזקה'; return r; }
-
-  window.renderForecastPage=function(){ render(); };
-  window.forecastRefresh=function(){ fcData=null; fcAt=0; render(); };
-})();
-
 </script>
 
 <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;display:none"></canvas>
