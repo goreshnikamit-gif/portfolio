@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-finviz-heatmap-v1">
+<meta name="app-version" content="2026-07-19-finviz-heatmap-v2-cap-1d">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-finviz-heatmap-v1");
+console.info("Vector build: 2026-07-19-finviz-heatmap-v2-cap-1d");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -15565,7 +15565,7 @@ function launchConfetti() {
   // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
   var spSnap = null, spSnapAt = 0;
   var SP_TTL = 15*60*1000; // 15 minutes: instant revisits; manual refresh always bypasses
-  var SP_STORE='vector_sp_heatmap_v2';
+  var SP_STORE='vector_sp_heatmap_v3';
 
   function el(id){ return document.getElementById(id); }
 
@@ -15810,6 +15810,22 @@ function launchConfetti() {
   // ── S&P universe (symbols + sectors), fetched CLIENT-SIDE from Yahoo ──
   // Same data path the rest of the app uses (browser → Yahoo via proxy race),
   // so it works instantly and refreshes on demand — no Worker, no waiting.
+  // Fallback market-cap weights in USD billions. Yahoo's chart endpoint often
+  // omits marketCap, so these weights keep the map genuinely proportional instead
+  // of silently assigning the same median size to every company. Live market caps,
+  // when returned, always take precedence over these fallbacks.
+  var SP_CAPS = {
+    NVDA:4300, MSFT:3700, AAPL:3200, AVGO:1500, ORCL:900, CRM:290, AMD:290, ADBE:180,
+    QCOM:180, TXN:190, CSCO:260, INTC:105, IBM:275, NOW:210, MU:165, AMAT:170,
+    GOOGL:2900, META:1900, NFLX:520, DIS:210, TMUS:330, CMCSA:130, VZ:185, T:210,
+    AMZN:2500, TSLA:1250, HD:410, MCD:230, NKE:105, LOW:130, SBUX:105, BKNG:190,
+    WMT:950, PG:420, COST:470, KO:320, PEP:220, PM:270,
+    'BRK-B':1050, JPM:900, V:720, MA:560, BAC:390, WFC:290, GS:220, MS:190,
+    LLY:950, UNH:330, JNJ:390, ABBV:340, MRK:230, TMO:230, ABT:220, PFE:145,
+    GE:320, CAT:210, BA:145, HON:150, UNP:145, RTX:240, UBER:210,
+    XOM:500, CVX:330, COP:130
+  };
+
   var SP_UNIVERSE = {
     'Technology': [['NVDA','Nvidia'],['MSFT','Microsoft'],['AAPL','Apple'],['AVGO','Broadcom'],['ORCL','Oracle'],['CRM','Salesforce'],['AMD','AMD'],['ADBE','Adobe'],['QCOM','Qualcomm'],['TXN','Texas Instr.'],['CSCO','Cisco'],['INTC','Intel'],['IBM','IBM'],['NOW','ServiceNow'],['MU','Micron'],['AMAT','Applied Mat.']],
     'Comm. Services': [['GOOGL','Alphabet'],['META','Meta'],['NFLX','Netflix'],['DIS','Disney'],['TMUS','T-Mobile'],['CMCSA','Comcast'],['VZ','Verizon'],['T','AT&T']],
@@ -15851,7 +15867,11 @@ function launchConfetti() {
         for(var k=0;k<ts.length;k++){ var c=Number(closes[k]); if(Number.isFinite(ts[k])&&Number.isFinite(c)&&c>0) series.push({t:Number(ts[k])*1000,p:c}); }
         if(series.length<2) continue;
         var last=(meta.regularMarketPrice!=null)?+meta.regularMarketPrice:series[series.length-1].p;
-        return { series:series, last:last, mcap:(meta.marketCap!=null?+meta.marketCap:null) };
+        var prev=(meta.regularMarketPreviousClose!=null)?+meta.regularMarketPreviousClose:
+                 ((meta.chartPreviousClose!=null)?+meta.chartPreviousClose:
+                 (series.length>1?series[series.length-2].p:null));
+        var d1=(prev>0 && last>0)?((last-prev)/prev)*100:null;
+        return { series:series, last:last, prev:prev, d1:d1, mcap:(meta.marketCap!=null?+meta.marketCap:null) };
       }catch(_){}
     }
     return null;
@@ -15891,13 +15911,13 @@ function launchConfetti() {
       return { name:sec, rows:SP_UNIVERSE[sec].map(function(row){
         var t=row[0], d=data[t];
         var disp=(t==='BRK-B'?'BRK.B':t);
-        if(!d) return { t:disp, n:row[1], cap:null, price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
+        if(!d) return { t:disp, n:row[1], cap:(SP_CAPS[t]||null), price:null, d1:null,w1:null,m1:null,m3:null,m6:null,ytd:null,y1:null };
         var last=d.last;
         return {
           t:disp, n:row[1],
-          cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):null),
+          cap:(d.mcap!=null?+(d.mcap/1e9).toFixed(2):(SP_CAPS[t]||null)),
           price:+(+last).toFixed(2),
-          d1: pctFromSeries(d.series,last,DAY),
+          d1:(d.d1!=null?d.d1:pctFromSeries(d.series,last,DAY)),
           w1: pctFromSeries(d.series,last,7*DAY),
           m1: pctFromSeries(d.series,last,30*DAY),
           m3: pctFromSeries(d.series,last,91*DAY),
@@ -15926,7 +15946,10 @@ function launchConfetti() {
     sectors.forEach(function(s){ s.rows.forEach(function(r){ if(r.cap>0) known.push(r.cap); }); });
     known.sort(function(a,b){return a-b;});
     var med = known.length ? known[Math.floor(known.length/2)] : 100;
-    sectors.forEach(function(s){ s.rows.forEach(function(r){ if(!(r.cap>0)) r.cap=med; }); });
+    sectors.forEach(function(s){ s.rows.forEach(function(r){
+      var raw=(r.t==='BRK.B'?'BRK-B':r.t);
+      if(!(r.cap>0)) r.cap=SP_CAPS[raw]||med;
+    }); });
     return sectors;
   }
 
