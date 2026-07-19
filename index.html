@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-finviz-heatmap-v2-cap-1d">
+<meta name="app-version" content="2026-07-19-finviz-heatmap-v3-correct-1d">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-finviz-heatmap-v2-cap-1d");
+console.info("Vector build: 2026-07-19-finviz-heatmap-v3-correct-1d");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -15565,7 +15565,7 @@ function launchConfetti() {
   // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
   var spSnap = null, spSnapAt = 0;
   var SP_TTL = 15*60*1000; // 15 minutes: instant revisits; manual refresh always bypasses
-  var SP_STORE='vector_sp_heatmap_v3';
+  var SP_STORE='vector_sp_heatmap_v4';
 
   function el(id){ return document.getElementById(id); }
 
@@ -15861,16 +15861,45 @@ function launchConfetti() {
         var meta=res.meta||{};
         var ts=res.timestamp||[];
         var q=(res.indicators&&res.indicators.quote&&res.indicators.quote[0])||{};
+        var rawCloses=q.close||[];
         var adj=(res.indicators&&res.indicators.adjclose&&res.indicators.adjclose[0]&&res.indicators.adjclose[0].adjclose)||null;
-        var closes=adj||q.close||[];
+        var historyCloses=adj||rawCloses;
         var series=[];
-        for(var k=0;k<ts.length;k++){ var c=Number(closes[k]); if(Number.isFinite(ts[k])&&Number.isFinite(c)&&c>0) series.push({t:Number(ts[k])*1000,p:c}); }
+        var rawSeries=[];
+        for(var k=0;k<ts.length;k++){
+          var hc=Number(historyCloses[k]);
+          if(Number.isFinite(ts[k])&&Number.isFinite(hc)&&hc>0) series.push({t:Number(ts[k])*1000,p:hc});
+          var rc=Number(rawCloses[k]);
+          if(Number.isFinite(ts[k])&&Number.isFinite(rc)&&rc>0) rawSeries.push({t:Number(ts[k])*1000,p:rc});
+        }
         if(series.length<2) continue;
-        var last=(meta.regularMarketPrice!=null)?+meta.regularMarketPrice:series[series.length-1].p;
-        var prev=(meta.regularMarketPreviousClose!=null)?+meta.regularMarketPreviousClose:
-                 ((meta.chartPreviousClose!=null)?+meta.chartPreviousClose:
-                 (series.length>1?series[series.length-2].p:null));
-        var d1=(prev>0 && last>0)?((last-prev)/prev)*100:null;
+        var last=(meta.regularMarketPrice!=null)?+meta.regularMarketPrice:
+                 (rawSeries.length?rawSeries[rawSeries.length-1].p:series[series.length-1].p);
+        // IMPORTANT: chartPreviousClose on range=1y is the close BEFORE the chart range,
+        // not yesterday's close. Using it caused 1D to display year-like changes.
+        // Prefer Yahoo's explicit daily percentage/previous close; otherwise use the
+        // two latest raw daily closes from the chart.
+        var prev=null, d1=null;
+        if(meta.regularMarketChangePercent!=null && Number.isFinite(+meta.regularMarketChangePercent)){
+          d1=+meta.regularMarketChangePercent;
+        }
+        if(meta.regularMarketPreviousClose!=null && +meta.regularMarketPreviousClose>0){
+          prev=+meta.regularMarketPreviousClose;
+          if(d1==null && last>0) d1=((last-prev)/prev)*100;
+        }
+        if((d1==null || !Number.isFinite(d1)) && rawSeries.length>=2){
+          var latestRaw=rawSeries[rawSeries.length-1].p;
+          var priorRaw=rawSeries[rawSeries.length-2].p;
+          if(priorRaw>0){
+            // If today's daily candle is already present, compare it with yesterday.
+            // Otherwise compare live price with the latest completed close.
+            var liveVsLatest=Math.abs(last-latestRaw)/latestRaw;
+            prev=(liveVsLatest<0.000001)?priorRaw:latestRaw;
+            d1=((last-prev)/prev)*100;
+          }
+        }
+        // Reject impossible daily moves caused by malformed proxy/meta responses.
+        if(d1!=null && (!Number.isFinite(d1) || Math.abs(d1)>35)) d1=null;
         return { series:series, last:last, prev:prev, d1:d1, mcap:(meta.marketCap!=null?+meta.marketCap:null) };
       }catch(_){}
     }
