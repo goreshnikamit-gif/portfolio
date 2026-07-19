@@ -15638,11 +15638,12 @@ function launchConfetti() {
 
     gcells.forEach(function(gc){
       var g=gc.leaf.g;
-      // sector label
-      if(!single){
+      // sector label — only when the cell is wide enough to hold it (avoids overlap)
+      if(!single && gc.w>70){
         var lab=document.createElement('div');
         lab.className='map-sec-lbl'; lab.textContent=g.name;
         lab.style.right=(W-(gc.x+gc.w))+'px'; lab.style.top=gc.y+'px';
+        lab.style.maxWidth=(gc.w-6)+'px'; lab.style.overflow='hidden'; lab.style.whiteSpace='nowrap';
         canvas.appendChild(lab);
       }
       var innerX=gc.x+pad, innerY=gc.y+topPad, innerW=gc.w-pad*2, innerH=gc.h-topPad-pad;
@@ -15752,11 +15753,20 @@ function launchConfetti() {
   var SP_FIELD={ '1d':'d1','1w':'w1','1m':'m1','3m':'m3','6m':'m6','ytd':'ytd','1y':'y1' };
   function shapeSP(snap){
     var f=SP_FIELD[interval]||'d1';
-    return (snap.sectors||[]).map(function(sec){
+    var sectors=(snap.sectors||[]).map(function(sec){
       return { name:sec.name, rows:(sec.rows||[]).map(function(r){
-        return { t:r.t, n:r.n||r.t, cap:r.cap||1, chg:(r[f]!=null?r[f]:null), price:r.price||null };
+        return { t:r.t, n:r.n||r.t, cap:(+r.cap>0?+r.cap:null), chg:(r[f]!=null?r[f]:null), price:r.price||null };
       })};
     });
+    // Defensive: if some caps are missing (rate-limited), don't let present ones
+    // dwarf everything. Fill blanks with the median of known caps so the treemap
+    // stays balanced instead of one giant NVDA + slivers.
+    var known=[];
+    sectors.forEach(function(s){ s.rows.forEach(function(r){ if(r.cap>0) known.push(r.cap); }); });
+    known.sort(function(a,b){return a-b;});
+    var med = known.length ? known[Math.floor(known.length/2)] : 100;
+    sectors.forEach(function(s){ s.rows.forEach(function(r){ if(!(r.cap>0)) r.cap=med; }); });
+    return sectors;
   }
 
   async function update(){
