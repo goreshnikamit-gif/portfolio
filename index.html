@@ -15535,54 +15535,68 @@ function launchConfetti() {
   // Bruls/Huizing/van Wijk squarified layout. Areas weighted by __a.
   // Returns leaves with {leaf, x, y, w, h}.
   function squarify(items, X, Y, W, H){
+    // Canonical squarified treemap (Bruls, Huizing & van Wijk 2000).
+    // Lays a row along the SHORTER side of the free rect; the worst-ratio test
+    // uses that side length, so cells stay close to square regardless of the
+    // container aspect. Produces the dense Finviz-style packing.
     var out=[];
     if(!items.length || W<=0 || H<=0) return out;
     var total=0; for(var i=0;i<items.length;i++) total+=Math.max(items[i].__a,0);
     if(total<=0) return out;
     var scale=(W*H)/total;
-    // work queue: each item carries its scaled area
     var nodes=items.map(function(n){ return {n:n, a:Math.max(n.__a,0)*scale}; });
 
-    var x=X, y=Y, w=W, h=H;
+    var free={x:X, y:Y, w:W, h:H};
 
+    // worst aspect ratio in a row of given total area, laid along `side`
     function worst(row, side){
-      // side = length of the side we're laying the row along
+      if(!row.length) return Infinity;
       var sum=0, mn=Infinity, mx=-Infinity;
       for(var k=0;k<row.length;k++){ var a=row[k].a; sum+=a; if(a<mn)mn=a; if(a>mx)mx=a; }
-      var s2=sum*sum, side2=side*side;
-      return Math.max((side2*mx)/s2, s2/(side2*mn));
+      var side2=side*side, sum2=sum*sum;
+      return Math.max((side2*mx)/sum2, sum2/(side2*mn));
     }
-    function layoutRow(row, side, horizontal){
+
+    // place a finished row as a strip along the shorter side, shrink `free`
+    function layoutRow(row){
       var sum=0; for(var k=0;k<row.length;k++) sum+=row[k].a;
-      var thick = sum/side;               // depth of the strip
-      var off=0;
-      for(var k=0;k<row.length;k++){
-        var len = side * (row[k].a/sum);   // length of this cell along the strip
-        if(horizontal){                    // strip runs left→right along width, stacked at top
-          out.push({leaf:row[k].n, x:x+off, y:y, w:len, h:thick});
-        }else{                             // strip runs top→bottom along height, at left
-          out.push({leaf:row[k].n, x:x, y:y+off, w:thick, h:len});
+      var vertical = free.w >= free.h;   // shorter side is height → strip is a vertical column set? 
+      // If width >= height, the row runs DOWN the left edge (a column of thickness = sum/height).
+      // Else the row runs ACROSS the top (a band of thickness = sum/width).
+      if(vertical){
+        var colW = sum/free.h;
+        var off=0;
+        for(var k=0;k<row.length;k++){
+          var cellH = free.h * (row[k].a/sum);
+          out.push({leaf:row[k].n, x:free.x, y:free.y+off, w:colW, h:cellH});
+          off += cellH;
         }
-        off += len;
+        free.x += colW; free.w -= colW;
+      }else{
+        var bandH = sum/free.w;
+        var off2=0;
+        for(var k2=0;k2<row.length;k2++){
+          var cellW = free.w * (row[k2].a/sum);
+          out.push({leaf:row[k2].n, x:free.x+off2, y:free.y, w:cellW, h:bandH});
+          off2 += cellW;
+        }
+        free.y += bandH; free.h -= bandH;
       }
-      if(horizontal){ y+=thick; h-=thick; } else { x+=thick; w-=thick; }
     }
 
     var i2=0;
     while(i2<nodes.length){
-      var horizontal = (w>=h);            // lay along the shorter side for square-ish cells
-      var side = horizontal ? w : h;
+      var side = Math.min(free.w, free.h);   // always lay along the shorter side
       var row=[nodes[i2]]; i2++;
-      // grow the row while it improves aspect ratios
       while(i2<nodes.length){
         var cur=worst(row, side);
         var nxt=worst(row.concat([nodes[i2]]), side);
-        if(nxt>cur) break;
+        if(nxt>cur) break;                    // adding the next item makes it worse → close row
         row.push(nodes[i2]); i2++;
       }
-      layoutRow(row, side, horizontal);
+      layoutRow(row);
     }
-    // clamp tiny float overflow to the box
+    // clamp tiny float overflow
     for(var m=0;m<out.length;m++){
       var o=out[m];
       if(o.x+o.w>X+W) o.w=(X+W)-o.x;
