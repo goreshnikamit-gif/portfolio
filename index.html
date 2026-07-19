@@ -1124,6 +1124,47 @@ body.light .total::before { display:none; }
 .sec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; margin-top: 8px; border-bottom: 1px solid var(--b1); padding-bottom: 7px; }
 .sec-t { display: flex; align-items: center; gap: 9px; font-family: 'Newsreader', 'Assistant', 'Rubik', serif; font-size: 20px; font-weight: 400; letter-spacing: -0.2px; }
 .sec-t i { width: 3px; height: 15px; background: var(--ac); display: inline-block; border-radius: 1px; }
+
+/* ═══════════════ MAP (heatmap treemap) ═══════════════ */
+.map-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+.map-scope { display:inline-flex; background:var(--s2); border:1px solid var(--b2); border-radius:10px; padding:3px; }
+.map-scope button { font-family:var(--font-body); font-weight:700; font-size:13px; color:var(--t2); background:transparent; border:0; border-radius:7px; padding:7px 15px; cursor:pointer; transition:all .15s; }
+.map-scope button.on { background:var(--ac); color:#fff; }
+.map-status { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-body); font-weight:600; font-size:11px; color:var(--t2); border:1px solid var(--b2); border-radius:99px; padding:4px 11px; }
+.map-dot { width:7px; height:7px; border-radius:99px; background:var(--t3); flex:none; }
+.map-dot.live { background:var(--gr); box-shadow:0 0 0 0 color-mix(in srgb,var(--gr) 60%,transparent); animation:mapPulse 2s infinite; }
+.map-dot.cache { background:var(--gd); }
+.map-dot.err { background:var(--rd); }
+@keyframes mapPulse { 0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gr) 50%,transparent)} 70%{box-shadow:0 0 0 7px transparent} 100%{box-shadow:0 0 0 0 transparent} }
+.map-refresh { margin-inline-start:auto; display:inline-flex; align-items:center; gap:6px; font-family:var(--font-body); font-size:12px; font-weight:700; color:var(--t2); background:var(--s2); border:1px solid var(--b2); border-radius:9px; padding:7px 12px; cursor:pointer; transition:all .15s; }
+.map-refresh:hover { border-color:var(--ac); color:var(--t1); }
+.map-intervals { display:flex; gap:5px; flex-wrap:wrap; background:var(--s2); border:1px solid var(--b2); border-radius:11px; padding:5px; margin-bottom:12px; }
+.map-intervals button { font-family:var(--font-body); font-weight:700; font-size:12.5px; color:var(--t2); background:transparent; border:0; border-radius:8px; padding:7px 13px; cursor:pointer; transition:all .14s; line-height:1.1; text-align:center; }
+.map-intervals button:hover { color:var(--t1); }
+.map-intervals button.on { background:var(--s3); color:var(--t1); }
+.map-intervals .mi-h { display:block; font-size:9.5px; font-weight:600; color:var(--t3); margin-top:1px; }
+.map-intervals button.on .mi-h { color:var(--ac); }
+.map-frame { background:var(--s1,var(--s2)); border:1px solid var(--b2); border-radius:var(--radius,14px); padding:5px; position:relative; overflow:hidden; }
+#mapCanvas { width:100%; height:min(66vh,640px); position:relative; }
+.map-cell { position:absolute; overflow:hidden; border:1px solid rgba(0,0,0,.32); display:flex; flex-direction:column; align-items:center; justify-content:center; transition:filter .12s; cursor:default; }
+.map-cell:hover { filter:brightness(1.15); z-index:5; }
+.map-cell .mc-t { font-family:var(--font-body); font-weight:800; line-height:1; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.45); }
+.map-cell .mc-c { font-family:var(--font-body); font-weight:600; color:rgba(255,255,255,.92); text-shadow:0 1px 2px rgba(0,0,0,.45); direction:ltr; }
+.map-sec-lbl { position:absolute; top:0; right:0; font-family:var(--font-body); font-weight:800; font-size:10px; letter-spacing:.06em; color:rgba(255,255,255,.6); padding:3px 7px; pointer-events:none; }
+.map-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:10px; color:var(--t2); font-size:13px; background:color-mix(in srgb,var(--bg) 55%,transparent); z-index:20; opacity:0; pointer-events:none; transition:.2s; }
+.map-loading.on { opacity:1; }
+.map-spin { width:16px; height:16px; border:2px solid var(--b2); border-top-color:var(--ac); border-radius:99px; animation:mapSpin .7s linear infinite; }
+@keyframes mapSpin { to{transform:rotate(360deg)} }
+.map-legend { display:flex; align-items:center; gap:2px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+.map-legend .ml-l { font-size:12px; color:var(--t2); margin:0 8px; }
+.map-legend .ml-s { width:32px; height:13px; }
+.map-cap { color:var(--t3); font-size:12px; text-align:center; margin-top:11px; line-height:1.6; }
+.map-tip { position:fixed; pointer-events:none; background:var(--bg); border:1px solid var(--b2); border-radius:10px; padding:9px 12px; font-size:12.5px; opacity:0; transition:opacity .12s; z-index:9999; direction:ltr; text-align:left; min-width:135px; box-shadow:0 12px 30px -12px rgba(0,0,0,.6); }
+.map-tip .mt-t { font-family:var(--font-body); font-weight:800; font-size:14px; color:var(--t1); }
+.map-tip .mt-n { color:var(--t3); font-size:11px; margin-bottom:5px; }
+.map-tip .mt-r { display:flex; justify-content:space-between; gap:16px; color:var(--t2); }
+.map-tip .mt-r b { color:var(--t1); font-weight:700; }
+
 .add-b { font-family: var(--font-body); font-size: 13px; font-weight: 700; color: var(--t1); background: var(--s2); border: 1px solid var(--b2); padding: 5px 11px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
 .add-b:hover { background: var(--s3); border-color: var(--ac); }
 
@@ -1943,6 +1984,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="nit" id="navBonds" data-p="bonds" onclick="goPage('bonds',this)" style="display:none">אג"ח</button>
     <button class="nit" id="navEtfs" data-p="etfs" onclick="goPage('etfs',this)" style="display:none">תעודות סל</button>
     <button class="nit" data-p="insights" onclick="goPage('insights',this)">תובנות</button>
+    <button class="nit" data-p="map" onclick="goPage('map',this)">מפה</button>
   </nav>
 <div class="topbar">
   <div class="logo">
@@ -2957,7 +2999,24 @@ onAuthStateChanged(auth, async user => {
     </div>
   </div>
 
-  
+  <div class="page" id="page-map">
+    <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מפה</div></div>
+    <div class="map-toolbar">
+      <div class="map-scope" id="mapScope">
+        <button data-scope="mine" class="on">התיק שלי</button>
+        <button data-scope="sp">S&amp;P 500</button>
+      </div>
+      <div class="map-status"><span class="map-dot" id="mapDot"></span><span id="mapStatusText">מוכן</span></div>
+      <button class="map-refresh" onclick="mapRefresh()" title="רענן"><i class="ph-thin ph-arrows-clockwise ph-sm"></i> רענן</button>
+    </div>
+    <div class="map-intervals" id="mapIntervals"></div>
+    <div class="map-frame">
+      <div id="mapCanvas"></div>
+      <div class="map-loading" id="mapLoading"><div class="map-spin"></div><span>טוען נתונים מהשוק…</span></div>
+    </div>
+    <div class="map-legend" id="mapLegend"></div>
+    <div class="map-cap">גודל הריבוע = שווי שוק · צבע = שינוי בתקופה הנבחרת · העבר עכבר/אצבע לפרטים.</div>
+  </div>
 
   <div class="page" id="page-commodities">
     <div class="ad-banner-top">
@@ -3015,6 +3074,7 @@ onAuthStateChanged(auth, async user => {
   <button class="ni" id="navBondsM" data-p="bonds" onclick="goPage('bonds',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-bank"></i></span><span class="ni-lbl">אג"ח</span></button>
   <button class="ni" id="navEtfsM" data-p="etfs" onclick="goPage('etfs',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-briefcase"></i></span><span class="ni-lbl">תעודות סל</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
+  <button class="ni" data-p="map" onclick="goPage('map',this)"><span class="ni-ico"><i class="ph-thin ph-grid-nine"></i></span><span class="ni-lbl">מפה</span></button>
 </nav>
 
 <button class="fab-edit" onclick="openEditor()" title="ערוך תיק" aria-label="ערוך תיק"><i class="ph-thin ph-pencil-simple"></i></button>
@@ -9616,6 +9676,7 @@ function goPage(id, btn) {
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
+  if (id === 'map') renderMapPage();
 }
 
 // ═══════════════════════════════════════════
@@ -15430,6 +15491,303 @@ function launchConfetti() {
   </div>
   <div class="fx-conv-rate" id="fxConvRate">טוען שערים...</div>
 </div>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   MAP PAGE — heatmap treemap
+   · "התיק שלי": reads live quotes already in S.sp[] (0 extra requests
+     for 1D); longer intervals reuse getStockPeriodChange() cache.
+   · "S&P 500": one cached snapshot from the Worker (/sp500-map),
+     refreshed server-side every ~15 min → ~96 upstream calls/day total,
+     shared across all users. Browser only ever hits the Worker cache.
+   ═══════════════════════════════════════════════════════════ */
+(function(){
+  var scope = 'mine', interval = '1d', built = false;
+
+  // interval bar — ids map to getStockPeriodChange() periods
+  var INTERVALS = [
+    {id:'1d',  L:'1D',  H:'היום'},
+    {id:'1w',  L:'1W',  H:'שבוע'},
+    {id:'1m',  L:'1M',  H:'חודש'},
+    {id:'3m',  L:'3M',  H:'3 חודשים'},
+    {id:'6m',  L:'6M',  H:'חצי שנה'},
+    {id:'ytd', L:'YTD', H:'מתחילת שנה'},
+    {id:'1y',  L:'1Y',  H:'שנה'}
+  ];
+
+  // S&P snapshot cache (client-side, so switching intervals doesn't re-hit worker)
+  var spSnap = null, spSnapAt = 0;
+  var SP_TTL = 15*60*1000;
+
+  function el(id){ return document.getElementById(id); }
+
+  function colorFor(c){
+    if(c==null||isNaN(c)) return 'var(--s3)';
+    if(c>=2)    return '#1f9d63';
+    if(c>=0.8)  return '#2bb877';
+    if(c>0.05)  return '#5fce9a';
+    if(c>-0.05) return 'var(--s3)';
+    if(c>-0.8)  return '#e8886f';
+    if(c>-2)    return '#d65a48';
+    return '#b83526';
+  }
+
+  // ── squarified treemap (self-contained, no d3) ──
+  // Bruls/Huizing/van Wijk squarified layout. Areas weighted by __a.
+  // Returns leaves with {leaf, x, y, w, h}.
+  function squarify(items, X, Y, W, H){
+    var out=[];
+    if(!items.length || W<=0 || H<=0) return out;
+    var total=0; for(var i=0;i<items.length;i++) total+=Math.max(items[i].__a,0);
+    if(total<=0) return out;
+    var scale=(W*H)/total;
+    // work queue: each item carries its scaled area
+    var nodes=items.map(function(n){ return {n:n, a:Math.max(n.__a,0)*scale}; });
+
+    var x=X, y=Y, w=W, h=H;
+
+    function worst(row, side){
+      // side = length of the side we're laying the row along
+      var sum=0, mn=Infinity, mx=-Infinity;
+      for(var k=0;k<row.length;k++){ var a=row[k].a; sum+=a; if(a<mn)mn=a; if(a>mx)mx=a; }
+      var s2=sum*sum, side2=side*side;
+      return Math.max((side2*mx)/s2, s2/(side2*mn));
+    }
+    function layoutRow(row, side, horizontal){
+      var sum=0; for(var k=0;k<row.length;k++) sum+=row[k].a;
+      var thick = sum/side;               // depth of the strip
+      var off=0;
+      for(var k=0;k<row.length;k++){
+        var len = side * (row[k].a/sum);   // length of this cell along the strip
+        if(horizontal){                    // strip runs left→right along width, stacked at top
+          out.push({leaf:row[k].n, x:x+off, y:y, w:len, h:thick});
+        }else{                             // strip runs top→bottom along height, at left
+          out.push({leaf:row[k].n, x:x, y:y+off, w:thick, h:len});
+        }
+        off += len;
+      }
+      if(horizontal){ y+=thick; h-=thick; } else { x+=thick; w-=thick; }
+    }
+
+    var i2=0;
+    while(i2<nodes.length){
+      var horizontal = (w>=h);            // lay along the shorter side for square-ish cells
+      var side = horizontal ? w : h;
+      var row=[nodes[i2]]; i2++;
+      // grow the row while it improves aspect ratios
+      while(i2<nodes.length){
+        var cur=worst(row, side);
+        var nxt=worst(row.concat([nodes[i2]]), side);
+        if(nxt>cur) break;
+        row.push(nodes[i2]); i2++;
+      }
+      layoutRow(row, side, horizontal);
+    }
+    // clamp tiny float overflow to the box
+    for(var m=0;m<out.length;m++){
+      var o=out[m];
+      if(o.x+o.w>X+W) o.w=(X+W)-o.x;
+      if(o.y+o.h>Y+H) o.h=(Y+H)-o.y;
+      if(o.w<0)o.w=0; if(o.h<0)o.h=0;
+    }
+    return out;
+  }
+
+  function render(groups){
+    // groups: [{name, rows:[{t,n,cap,chg,price}]}]
+    var canvas=el('mapCanvas'); if(!canvas) return;
+    canvas.innerHTML='';
+    var W=canvas.clientWidth, H=canvas.clientHeight;
+    var single = groups.length===1;
+
+    // outer treemap across groups (by total cap)
+    var groupItems=groups.map(function(g){
+      var tot=0; g.rows.forEach(function(r){ tot+=(r.cap||1); });
+      return {__a:Math.max(tot,1), g:g};
+    });
+    var pad=single?0:2, topPad=single?0:15;
+    var gcells = groups.length>1 ? squarify(groupItems,0,0,W,H) : [{leaf:groupItems[0],x:0,y:0,w:W,h:H}];
+
+    gcells.forEach(function(gc){
+      var g=gc.leaf.g;
+      // sector label
+      if(!single){
+        var lab=document.createElement('div');
+        lab.className='map-sec-lbl'; lab.textContent=g.name;
+        lab.style.right=(W-(gc.x+gc.w))+'px'; lab.style.top=gc.y+'px';
+        canvas.appendChild(lab);
+      }
+      var innerX=gc.x+pad, innerY=gc.y+topPad, innerW=gc.w-pad*2, innerH=gc.h-topPad-pad;
+      if(innerW<4||innerH<4) return;
+      var items=g.rows.map(function(r){ return {__a:Math.max(r.cap||1,0.5), r:r}; });
+      var leaves=squarify(items, innerX, innerY, innerW, innerH);
+      leaves.forEach(function(lf){
+        var r=lf.leaf.r, w=lf.w-1.5, h=lf.h-1.5;
+        if(w<1||h<1) return;
+        var c=document.createElement('div');
+        c.className='map-cell';
+        c.style.right=(W-(lf.x+w))+'px';
+        c.style.top=lf.y+'px';
+        c.style.width=w+'px'; c.style.height=h+'px';
+        c.style.background=colorFor(r.chg);
+        var area=w*h;
+        if(area>1300){
+          var fs=Math.max(9,Math.min(w/4.2,h/2.4,26));
+          var sign=(r.chg>=0?'+':'');
+          c.innerHTML='<div class="mc-t" style="font-size:'+fs+'px">'+r.t+'</div>'+
+            (area>3000 && r.chg!=null ? '<div class="mc-c" style="font-size:'+(fs*0.5)+'px;margin-top:2px">'+sign+(r.chg).toFixed(2)+'%</div>' : '');
+        }
+        (function(rr){
+          c.addEventListener('mousemove',function(e){ showTip(e,rr); });
+          c.addEventListener('mouseleave',hideTip);
+        })(r);
+        canvas.appendChild(c);
+      });
+    });
+  }
+
+  var tipEl=null;
+  function tip(){ if(!tipEl){ tipEl=document.createElement('div'); tipEl.className='map-tip'; document.body.appendChild(tipEl);} return tipEl; }
+  function showTip(e,r){
+    var t=tip(), sign=(r.chg>=0?'+':''), col=(r.chg>=0?'var(--gr)':'var(--rd)');
+    var rows='';
+    if(r.hold!=null && r.hold>0){                // portfolio cell
+      rows+='<div class="mt-r"><span>שווי אחזקה</span><b>'+(typeof fILS==='function'?fILS(r.hold):'₪'+Math.round(r.hold).toLocaleString())+'</b></div>';
+      if(r.mcap) rows+='<div class="mt-r"><span>שווי שוק</span><b>$'+fCap(r.mcap)+'</b></div>';
+    } else {                                      // S&P cell
+      rows+='<div class="mt-r"><span>שווי שוק</span><b>$'+fCap(r.cap)+'</b></div>';
+    }
+    if(r.price) rows+='<div class="mt-r"><span>מחיר</span><b>$'+r.price+'</b></div>';
+    rows+='<div class="mt-r"><span>'+curIntervalLabel()+'</span><b style="color:'+col+'">'+(r.chg!=null?sign+r.chg.toFixed(2)+'%':'--')+'</b></div>';
+    t.innerHTML='<div class="mt-t">'+r.t+'</div><div class="mt-n">'+(r.n||'')+'</div>'+rows;
+    t.style.opacity=1;
+    var tw=t.offsetWidth, x=e.clientX+14;
+    if(x+tw>window.innerWidth) x=e.clientX-tw-14;
+    t.style.left=x+'px'; t.style.top=(e.clientY+14)+'px';
+  }
+  function hideTip(){ if(tipEl) tipEl.style.opacity=0; }
+  function fCap(b){ if(b>=1000) return (b/1000).toFixed(2)+'T'; return Math.round(b)+'B'; }
+  function curIntervalLabel(){ var i=INTERVALS.find(function(x){return x.id===interval;}); return i?i.L:'1D'; }
+
+  function setStatus(mode){
+    var d=el('mapDot'), t=el('mapStatusText'); if(!d) return;
+    d.className='map-dot '+(mode==='mine'?'live':mode);
+    t.textContent = mode==='live'?'נתונים חיים':
+                    mode==='mine'?'נתונים חיים · התיק':
+                    mode==='cache'?'מטמון · S&P (≤15 דק׳)':
+                    mode==='err'?'שגיאת רשת':'טוען…';
+  }
+
+  function loading(on){ var l=el('mapLoading'); if(l) l.classList.toggle('on',!!on); }
+
+  // ── portfolio data (0–few requests) ──
+  function stockName(sym){
+    var s=(S.stocks||[]).find(function(x){return x.sym===sym;});
+    return s ? (s.name||sym) : sym;
+  }
+  async function buildMine(){
+    var stocks=(S.stocks||[]);
+    if(!stocks.length) return [{name:'התיק שלי', rows:[]}];
+    var rows=await Promise.all(stocks.map(async function(s){
+      var sp=S.sp[s.sym]||{};
+      // Portfolio map sizes cells by YOUR holding value (ILS), so your biggest
+      // bets are the biggest squares — not the company's market cap.
+      var holdILS=0; try{ holdILS=sv(s)||0; }catch(_){}
+      var weight = holdILS>0 ? holdILS/1000 : 1;   // scale to keep numbers sane
+      var chg;
+      if(interval==='1d') chg = sp.change!=null?sp.change:null;
+      else { try{ chg=await getStockPeriodChange(s.sym, interval);}catch(_){ chg=null; } }
+      return {
+        t:s.sym, n:s.name||s.sym,
+        cap:weight,                                   // cell size = holding value
+        chg:chg,
+        price: sp.price?(+sp.price).toFixed(2):null,
+        mcap: sp.marketCap ? sp.marketCap/1e9 : null, // shown in tooltip
+        hold: holdILS                                 // shown in tooltip
+      };
+    }));
+    return [{name:'התיק שלי', rows:rows}];
+  }
+
+  // ── S&P data (worker cache) ──
+  async function fetchSP(){
+    if(spSnap && (Date.now()-spSnapAt)<SP_TTL) return spSnap;
+    if(typeof MY_PROXY==='undefined' || !MY_PROXY) throw new Error('no proxy');
+    var url=String(MY_PROXY).replace(/\/$/,'')+'/sp500-map';
+    var r=await fetch(url,{cache:'no-store'});
+    if(!r.ok) throw new Error('sp '+r.status);
+    var j=await r.json();
+    // expected shape: { asOf, sectors:[{name, rows:[{t,n,cap,d1,w1,m1,m3,m6,ytd,y1}]}] }
+    spSnap=j; spSnapAt=Date.now();
+    return j;
+  }
+  var SP_FIELD={ '1d':'d1','1w':'w1','1m':'m1','3m':'m3','6m':'m6','ytd':'ytd','1y':'y1' };
+  function shapeSP(snap){
+    var f=SP_FIELD[interval]||'d1';
+    return (snap.sectors||[]).map(function(sec){
+      return { name:sec.name, rows:(sec.rows||[]).map(function(r){
+        return { t:r.t, n:r.n||r.t, cap:r.cap||1, chg:(r[f]!=null?r[f]:null), price:r.price||null };
+      })};
+    });
+  }
+
+  async function update(){
+    if(scope==='mine'){
+      loading(true); setStatus('loading');
+      try{ var g=await buildMine(); render(g); setStatus('mine'); }
+      catch(err){ console.warn('map mine',err); setStatus('err'); }
+      finally{ loading(false); }
+      return;
+    }
+    // S&P
+    loading(true); setStatus('loading');
+    try{
+      var snap=await fetchSP();
+      render(shapeSP(snap));
+      setStatus('cache');
+    }catch(err){
+      console.warn('map S&P',err);
+      setStatus('err');
+      // graceful message inside canvas
+      var cv=el('mapCanvas');
+      if(cv) cv.innerHTML='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;text-align:center;padding:20px">מפת S&P עדיין לא זמינה — ה-Worker צריך את route ה-<code>/sp500-map</code>.<br>תצוגת "התיק שלי" עובדת כרגיל.</div>';
+    }finally{ loading(false); }
+  }
+
+  // ── build toolbar once ──
+  function buildUI(){
+    if(built) return; built=true;
+    var ib=el('mapIntervals');
+    ib.innerHTML=INTERVALS.map(function(i){
+      return '<button data-i="'+i.id+'" class="'+(i.id==='1d'?'on':'')+'">'+i.L+'<span class="mi-h">'+i.H+'</span></button>';
+    }).join('');
+    ib.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      interval=b.dataset.i;
+      ib.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on',x===b); });
+      update();
+    });
+    var sc=el('mapScope');
+    sc.addEventListener('click',function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      scope=b.dataset.scope;
+      sc.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on',x===b); });
+      update();
+    });
+    // legend
+    el('mapLegend').innerHTML='<span class="ml-l">ירידה</span>'+
+      ['#b83526','#d65a48','#e8886f','var(--s3)','#5fce9a','#2bb877','#1f9d63']
+        .map(function(c){ return '<div class="ml-s" style="background:'+c+'"></div>'; }).join('')+
+      '<span class="ml-l">עלייה</span>';
+    var ro=null;
+    window.addEventListener('resize',function(){ if(S.curPage==='map'){ clearTimeout(ro); ro=setTimeout(update,150); } });
+  }
+
+  // public entry points
+  window.renderMapPage=function(){ buildUI(); update(); };
+  window.mapRefresh=function(){ spSnap=null; update(); };
+})();
+</script>
+
 <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;display:none"></canvas>
 
 </body>
