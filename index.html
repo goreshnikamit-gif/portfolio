@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-google-auth-ios-safari-v1">
+<meta name="app-version" content="2026-07-19-google-auth-ios-forecast-premium-v1">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-google-auth-ios-safari-v1");
+console.info("Vector build: 2026-07-19-google-auth-ios-forecast-premium-v1");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1995,6 +1995,110 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
   animation: cardEnter 600ms cubic-bezier(.2,.8,.25,1) both;
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   VECTOR FORECAST · Analyst consensus + scenario engine
+   ═══════════════════════════════════════════════════════════════ */
+.forecast-page { padding: 0 18px 70px; }
+.forecast-shell { width: min(1480px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.fc-card { position: relative; background: linear-gradient(145deg, color-mix(in srgb, var(--s1) 96%, var(--ac) 4%), var(--s1)); border: 1px solid var(--b1); border-radius: 24px; box-shadow: 0 18px 50px rgba(0,0,0,.14); overflow: hidden; }
+.fc-card::before { content:''; position:absolute; inset:0; pointer-events:none; background: radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--ac) 9%, transparent), transparent 35%); opacity:.7; }
+.fc-hero { padding: 28px; min-height: 330px; }
+.fc-hero::after { content:''; position:absolute; width:420px; height:420px; border-radius:50%; inset-inline-end:-160px; top:-220px; background:radial-gradient(circle, color-mix(in srgb,var(--ac) 18%,transparent), transparent 68%); pointer-events:none; }
+.fc-hero-top { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
+.fc-eyebrow { display:flex; align-items:center; gap:9px; color:var(--t2); font-family:var(--font-mono); font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+.fc-live-dot { width:7px; height:7px; border-radius:50%; background:var(--gr); box-shadow:0 0 0 5px color-mix(in srgb,var(--gr) 12%,transparent); }
+.fc-actions { display:flex; align-items:center; gap:8px; }
+.fc-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; padding:0 14px; border-radius:12px; border:1px solid var(--b2); background:var(--s2); color:var(--t1); font-family:var(--font-body); font-size:12px; font-weight:650; cursor:pointer; transition:transform .15s,border-color .15s,background .15s; }
+.fc-btn:hover { transform:translateY(-1px); border-color:color-mix(in srgb,var(--ac) 60%,var(--b2)); }
+.fc-btn.primary { background:var(--ac); border-color:var(--ac); color:#fff; box-shadow:0 10px 24px color-mix(in srgb,var(--ac) 28%,transparent); }
+.fc-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.fc-hero-grid { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(420px,.75fr); gap:28px; align-items:end; }
+.fc-title { font-family:var(--font-title); font-size:clamp(38px,5vw,70px); font-weight:400; letter-spacing:-1.5px; line-height:.96; margin-bottom:14px; max-width:760px; }
+.fc-title em { color:var(--ac); font-style:italic; }
+.fc-subtitle { max-width:760px; color:var(--t2); font-size:14px; line-height:1.75; }
+.fc-disclaimer-inline { display:inline-flex; align-items:center; gap:6px; margin-top:12px; color:var(--gd); font-size:10.5px; }
+.fc-kpis { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.fc-kpi { min-height:98px; padding:16px; border:1px solid var(--b1); border-radius:16px; background:color-mix(in srgb,var(--s2) 86%,transparent); backdrop-filter:blur(10px); }
+.fc-kpi-l { color:var(--t3); font-size:10px; font-weight:650; letter-spacing:.05em; margin-bottom:9px; }
+.fc-kpi-v { font-family:var(--font-mono); font-size:clamp(20px,2vw,29px); font-weight:700; letter-spacing:-.04em; white-space:nowrap; }
+.fc-kpi-v.up { color:var(--gr); }.fc-kpi-v.dn { color:var(--rd); }.fc-kpi-v.gd { color:var(--gd); }
+.fc-kpi-s { color:var(--t3); font-size:9.5px; margin-top:7px; }
+.fc-controls { position:relative; z-index:1; margin-top:24px; padding:16px; border:1px solid var(--b1); border-radius:18px; background:color-mix(in srgb,var(--s2) 72%,transparent); display:grid; grid-template-columns:auto minmax(260px,1fr) auto; align-items:center; gap:18px; }
+.fc-horizons,.fc-scenario-tabs { display:flex; gap:5px; padding:4px; border:1px solid var(--b1); border-radius:12px; background:var(--s1); }
+.fc-horizons button,.fc-scenario-tabs button { border:none; background:transparent; color:var(--t2); padding:8px 12px; border-radius:9px; font-family:var(--font-body); font-size:11px; font-weight:650; cursor:pointer; white-space:nowrap; }
+.fc-horizons button.on,.fc-scenario-tabs button.on { background:var(--ac); color:#fff; box-shadow:0 5px 14px color-mix(in srgb,var(--ac) 25%,transparent); }
+.fc-slider-wrap { min-width:0; }
+.fc-slider-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; color:var(--t3); font-size:10px; }
+.fc-slider-top strong { color:var(--t1); font-size:11px; }
+.fc-slider { direction:ltr; width:100%; height:6px; border-radius:999px; appearance:none; -webkit-appearance:none; background:linear-gradient(90deg,var(--rd),var(--gd) 50%,var(--gr)); outline:none; }
+.fc-slider::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:var(--t1); border:5px solid var(--s1); box-shadow:0 0 0 2px var(--ac),0 6px 14px rgba(0,0,0,.32); cursor:grab; }
+.fc-slider::-moz-range-thumb { width:13px; height:13px; border-radius:50%; background:var(--t1); border:5px solid var(--s1); box-shadow:0 0 0 2px var(--ac); cursor:grab; }
+.fc-grid-2 { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(340px,.75fr); gap:16px; }
+.fc-scenario-card { padding:22px; }
+.fc-section-head { position:relative; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:18px; }
+.fc-section-title { font-size:15px; font-weight:750; display:flex; align-items:center; gap:8px; }
+.fc-section-title i { color:var(--ac); font-size:18px; }
+.fc-section-sub { color:var(--t3); font-size:10.5px; margin-top:4px; }
+.fc-projection-main { position:relative; z-index:1; display:flex; align-items:end; justify-content:space-between; gap:18px; margin-bottom:18px; }
+.fc-projection-amount { font-family:var(--font-mono); font-size:clamp(32px,4vw,54px); font-weight:750; letter-spacing:-.06em; }
+.fc-projection-change { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border-radius:999px; background:color-mix(in srgb,var(--gr) 12%,transparent); border:1px solid color-mix(in srgb,var(--gr) 26%,transparent); color:var(--gr); font-family:var(--font-mono); font-weight:700; font-size:12px; }
+.fc-projection-change.dn { color:var(--rd); background:color-mix(in srgb,var(--rd) 12%,transparent); border-color:color-mix(in srgb,var(--rd) 26%,transparent); }
+.fc-range { position:relative; z-index:1; height:15px; border-radius:999px; background:linear-gradient(90deg,color-mix(in srgb,var(--rd) 88%,#fff),var(--gd),color-mix(in srgb,var(--gr) 88%,#fff)); margin:34px 4px 12px; }
+.fc-range::before,.fc-range::after { position:absolute; top:22px; color:var(--t3); font-size:9.5px; }
+.fc-range::before { content:'דובי'; left:0; }.fc-range::after { content:'שורי'; right:0; }
+.fc-range-marker { position:absolute; top:50%; transform:translate(50%,-50%); width:24px; height:24px; border-radius:8px; background:var(--s1); border:2px solid var(--t1); box-shadow:0 6px 18px rgba(0,0,0,.42); transition:left .25s ease; }
+.fc-range-labels { direction:ltr; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:28px; }
+.fc-range-label { direction:rtl; padding:12px; border-radius:13px; background:var(--s2); border:1px solid var(--b1); text-align:center; cursor:pointer; transition:border-color .15s,transform .15s; }
+.fc-range-label:hover { transform:translateY(-1px); border-color:var(--ac); }
+.fc-range-label.on { border-color:color-mix(in srgb,var(--ac) 72%,var(--b1)); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ac) 25%,transparent); }
+.fc-range-label span { display:block; color:var(--t3); font-size:9.5px; margin-bottom:5px; }.fc-range-label strong { font-family:var(--font-mono); font-size:15px; }
+.fc-consensus-card { padding:22px; }
+.fc-consensus-layout { position:relative; z-index:1; display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center; }
+.fc-ring { width:142px; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; position:relative; background:conic-gradient(var(--gr) 0 50%,var(--gd) 50% 80%,var(--rd) 80% 100%); }
+.fc-ring::after { content:''; width:100px; aspect-ratio:1; border-radius:50%; background:var(--s1); border:1px solid var(--b1); }
+.fc-ring-center { position:absolute; z-index:1; text-align:center; }.fc-ring-center strong { display:block; font-family:var(--font-mono); font-size:25px; }.fc-ring-center span { color:var(--t3); font-size:9px; }
+.fc-rec-list { display:flex; flex-direction:column; gap:10px; }
+.fc-rec-row { display:grid; grid-template-columns:70px 1fr 34px; gap:8px; align-items:center; font-size:10.5px; color:var(--t2); }
+.fc-rec-track { height:6px; border-radius:999px; background:var(--s3); overflow:hidden; }.fc-rec-fill { height:100%; border-radius:inherit; }
+.fc-rec-row strong { font-family:var(--font-mono); color:var(--t1); text-align:end; }
+.fc-table-card { padding:0; }
+.fc-table-head { position:relative; z-index:1; padding:20px 22px 14px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:1px solid var(--b1); }
+.fc-table-tools { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.fc-search { position:relative; min-width:220px; }.fc-search i { position:absolute; inset-inline-start:11px; top:50%; transform:translateY(-50%); color:var(--t3); }.fc-search input { width:100%; height:38px; border-radius:11px; border:1px solid var(--b1); background:var(--s2); color:var(--t1); padding:0 36px 0 12px; font-family:var(--font-body); outline:none; }.fc-search input:focus { border-color:var(--ac); }
+.fc-filter { height:38px; border-radius:11px; border:1px solid var(--b1); background:var(--s2); color:var(--t1); padding:0 11px; font-family:var(--font-body); font-size:11px; outline:none; }
+.fc-table-wrap { position:relative; z-index:1; overflow:auto; }
+.fc-table { width:100%; border-collapse:collapse; min-width:1040px; direction:rtl; }
+.fc-table th { position:sticky; top:0; z-index:2; background:color-mix(in srgb,var(--s1) 94%,transparent); backdrop-filter:blur(12px); color:var(--t3); font-size:9.5px; letter-spacing:.04em; font-weight:700; padding:12px 14px; text-align:right; border-bottom:1px solid var(--b1); white-space:nowrap; }
+.fc-sort { border:none; background:none; color:inherit; font:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }.fc-sort.on { color:var(--ac); }
+.fc-table td { padding:15px 14px; border-bottom:1px solid var(--b1); font-size:11.5px; color:var(--t2); white-space:nowrap; }
+.fc-table tbody tr { cursor:pointer; transition:background .14s; }.fc-table tbody tr:hover { background:color-mix(in srgb,var(--ac) 5%,transparent); }.fc-table tbody tr:last-child td { border-bottom:none; }
+.fc-asset { display:flex; align-items:center; gap:10px; min-width:165px; }.fc-asset-icon { width:34px; height:34px; flex:0 0 34px; border-radius:11px; display:grid; place-items:center; background:var(--s2); font-size:16px; }.fc-asset-symbol { color:var(--t1); font-family:var(--font-mono); font-weight:750; font-size:12.5px; }.fc-asset-name { color:var(--t3); font-size:9.5px; margin-top:2px; max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+.fc-money { color:var(--t1); font-family:var(--font-mono); font-weight:650; }.fc-target { color:var(--gr); font-family:var(--font-mono); font-weight:700; }.fc-target.no { color:var(--t3); }
+.fc-upside { display:inline-flex; align-items:center; justify-content:center; min-width:58px; padding:5px 8px; border-radius:999px; color:var(--gr); background:color-mix(in srgb,var(--gr) 10%,transparent); border:1px solid color-mix(in srgb,var(--gr) 18%,transparent); font-family:var(--font-mono); font-weight:700; }.fc-upside.dn { color:var(--rd); background:color-mix(in srgb,var(--rd) 10%,transparent); border-color:color-mix(in srgb,var(--rd) 18%,transparent); }.fc-upside.flat { color:var(--t3); background:var(--s2); border-color:var(--b1); }
+.fc-rating { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border-radius:999px; font-size:10px; font-weight:700; }.fc-rating.buy { color:var(--gr); background:color-mix(in srgb,var(--gr) 11%,transparent); }.fc-rating.hold { color:var(--gd); background:color-mix(in srgb,var(--gd) 11%,transparent); }.fc-rating.sell { color:var(--rd); background:color-mix(in srgb,var(--rd) 11%,transparent); }.fc-rating.none { color:var(--t3); background:var(--s2); }
+.fc-confidence { display:flex; align-items:center; gap:7px; }.fc-confidence-bar { width:46px; height:5px; border-radius:999px; background:var(--s3); overflow:hidden; }.fc-confidence-bar i { display:block; height:100%; background:var(--ac); border-radius:inherit; }
+.fc-source { display:block; color:var(--t3); font-size:8.5px; margin-top:4px; }
+.fc-empty { padding:50px 20px; text-align:center; color:var(--t3); line-height:1.7; }
+.fc-loading { padding:50px 20px; text-align:center; }.fc-loading-ring { width:36px; height:36px; border-radius:50%; border:3px solid var(--b2); border-top-color:var(--ac); animation:rot .7s linear infinite; margin:0 auto 13px; }.fc-loading-title { color:var(--t1); font-weight:700; }.fc-loading-sub { color:var(--t3); font-size:10.5px; margin-top:5px; }
+.fc-progress { height:4px; background:var(--s3); border-radius:999px; overflow:hidden; margin:14px auto 0; max-width:280px; }.fc-progress i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--ac),var(--gr)); transition:width .25s; }
+.fc-insights-card { padding:22px; }
+.fc-insights-grid { position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.fc-insight { padding:16px; border-radius:16px; border:1px solid var(--b1); background:var(--s2); min-height:150px; display:flex; flex-direction:column; }.fc-insight-icon { width:34px; height:34px; border-radius:11px; display:grid; place-items:center; margin-bottom:14px; background:color-mix(in srgb,var(--ac) 12%,transparent); color:var(--ac); font-size:17px; }.fc-insight.warn .fc-insight-icon { color:var(--gd); background:color-mix(in srgb,var(--gd) 12%,transparent); }.fc-insight.risk .fc-insight-icon { color:var(--rd); background:color-mix(in srgb,var(--rd) 12%,transparent); }.fc-insight.good .fc-insight-icon { color:var(--gr); background:color-mix(in srgb,var(--gr) 12%,transparent); }
+.fc-insight-title { color:var(--t1); font-size:12px; font-weight:750; margin-bottom:7px; }.fc-insight-text { color:var(--t2); font-size:10.5px; line-height:1.6; flex:1; }.fc-insight-tag { margin-top:12px; color:var(--t3); font-family:var(--font-mono); font-size:8.5px; }
+.fc-lower-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,.55fr); gap:16px; }
+.fc-sector-card,.fc-method-card { padding:22px; }
+.fc-sector-list { position:relative; z-index:1; display:flex; flex-direction:column; gap:13px; }.fc-sector-row { display:grid; grid-template-columns:115px 1fr 45px; gap:10px; align-items:center; }.fc-sector-name { color:var(--t2); font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.fc-sector-track { height:8px; border-radius:999px; background:var(--s3); overflow:hidden; }.fc-sector-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--ac),color-mix(in srgb,var(--ac) 60%,var(--gr))); }.fc-sector-pct { color:var(--t1); font-family:var(--font-mono); font-size:10px; text-align:end; }
+.fc-method-list { position:relative; z-index:1; display:flex; flex-direction:column; gap:11px; }.fc-method-item { display:flex; gap:9px; align-items:flex-start; color:var(--t2); font-size:10.5px; line-height:1.55; }.fc-method-item i { color:var(--ac); margin-top:2px; }.fc-model-toggle { position:relative; z-index:1; margin-top:16px; padding:12px; border-radius:13px; border:1px solid var(--b1); background:var(--s2); display:flex; align-items:center; justify-content:space-between; gap:12px; }.fc-model-toggle span { color:var(--t2); font-size:10.5px; line-height:1.5; }.fc-switch { width:42px; height:24px; border-radius:999px; border:none; background:var(--s3); position:relative; cursor:pointer; flex:0 0 auto; }.fc-switch::after { content:''; position:absolute; width:18px; height:18px; top:3px; inset-inline-start:3px; border-radius:50%; background:var(--t2); transition:transform .2s,background .2s; }.fc-switch.on { background:color-mix(in srgb,var(--ac) 40%,var(--s3)); }.fc-switch.on::after { transform:translateX(-18px); background:#fff; }
+.fc-footnote { color:var(--t3); font-size:9.5px; line-height:1.65; text-align:center; padding:4px 14px 0; }
+.fc-detail { padding:4px 2px 8px; }.fc-detail-hero { padding:18px; border-radius:18px; background:linear-gradient(145deg,color-mix(in srgb,var(--ac) 10%,var(--s2)),var(--s2)); border:1px solid var(--b1); }.fc-detail-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }.fc-detail-title { display:flex; align-items:center; gap:12px; }.fc-detail-targets { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }.fc-detail-target { background:var(--s1); border:1px solid var(--b1); border-radius:13px; padding:12px; text-align:center; }.fc-detail-target span { display:block; color:var(--t3); font-size:9px; margin-bottom:5px; }.fc-detail-target strong { font-family:var(--font-mono); font-size:15px; }.fc-detail-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }.fc-detail-metric { background:var(--s2); border:1px solid var(--b1); border-radius:13px; padding:11px; }.fc-detail-metric span { display:block; color:var(--t3); font-size:8.5px; margin-bottom:5px; }.fc-detail-metric strong { font-family:var(--font-mono); font-size:12px; color:var(--t1); }
+.fc-pdf-stage { position:fixed; left:-20000px; top:0; width:794px; z-index:-1; pointer-events:none; }
+.fpdf-page { width:794px; height:1123px; overflow:hidden; background:#f5f3ec; color:#0b1020; padding:44px 42px; direction:rtl; font-family:'Assistant','Arial',sans-serif; position:relative; }
+.fpdf-page::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 15% 0%,rgba(59,107,255,.08),transparent 36%); pointer-events:none; }.fpdf-brand { position:relative; font-size:9px; letter-spacing:.24em; color:#617087; font-weight:700; }.fpdf-title { position:relative; font-size:42px; line-height:1.04; font-weight:800; margin:18px 0 10px; max-width:620px; }.fpdf-sub { position:relative; color:#667085; font-size:13px; line-height:1.65; max-width:640px; }.fpdf-rule { height:1px; background:#1a2339; margin:28px 0; opacity:.55; }.fpdf-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }.fpdf-kpi { background:#fff; border:1px solid #dedfd9; border-radius:14px; padding:14px; }.fpdf-kpi span { display:block; color:#778092; font-size:9px; margin-bottom:7px; }.fpdf-kpi strong { font-size:20px; font-weight:800; }.fpdf-scenario { margin-top:18px; background:#fff; border:1px solid #dedfd9; border-radius:18px; padding:20px; }.fpdf-scenario-head { display:flex; justify-content:space-between; align-items:end; }.fpdf-big { font-size:34px; font-weight:850; }.fpdf-change { color:#159a68; font-size:17px; font-weight:800; }.fpdf-bar { height:9px; border-radius:999px; background:linear-gradient(90deg,#d55850,#d2b268,#29a87b); margin:24px 0 16px; position:relative; }.fpdf-dot { position:absolute; top:50%; transform:translate(50%,-50%); width:18px; height:18px; border-radius:6px; background:#0b1020; border:3px solid #fff; }.fpdf-three { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.fpdf-three div { background:#f6f5ef; border:1px solid #e2e2dc; border-radius:11px; padding:11px; text-align:center; }.fpdf-three span { display:block; color:#7a8291; font-size:9px; margin-bottom:4px; }.fpdf-three strong { font-size:13px; }.fpdf-section-title { font-size:20px; font-weight:850; margin-bottom:13px; }.fpdf-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #dedfd9; border-radius:14px; overflow:hidden; }.fpdf-table th { padding:10px 9px; color:#6f7889; font-size:8px; text-align:right; background:#f1f1eb; border-bottom:1px solid #dedfd9; }.fpdf-table td { padding:11px 9px; font-size:9px; border-bottom:1px solid #ecece6; }.fpdf-table tr:last-child td { border-bottom:none; }.fpdf-green { color:#159a68; font-weight:800; }.fpdf-red { color:#c44d4d; font-weight:800; }.fpdf-insights { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }.fpdf-insight { background:#fff; border:1px solid #dedfd9; border-radius:14px; padding:15px; min-height:115px; }.fpdf-insight strong { display:block; font-size:12px; margin-bottom:7px; }.fpdf-insight p { color:#667085; font-size:9px; line-height:1.55; margin:0; }.fpdf-note { position:absolute; left:42px; right:42px; bottom:28px; color:#7b8290; font-size:7.5px; line-height:1.5; border-top:1px solid #d8d8d2; padding-top:10px; }
+@media (max-width:1100px) { .fc-hero-grid { grid-template-columns:1fr; }.fc-grid-2,.fc-lower-grid { grid-template-columns:1fr; }.fc-insights-grid { grid-template-columns:repeat(2,1fr); }.fc-kpis { grid-template-columns:repeat(4,1fr); }.fc-kpi { min-height:88px; } }
+@media (max-width:760px) { .forecast-page { padding:0 12px 105px; }.forecast-shell { gap:12px; }.fc-card { border-radius:19px; }.fc-hero { padding:19px 16px; }.fc-hero-top { align-items:flex-start; }.fc-actions .fc-btn span { display:none; }.fc-actions .fc-btn { width:38px; padding:0; }.fc-title { font-size:42px; }.fc-subtitle { font-size:12px; }.fc-kpis { grid-template-columns:repeat(2,1fr); }.fc-kpi { padding:13px; min-height:86px; }.fc-kpi-v { font-size:20px; }.fc-controls { grid-template-columns:1fr; gap:12px; padding:13px; }.fc-horizons,.fc-scenario-tabs { width:100%; }.fc-horizons button,.fc-scenario-tabs button { flex:1; padding:8px 5px; }.fc-projection-main { align-items:flex-start; flex-direction:column; }.fc-consensus-layout { grid-template-columns:1fr; justify-items:center; }.fc-rec-list { width:100%; }.fc-insights-grid { grid-template-columns:1fr; }.fc-table-head { padding:16px 14px 12px; }.fc-table-tools { width:100%; }.fc-search { min-width:0; flex:1; }.fc-table-wrap { overflow:visible; padding:0 10px 10px; }.fc-table { min-width:0; display:block; }.fc-table thead { display:none; }.fc-table tbody { display:flex; flex-direction:column; gap:9px; }.fc-table tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border:1px solid var(--b1); border-radius:15px; background:var(--s2); padding:12px; }.fc-table td { padding:7px 5px; border:none; white-space:normal; min-width:0; }.fc-table td::before { content:attr(data-label); display:block; color:var(--t3); font-size:8.5px; margin-bottom:4px; }.fc-table td:first-child { grid-column:1/-1; padding-bottom:10px; border-bottom:1px solid var(--b1); margin-bottom:3px; }.fc-asset-name { max-width:230px; }.fc-detail-targets,.fc-detail-metrics { grid-template-columns:1fr; }.nav .ni-lbl { font-size:9px; letter-spacing:0; }.nav .ni { padding-inline:2px; }}
+@media print { body.forecast-printing * { visibility:hidden !important; } body.forecast-printing #page-forecast, body.forecast-printing #page-forecast * { visibility:visible !important; } body.forecast-printing #page-forecast { position:absolute!important; inset:0!important; display:block!important; background:#fff!important; color:#111!important; } body.forecast-printing .fc-actions,body.forecast-printing .fc-controls,body.forecast-printing .fc-table-tools,body.forecast-printing .nav,body.forecast-printing .topbar,body.forecast-printing #tickerBar,body.forecast-printing #marketBar { display:none!important; } }
+
 </style>
 </head>
 <body>
@@ -2007,6 +2111,7 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="nit" id="navBonds" data-p="bonds" onclick="goPage('bonds',this)" style="display:none">אג"ח</button>
     <button class="nit" id="navEtfs" data-p="etfs" onclick="goPage('etfs',this)" style="display:none">תעודות סל</button>
     <button class="nit" data-p="insights" onclick="goPage('insights',this)">תובנות</button>
+    <button class="nit" data-p="forecast" onclick="goPage('forecast',this)">תחזית</button>
     <button class="nit" data-p="map" onclick="goPage('map',this)">מפה</button>
   </nav>
 <div class="topbar">
@@ -3077,6 +3182,122 @@ onAuthStateChanged(auth, async user => {
     </div>
   </div>
 
+  <div class="page forecast-page" id="page-forecast">
+    <div class="forecast-shell">
+      <section class="fc-card fc-hero">
+        <div class="fc-hero-top">
+          <div class="fc-eyebrow"><span class="fc-live-dot"></span>VECTOR FORECAST · ANALYST CONSENSUS</div>
+          <div class="fc-actions">
+            <button class="fc-btn" id="fcRefreshBtn" type="button" onclick="forecastRefresh(true)" title="רענון נתוני אנליסטים"><i class="ph-thin ph-arrows-clockwise"></i><span>רענון</span></button>
+            <button class="fc-btn primary" id="fcPdfBtn" type="button" onclick="forecastDownloadPdf()" title="הורדת דו״ח PDF"><i class="ph-thin ph-file-pdf"></i><span>הורד PDF</span></button>
+          </div>
+        </div>
+        <div class="fc-hero-grid">
+          <div>
+            <h1 class="fc-title">העתיד של התיק שלך, <em>בשלושה תרחישים.</em></h1>
+            <p class="fc-subtitle">קונצנזוס יעדי מחיר ודירוגי אנליסטים לכל מניה בתיק, מחובר למנוע תרחישים אינטראקטיבי שמציג כיצד התיק עשוי להיראות בשוק דובי, בסיסי או שורי.</p>
+            <div class="fc-disclaimer-inline"><i class="ph-thin ph-shield-warning"></i> מידע מחקרי בלבד — לא ייעוץ השקעות ולא הבטחת תשואה.</div>
+          </div>
+          <div class="fc-kpis">
+            <div class="fc-kpi"><div class="fc-kpi-l">שווי נוכחי — מניות</div><div class="fc-kpi-v" id="fcCurrentValue">—</div><div class="fc-kpi-s" id="fcCurrentSub">לפי מחירי השוק האחרונים</div></div>
+            <div class="fc-kpi"><div class="fc-kpi-l">שווי בתרחיש הנבחר</div><div class="fc-kpi-v up" id="fcProjectedValue">—</div><div class="fc-kpi-s" id="fcProjectedSub">—</div></div>
+            <div class="fc-kpi"><div class="fc-kpi-l">פוטנציאל משוקלל</div><div class="fc-kpi-v up" id="fcWeightedUpside">—</div><div class="fc-kpi-s">משוקלל לפי גודל הפוזיציה</div></div>
+            <div class="fc-kpi"><div class="fc-kpi-l">כיסוי אנליסטים</div><div class="fc-kpi-v gd" id="fcCoverage">—</div><div class="fc-kpi-s" id="fcCoverageSub">—</div></div>
+          </div>
+        </div>
+        <div class="fc-controls">
+          <div class="fc-horizons" id="fcHorizons" aria-label="טווח תחזית">
+            <button class="on" data-years="1" onclick="forecastSetHorizon(1,this)">12 חודשים</button>
+            <button data-years="3" onclick="forecastSetHorizon(3,this)">3 שנים</button>
+            <button data-years="5" onclick="forecastSetHorizon(5,this)">5 שנים</button>
+          </div>
+          <div class="fc-slider-wrap">
+            <div class="fc-slider-top"><span>יעד נמוך</span><strong id="fcScenarioLabel">תרחיש בסיס · יעד ממוצע</strong><span>יעד גבוה</span></div>
+            <input class="fc-slider" id="fcScenarioSlider" type="range" min="-100" max="100" step="1" value="0" oninput="forecastSetScenario(this.value)">
+          </div>
+          <div class="fc-scenario-tabs" id="fcScenarioTabs">
+            <button onclick="forecastChooseScenario(-100,this)">דובי</button>
+            <button class="on" onclick="forecastChooseScenario(0,this)">בסיס</button>
+            <button onclick="forecastChooseScenario(100,this)">שורי</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="fc-grid-2">
+        <section class="fc-card fc-scenario-card">
+          <div class="fc-section-head"><div><div class="fc-section-title"><i class="ph-thin ph-chart-line-up"></i> מפת התרחישים של התיק</div><div class="fc-section-sub" id="fcScenarioNote">יעדי מחיר מצטברים ל־12 החודשים הקרובים</div></div><div class="fc-eyebrow" id="fcAsOf">—</div></div>
+          <div class="fc-projection-main"><div><div class="fc-section-sub">שווי צפוי בתרחיש הנבחר</div><div class="fc-projection-amount" id="fcScenarioAmount">—</div></div><div class="fc-projection-change" id="fcScenarioChange">—</div></div>
+          <div class="fc-range"><span class="fc-range-marker" id="fcRangeMarker" style="left:50%"></span></div>
+          <div class="fc-range-labels">
+            <div class="fc-range-label" onclick="forecastChooseScenario(-100)"><span>דובי · יעד נמוך</span><strong id="fcBearTotal">—</strong></div>
+            <div class="fc-range-label on" onclick="forecastChooseScenario(0)"><span>בסיס · יעד ממוצע</span><strong id="fcBaseTotal">—</strong></div>
+            <div class="fc-range-label" onclick="forecastChooseScenario(100)"><span>שורי · יעד גבוה</span><strong id="fcBullTotal">—</strong></div>
+          </div>
+        </section>
+
+        <section class="fc-card fc-consensus-card">
+          <div class="fc-section-head"><div><div class="fc-section-title"><i class="ph-thin ph-users-three"></i> קונצנזוס אנליסטים</div><div class="fc-section-sub">סיכום ההמלצות העדכניות על המניות בתיק</div></div></div>
+          <div class="fc-consensus-layout">
+            <div class="fc-ring" id="fcConsensusRing"><div class="fc-ring-center"><strong id="fcBuyPct">—</strong><span>BUY / STRONG BUY</span></div></div>
+            <div class="fc-rec-list" id="fcRecommendationList"></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="fc-card fc-table-card">
+        <div class="fc-table-head">
+          <div><div class="fc-section-title"><i class="ph-thin ph-table"></i> פירוט מלא לפי אחזקה</div><div class="fc-section-sub">לחיצה על שורה פותחת יעדי מחיר, המלצות ומדדי סיכון מלאים</div></div>
+          <div class="fc-table-tools">
+            <div class="fc-search"><i class="ph-thin ph-magnifying-glass"></i><input id="fcSearch" type="search" placeholder="חיפוש מניה…" oninput="forecastFilterChanged()"></div>
+            <select class="fc-filter" id="fcCoverageFilter" onchange="forecastFilterChanged()"><option value="all">כל האחזקות</option><option value="covered">עם כיסוי אנליסטים</option><option value="uncovered">ללא כיסוי</option></select>
+          </div>
+        </div>
+        <div id="fcTableState" class="fc-loading"><div class="fc-loading-ring"></div><div class="fc-loading-title">בונה תחזית אישית לתיק…</div><div class="fc-loading-sub" id="fcLoadingText">אוסף יעדי מחיר, המלצות ונתוני סיכון</div><div class="fc-progress"><i id="fcProgressBar"></i></div></div>
+        <div class="fc-table-wrap" id="fcTableWrap" style="display:none">
+          <table class="fc-table">
+            <thead><tr>
+              <th><button class="fc-sort" data-sort="name" onclick="forecastSort('name',this)">מניה <i class="ph-thin ph-caret-up-down"></i></button></th>
+              <th>כמות</th>
+              <th><button class="fc-sort on" data-sort="currentValue" onclick="forecastSort('currentValue',this)">שווי היום <i class="ph-thin ph-caret-down"></i></button></th>
+              <th>מחיר נוכחי</th>
+              <th>יעד בתרחיש</th>
+              <th><button class="fc-sort" data-sort="projectedValue" onclick="forecastSort('projectedValue',this)">שווי צפוי <i class="ph-thin ph-caret-up-down"></i></button></th>
+              <th><button class="fc-sort" data-sort="upside" onclick="forecastSort('upside',this)">שינוי <i class="ph-thin ph-caret-up-down"></i></button></th>
+              <th><button class="fc-sort" data-sort="ratingScore" onclick="forecastSort('ratingScore',this)">קונצנזוס <i class="ph-thin ph-caret-up-down"></i></button></th>
+              <th>כיסוי / ביטחון</th>
+            </tr></thead>
+            <tbody id="fcTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="fc-card fc-insights-card">
+        <div class="fc-section-head"><div><div class="fc-section-title"><i class="ph-thin ph-sparkle"></i> תובנות חכמות מהמבנה של התיק</div><div class="fc-section-sub">ריכוזיות, סקטורים, בטא, פערי כיסוי ואיכות הקונצנזוס</div></div></div>
+        <div class="fc-insights-grid" id="fcInsightsGrid"></div>
+      </section>
+
+      <div class="fc-lower-grid">
+        <section class="fc-card fc-sector-card">
+          <div class="fc-section-head"><div><div class="fc-section-title"><i class="ph-thin ph-chart-donut"></i> פיזור סקטוריאלי</div><div class="fc-section-sub">משקל כל סקטור מתוך שווי המניות בתיק</div></div></div>
+          <div class="fc-sector-list" id="fcSectorList"></div>
+        </section>
+        <section class="fc-card fc-method-card">
+          <div class="fc-section-head"><div><div class="fc-section-title"><i class="ph-thin ph-info"></i> איך התחזית נבנית?</div><div class="fc-section-sub">שקיפות מלאה לגבי הנתונים והמודל</div></div></div>
+          <div class="fc-method-list">
+            <div class="fc-method-item"><i class="ph-thin ph-check-circle"></i><span>טווח 12 חודשים משתמש ביעד הנמוך, הממוצע והגבוה שמדווחים ספקי נתוני השוק.</span></div>
+            <div class="fc-method-item"><i class="ph-thin ph-check-circle"></i><span>טווחי 3 ו־5 שנים הם אקסטרפולציה מתמתנת של קונצנזוס השנה הראשונה — לא יעד אנליסטים רשמי.</span></div>
+            <div class="fc-method-item"><i class="ph-thin ph-check-circle"></i><span>שווי התיק מחושב לפי הכמות האמיתית בכל פוזיציה ומטבע התצוגה שנבחר באתר.</span></div>
+            <div class="fc-method-item"><i class="ph-thin ph-warning-circle"></i><span>יעדי מחיר ודירוגים עשויים להיות חסרים, מאוחרים או להשתנות ללא הודעה.</span></div>
+          </div>
+          <div class="fc-model-toggle"><span><strong style="color:var(--t1)">מודל השלמה לנכסים ללא כיסוי</strong><br>משתמש בצמיחה, בטא ותמחור כתרחיש משלים ומסמן אותו בבירור כ״מודל״.</span><button class="fc-switch" id="fcModelSwitch" onclick="forecastToggleModel()" aria-label="מודל השלמה"></button></div>
+        </section>
+      </div>
+
+      <div class="fc-footnote">המידע מוצג לצורכי מחקר והמחשה בלבד. אין מדובר בייעוץ השקעות, המלצה לביצוע פעולה, התחייבות לתשואה או תחליף לבדיקה עצמאית. קונצנזוס אנליסטים הוא אומדן ולא תחזית ודאית.</div>
+    </div>
+  </div>
+
+
   <div class="page" id="page-map">
     <div class="sec" style="margin-top:2px"><div class="sec-t"><i></i>מפה</div></div>
     <div class="map-toolbar">
@@ -3161,6 +3382,7 @@ onAuthStateChanged(auth, async user => {
   <button class="ni" id="navBondsM" data-p="bonds" onclick="goPage('bonds',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-bank"></i></span><span class="ni-lbl">אג"ח</span></button>
   <button class="ni" id="navEtfsM" data-p="etfs" onclick="goPage('etfs',this)" style="display:none"><span class="ni-ico"><i class="ph-thin ph-briefcase"></i></span><span class="ni-lbl">תעודות סל</span></button>
   <button class="ni" data-p="insights" onclick="goPage('insights',this)"><span class="ni-ico"><i class="ph-thin ph-lightbulb"></i></span><span class="ni-lbl">תובנות</span></button>
+  <button class="ni" data-p="forecast" onclick="goPage('forecast',this)"><span class="ni-ico"><i class="ph-thin ph-crystal-ball"></i></span><span class="ni-lbl">תחזית</span></button>
   <button class="ni" data-p="map" onclick="goPage('map',this)"><span class="ni-ico"><i class="ph-thin ph-grid-nine"></i></span><span class="ni-lbl">מפה</span></button>
 </nav>
 
@@ -9777,6 +9999,7 @@ function goPage(id, btn) {
   if (id === 'stocks')   renderStocksPage();
   if (id === 'crypto')   renderCryptoPage();
   if (id === 'insights') { renderInsights(); buildHistoryTable(); if (_prevPage !== 'insights') setTimeout(() => { try { maybeShowInterstitial(); } catch(_){} }, 400); }
+  if (id === 'forecast') renderForecastPage();
   if (id === 'commodities' || id === 'bonds' || id === 'etfs') renderManualPage(id);
   if (id === 'map') renderMapPage();
 }
@@ -16178,6 +16401,520 @@ function launchConfetti() {
   window.renderMapPage=function(){ buildUI(); update(); };
   window.mapRefresh=function(){ spSnap=null; spSnapAt=0; spCapCache={}; try{localStorage.removeItem(SP_STORE);localStorage.removeItem(SP_MCAP_STORE);}catch(_){} update(true); };
 })();
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  const FC_CACHE_KEY = 'vector_forecast_consensus_v3';
+  const FC_CACHE_TTL = 6 * 60 * 60 * 1000;
+  const FC = {
+    api: {}, rows: [], loaded: false, loading: false, initialized: false,
+    years: 1, scenario: 0, sort: 'currentValue', sortDir: -1,
+    modelFallback: localStorage.getItem('vector_forecast_model') === '1',
+    lastFetchAt: 0, pdfBusy: false,
+  };
+  window.vectorForecastState = FC;
+
+  const fcClamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number(n) || 0));
+  const fcNum = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const fcPositive = (...vals) => { for (const v of vals) { const n = fcNum(v); if (n != null && n > 0) return n; } return null; };
+  const fcHtml = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fcDateTime = ts => {
+    if (!ts) return '—';
+    try { return new Date(ts).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+    catch(_) { return '—'; }
+  };
+  const fcPct = (n, digits=1) => {
+    n = Number(n); if (!Number.isFinite(n)) return '—';
+    const s = n > 0 ? '+' : ''; return s + n.toFixed(digits) + '%';
+  };
+  function fcMoney(ils, digits=0) {
+    if (!Number.isFinite(Number(ils))) return '—';
+    const cur = String(S.currency || 'ils').toUpperCase();
+    const def = (typeof CURRENCIES !== 'undefined' && CURRENCIES[cur]) || {sym:'₪',locale:'he-IL'};
+    const value = typeof convertFromILS === 'function' ? convertFromILS(Number(ils), cur) : Number(ils);
+    return (def.sym || '') + Number(value).toLocaleString(def.locale || 'he-IL', {minimumFractionDigits:digits,maximumFractionDigits:digits});
+  }
+  function fcNativePrice(n, currency, digits=2) {
+    if (!(Number(n) > 0)) return '—';
+    return typeof fPriceNative === 'function' ? fPriceNative(Number(n), currency || 'USD', digits) : Number(n).toFixed(digits);
+  }
+  function fcQty(n) {
+    n = Number(n); if (!Number.isFinite(n)) return '—';
+    return n.toLocaleString('he-IL',{maximumFractionDigits:n < 10 ? 4 : 2});
+  }
+
+  function fcParsePayload(text) {
+    let j = text;
+    if (typeof j === 'string') { try { j = JSON.parse(j); } catch(_) { return null; } }
+    if (typeof j?.contents === 'string') { try { j = JSON.parse(j.contents); } catch(_) { return null; } }
+    return j;
+  }
+  async function fcFetchJson(origin, { finnhub=false, timeout=8500 } = {}) {
+    const worker = String(typeof MY_PROXY !== 'undefined' ? MY_PROXY : '').replace(/\/$/,'');
+    const urls = [];
+    if (worker) urls.push(worker + '/?url=' + encodeURIComponent(origin));
+    if (!finnhub) {
+      urls.push('https://corsproxy.io/?url=' + encodeURIComponent(origin));
+      urls.push('https://api.allorigins.win/get?url=' + encodeURIComponent(origin));
+    }
+    if (!urls.length) urls.push(origin);
+    for (const url of urls) {
+      try {
+        const ctl = new AbortController();
+        const tm = setTimeout(() => ctl.abort(), timeout);
+        const r = await fetch(url,{cache:'no-store',signal:ctl.signal});
+        clearTimeout(tm);
+        if (!r.ok) continue;
+        const parsed = fcParsePayload(await r.text());
+        if (parsed && !parsed.error) return parsed;
+      } catch(_) {}
+    }
+    return null;
+  }
+
+  async function fcYahooBatch(symbols) {
+    const out = {};
+    const chunks = [];
+    for (let i=0;i<symbols.length;i+=35) chunks.push(symbols.slice(i,i+35));
+    await Promise.all(chunks.map(async list => {
+      const origin = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(list.join(','));
+      const j = await fcFetchJson(origin,{timeout:7000});
+      const rows = j?.quoteResponse?.result || [];
+      rows.forEach(q => { if (q?.symbol) out[String(q.symbol).toUpperCase()] = q; });
+    }));
+    return out;
+  }
+
+  async function fcFinnhubOne(sym) {
+    const enc = encodeURIComponent(sym);
+    const [pt, rec, profile, metric] = await Promise.all([
+      fcFetchJson(`https://finnhub.io/api/v1/stock/price-target?symbol=${enc}`,{finnhub:true}),
+      fcFetchJson(`https://finnhub.io/api/v1/stock/recommendation?symbol=${enc}`,{finnhub:true}),
+      fcFetchJson(`https://finnhub.io/api/v1/stock/profile2?symbol=${enc}`,{finnhub:true}),
+      fcFetchJson(`https://finnhub.io/api/v1/stock/metric?symbol=${enc}&metric=all`,{finnhub:true}),
+    ]);
+    return { pt:pt || null, rec:Array.isArray(rec) ? rec : [], profile:profile || null, metric:metric?.metric || null };
+  }
+
+  function fcLoadCache() {
+    try {
+      const data = JSON.parse(localStorage.getItem(FC_CACHE_KEY) || 'null');
+      if (!data || typeof data !== 'object' || !data.api) return null;
+      return data;
+    } catch(_) { return null; }
+  }
+  function fcSaveCache() {
+    try { localStorage.setItem(FC_CACHE_KEY, JSON.stringify({at:FC.lastFetchAt,api:FC.api})); } catch(_) {}
+  }
+
+  const FC_SECTOR_SYMBOLS = {
+    AAPL:'טכנולוגיה',MSFT:'טכנולוגיה',NVDA:'טכנולוגיה',AMD:'טכנולוגיה',INTC:'טכנולוגיה',MU:'טכנולוגיה',MRVL:'טכנולוגיה',SNDK:'טכנולוגיה',AVGO:'טכנולוגיה',QCOM:'טכנולוגיה',ORCL:'טכנולוגיה',CRM:'טכנולוגיה',ADBE:'טכנולוגיה',CSCO:'טכנולוגיה',IBM:'טכנולוגיה',TSM:'טכנולוגיה',ASML:'טכנולוגיה',SKYY:'טכנולוגיה',
+    GOOGL:'תקשורת ומדיה',GOOG:'תקשורת ומדיה',META:'תקשורת ומדיה',NFLX:'תקשורת ומדיה',DIS:'תקשורת ומדיה',
+    AMZN:'צריכה מחזורית',TSLA:'צריכה מחזורית',HD:'צריכה מחזורית',MCD:'צריכה מחזורית',NKE:'צריכה מחזורית',BKNG:'צריכה מחזורית',
+    JPM:'פיננסים',BAC:'פיננסים',GS:'פיננסים',MS:'פיננסים',V:'פיננסים',MA:'פיננסים',PYPL:'פיננסים',
+    LLY:'בריאות',UNH:'בריאות',JNJ:'בריאות',PFE:'בריאות',MRK:'בריאות',NVO:'בריאות',
+    XOM:'אנרגיה',CVX:'אנרגיה',COP:'אנרגיה',
+    WMT:'צריכה בסיסית',COST:'צריכה בסיסית',PG:'צריכה בסיסית',KO:'צריכה בסיסית',PEP:'צריכה בסיסית',
+    BA:'תעשייה',CAT:'תעשייה',GE:'תעשייה',RTX:'תעשייה',LMT:'תעשייה',
+  };
+  function fcSector(industry, sym, name) {
+    const s = String(sym || '').toUpperCase();
+    if (FC_SECTOR_SYMBOLS[s]) return FC_SECTOR_SYMBOLS[s];
+    if (/000660|hynix/i.test(s + ' ' + name)) return 'טכנולוגיה';
+    const t = String(industry || '') + ' ' + String(name || '');
+    if (/semiconductor|software|technology|computer|electronic|hardware|internet/i.test(t)) return 'טכנולוגיה';
+    if (/bank|financial|insurance|capital market|credit/i.test(t)) return 'פיננסים';
+    if (/health|pharma|biotech|medical|drug/i.test(t)) return 'בריאות';
+    if (/oil|gas|energy|petroleum/i.test(t)) return 'אנרגיה';
+    if (/retail|restaurant|auto|travel|leisure|apparel/i.test(t)) return 'צריכה מחזורית';
+    if (/food|beverage|household|staple|tobacco/i.test(t)) return 'צריכה בסיסית';
+    if (/media|telecom|communication|entertainment/i.test(t)) return 'תקשורת ומדיה';
+    if (/industrial|aerospace|defense|machinery|transport|construction/i.test(t)) return 'תעשייה';
+    if (/utility|electric|water/i.test(t)) return 'תשתיות';
+    if (/real estate|reit/i.test(t)) return 'נדל״ן';
+    if (/material|chemical|mining|steel/i.test(t)) return 'חומרי גלם';
+    return 'אחר';
+  }
+
+  function fcLatestRecommendation(list) {
+    if (!Array.isArray(list) || !list.length) return null;
+    return [...list].sort((a,b) => String(b.period||'').localeCompare(String(a.period||'')))[0] || null;
+  }
+  function fcRecommendationInfo(rec, yq) {
+    const counts = {
+      strongBuy:fcNum(rec?.strongBuy) || 0, buy:fcNum(rec?.buy) || 0,
+      hold:fcNum(rec?.hold) || 0, sell:fcNum(rec?.sell) || 0,
+      strongSell:fcNum(rec?.strongSell) || 0,
+    };
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    let score = null;
+    if (total > 0) score = (counts.strongBuy*2 + counts.buy - counts.sell - counts.strongSell*2) / total;
+    else if (fcNum(yq?.recommendationMean) != null) score = 3 - Number(yq.recommendationMean);
+    let key = String(yq?.recommendationKey || '').toLowerCase();
+    if (!key && score != null) key = score >= 1.15 ? 'strong_buy' : score >= .35 ? 'buy' : score > -.35 ? 'hold' : score > -1.15 ? 'sell' : 'strong_sell';
+    let label = 'ללא דירוג', cls = 'none';
+    if (/strong_buy|strongbuy/.test(key)) { label='קנייה חזקה'; cls='buy'; }
+    else if (/buy|outperform|overweight/.test(key)) { label='קנייה'; cls='buy'; }
+    else if (/hold|neutral|market_perform/.test(key)) { label='החזקה'; cls='hold'; }
+    else if (/sell|underperform|underweight/.test(key)) { label=/strong/.test(key)?'מכירה חזקה':'מכירה'; cls='sell'; }
+    return {counts,total,score:score == null ? -9 : score,key,label,cls};
+  }
+
+  function fcMergeRows() {
+    const holdings = Array.isArray(S.stocks) ? S.stocks : [];
+    FC.rows = holdings.map(stock => {
+      const sym = String(stock.sym || '').toUpperCase();
+      const api = FC.api[sym] || {};
+      const yq = api.yahoo || {};
+      const fh = api.finnhub || {};
+      const live = S.sp?.[stock.sym] || S.sp?.[sym] || {};
+      const qty = typeof getShares === 'function' ? Number(getShares(stock) || 0) : Number(stock.shares || stock.qty || 0);
+      const price = fcPositive(live.price, yq.regularMarketPrice, yq.postMarketPrice, yq.preMarketPrice);
+      const currency = String(live.currency || yq.currency || 'USD').toUpperCase().replace('ILA','ILS');
+      let currentValueILS = 0;
+      if (price > 0 && qty > 0) currentValueILS = typeof nativeToILS === 'function' ? nativeToILS(price * qty, currency) : price * qty * Number(S.fx || 1);
+      else if (typeof sv === 'function') currentValueILS = Number(sv(stock) || 0);
+      const pt = fh.pt || {};
+      const low = fcPositive(pt.targetLow, yq.targetPriceLow);
+      const mean = fcPositive(pt.targetMean, yq.targetPriceMean, pt.targetMedian, yq.targetPriceMedian);
+      const high = fcPositive(pt.targetHigh, yq.targetPriceHigh);
+      const median = fcPositive(pt.targetMedian, yq.targetPriceMedian);
+      const latestRec = fcLatestRecommendation(fh.rec);
+      const rating = fcRecommendationInfo(latestRec, yq);
+      const analystCount = Math.max(0, Math.round(fcPositive(yq.numberOfAnalystOpinions, rating.total) || 0));
+      const metric = fh.metric || {};
+      const profile = fh.profile || {};
+      const beta = fcPositive(metric.beta, yq.beta);
+      const pe = fcPositive(metric.peTTM, metric.peBasicExclExtraTTM, yq.trailingPE, yq.forwardPE, live.peRatio);
+      const growth = fcNum(metric.revenueGrowthTTMYoy ?? metric.revenueGrowth3Y ?? metric.epsGrowthTTMYoy ?? metric.epsGrowth3Y);
+      const hi52 = fcPositive(metric['52WeekHigh'], yq.fiftyTwoWeekHigh, live.high52w);
+      const lo52 = fcPositive(metric['52WeekLow'], yq.fiftyTwoWeekLow, live.low52w);
+      const sector = fcSector(profile.finnhubIndustry, sym, stock.name || profile.name || yq.shortName);
+      const sources = [];
+      if (low || mean || high || latestRec) sources.push('Finnhub');
+      if (yq && Object.keys(yq).length) sources.push('Yahoo Finance');
+      const covered = !!(price > 0 && mean > 0);
+      let confidence = 0;
+      if (covered) {
+        const dispersion = high > 0 && low > 0 && mean > 0 ? Math.abs(high-low)/mean : .45;
+        confidence = fcClamp(28 + Math.log2(analystCount + 1) * 16 - Math.min(34,dispersion*28), 18, 96);
+      } else if (rating.total > 0) confidence = 28;
+      return {
+        stock,sym,name:stock.name || profile.name || yq.shortName || sym,icon:stock.icon || (typeof autoIcon==='function'?autoIcon(sym,stock.name,'stock',stock.color):''),
+        qty,price,currency,currentValueILS,low,mean,high,median,analystCount,rating,confidence,
+        beta,pe,growth,hi52,lo52,sector,marketCap:fcPositive(profile.marketCapitalization && profile.marketCapitalization*1e6,yq.marketCap,live.marketCap),
+        covered,source:sources.join(' + ') || 'ללא מקור זמין',updatedAt:api.updatedAt || FC.lastFetchAt || 0,
+      };
+    });
+    FC.loaded = true;
+  }
+
+  function fcBlendTarget(row, scenario) {
+    if (!(row.price > 0 && row.mean > 0)) return null;
+    const low = row.low > 0 ? row.low : row.mean;
+    const high = row.high > 0 ? row.high : row.mean;
+    const x = fcClamp(scenario,-100,100) / 100;
+    return x < 0 ? row.mean + (row.mean-low)*x : row.mean + (high-row.mean)*x;
+  }
+  function fcFallbackAnnual(row, scenario) {
+    const growthRaw = Number(row.growth);
+    const growth = Number.isFinite(growthRaw) ? fcClamp(growthRaw/100,-.35,.55) : .05;
+    const beta = row.beta > 0 ? fcClamp(row.beta,.35,2.8) : 1;
+    const valuationPenalty = row.pe > 0 ? fcClamp((row.pe-28)/250,-.025,.10) : 0;
+    const base = fcClamp(.045 + growth*.32 - valuationPenalty,-.14,.24);
+    const bear = fcClamp(base - (.10 + Math.max(0,beta-1)*.055),-.38,.08);
+    const bull = fcClamp(base + (.12 + Math.max(0,growth)*.20),.02,.42);
+    const x = fcClamp(scenario,-100,100)/100;
+    return x < 0 ? base + (base-bear)*x : base + (bull-base)*x;
+  }
+  function fcComputed(row, scenario=FC.scenario, years=FC.years) {
+    const target1 = fcBlendTarget(row,scenario);
+    let ratio = 1, targetPrice = null, isModel = false;
+    if (target1 > 0 && row.price > 0) {
+      const firstRatio = target1 / row.price;
+      targetPrice = target1;
+      ratio = firstRatio;
+      const firstReturn = firstRatio - 1;
+      for (let y=2;y<=years;y++) {
+        const faded = fcClamp(firstReturn * Math.pow(.62,y-1),-.32,.42);
+        ratio *= (1 + faded);
+      }
+      if (years > 1) targetPrice = row.price * ratio;
+    } else if (FC.modelFallback && row.price > 0) {
+      isModel = true;
+      const annual = fcFallbackAnnual(row,scenario);
+      ratio = 1;
+      for (let y=1;y<=years;y++) ratio *= 1 + fcClamp(annual*Math.pow(.78,y-1),-.30,.36);
+      targetPrice = row.price * ratio;
+    }
+    const projectedValue = Number(row.currentValueILS || 0) * ratio;
+    const upside = (ratio-1)*100;
+    return {ratio,targetPrice,projectedValue,upside,isModel};
+  }
+  function fcTotalsAt(scenario, years=FC.years) {
+    let current=0, projected=0, coveredValue=0, coveredCount=0;
+    FC.rows.forEach(row => {
+      current += Number(row.currentValueILS || 0);
+      const c = fcComputed(row,scenario,years);
+      projected += c.projectedValue;
+      if (row.covered) { coveredValue += Number(row.currentValueILS || 0); coveredCount++; }
+    });
+    return {current,projected,upside:current>0?(projected/current-1)*100:0,coveredValue,coveredCount};
+  }
+
+  function fcSetClass(el, value) {
+    if (!el) return;
+    el.classList.toggle('up',Number(value)>=0);
+    el.classList.toggle('dn',Number(value)<0);
+  }
+  function fcScenarioText(v) {
+    v=Number(v);
+    if (v <= -75) return 'תרחיש דובי · יעד נמוך';
+    if (v < -15) return 'תרחיש שמרני · בין נמוך לממוצע';
+    if (v <= 15) return 'תרחיש בסיס · יעד ממוצע';
+    if (v < 75) return 'תרחיש חיובי · בין ממוצע לגבוה';
+    return 'תרחיש שורי · יעד גבוה';
+  }
+
+  function fcRenderSummary() {
+    const cur = fcTotalsAt(FC.scenario);
+    const bear = fcTotalsAt(-100), base = fcTotalsAt(0), bull = fcTotalsAt(100);
+    const set = (id,text) => { const el=document.getElementById(id); if(el) el.textContent=text; };
+    set('fcCurrentValue',fcMoney(cur.current));
+    set('fcProjectedValue',fcMoney(cur.projected));
+    set('fcWeightedUpside',fcPct(cur.upside));
+    set('fcCoverage', FC.rows.length ? Math.round((cur.coveredValue/Math.max(cur.current,1))*100)+'%' : '—');
+    set('fcCoverageSub',`${cur.coveredCount} מתוך ${FC.rows.length} אחזקות עם יעד מחיר`);
+    set('fcProjectedSub',`תרחיש ${fcScenarioText(FC.scenario).split(' · ')[0].replace('תרחיש ','')} · ${FC.years===1?'12 חודשים':FC.years+' שנים'}`);
+    set('fcScenarioAmount',fcMoney(cur.projected));
+    set('fcScenarioChange',fcPct(cur.upside));
+    set('fcBearTotal',fcMoney(bear.projected)); set('fcBaseTotal',fcMoney(base.projected)); set('fcBullTotal',fcMoney(bull.projected));
+    set('fcScenarioLabel',fcScenarioText(FC.scenario));
+    set('fcScenarioNote',FC.years===1?'יעדי מחיר מצטברים ל־12 החודשים הקרובים':`אקסטרפולציה מתמתנת ל־${FC.years} שנים על בסיס קונצנזוס השנה הראשונה`);
+    set('fcAsOf',FC.lastFetchAt ? 'עודכן ' + fcDateTime(FC.lastFetchAt) : '—');
+    const projectedEl=document.getElementById('fcProjectedValue'), upsideEl=document.getElementById('fcWeightedUpside'), chEl=document.getElementById('fcScenarioChange');
+    [projectedEl,upsideEl].forEach(el=>fcSetClass(el,cur.upside));
+    if (chEl) { chEl.classList.toggle('dn',cur.upside<0); chEl.innerHTML=`<i class="ph-thin ${cur.upside>=0?'ph-trend-up':'ph-trend-down'}"></i>${fcPct(cur.upside)}`; }
+    const marker=document.getElementById('fcRangeMarker'); if(marker) marker.style.left=((FC.scenario+100)/2)+'%';
+    document.querySelectorAll('.fc-range-label').forEach((el,i)=>el.classList.toggle('on',i===(FC.scenario<=-50?0:FC.scenario>=50?2:1)));
+  }
+
+  function fcAggregateRecommendations() {
+    const agg={strongBuy:0,buy:0,hold:0,sell:0,strongSell:0};
+    FC.rows.forEach(row => {
+      const c=row.rating?.counts||{}; let total=Object.values(c).reduce((a,b)=>a+Number(b||0),0);
+      if (total>0) Object.keys(agg).forEach(k=>agg[k]+=Number(c[k]||0));
+      else {
+        const key=row.rating?.key||'';
+        if (/strong_buy/.test(key)) agg.strongBuy++;
+        else if (/buy|outperform|overweight/.test(key)) agg.buy++;
+        else if (/hold|neutral/.test(key)) agg.hold++;
+        else if (/strong_sell/.test(key)) agg.strongSell++;
+        else if (/sell|underperform|underweight/.test(key)) agg.sell++;
+      }
+    });
+    return agg;
+  }
+  function fcRenderConsensus() {
+    const a=fcAggregateRecommendations();
+    const buy=a.strongBuy+a.buy, hold=a.hold, sell=a.sell+a.strongSell, total=buy+hold+sell;
+    const bp=total?buy/total*100:0, hp=total?hold/total*100:0, sp=total?sell/total*100:0;
+    const ring=document.getElementById('fcConsensusRing');
+    if(ring) ring.style.background=`conic-gradient(var(--gr) 0 ${bp}%,var(--gd) ${bp}% ${bp+hp}%,var(--rd) ${bp+hp}% 100%)`;
+    const pct=document.getElementById('fcBuyPct'); if(pct)pct.textContent=total?Math.round(bp)+'%':'—';
+    const list=document.getElementById('fcRecommendationList');
+    if(list) list.innerHTML=[
+      ['קנייה / קנייה חזקה',buy,bp,'var(--gr)'],['החזקה',hold,hp,'var(--gd)'],['מכירה / מכירה חזקה',sell,sp,'var(--rd)']
+    ].map(r=>`<div class="fc-rec-row"><span>${r[0]}</span><div class="fc-rec-track"><i class="fc-rec-fill" style="width:${r[2]}%;background:${r[3]}"></i></div><strong>${r[1]}</strong></div>`).join('');
+  }
+
+  function fcFilteredRows() {
+    const q=String(document.getElementById('fcSearch')?.value||'').trim().toLowerCase();
+    const filter=document.getElementById('fcCoverageFilter')?.value||'all';
+    let rows=FC.rows.filter(r => (!q || `${r.sym} ${r.name}`.toLowerCase().includes(q)) && (filter==='all'||(filter==='covered'?r.covered:!r.covered)));
+    rows=[...rows].sort((a,b)=>{
+      let av,bv;
+      if(FC.sort==='name'){av=a.sym;bv=b.sym;return FC.sortDir*String(av).localeCompare(String(bv));}
+      if(FC.sort==='currentValue'){av=a.currentValueILS;bv=b.currentValueILS;}
+      else if(FC.sort==='projectedValue'){av=fcComputed(a).projectedValue;bv=fcComputed(b).projectedValue;}
+      else if(FC.sort==='upside'){av=fcComputed(a).upside;bv=fcComputed(b).upside;}
+      else if(FC.sort==='ratingScore'){av=a.rating?.score??-9;bv=b.rating?.score??-9;}
+      return FC.sortDir*((Number(av)||0)-(Number(bv)||0));
+    });
+    return rows;
+  }
+  function fcRenderTable() {
+    const tbody=document.getElementById('fcTableBody'); if(!tbody)return;
+    const rows=fcFilteredRows();
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="9"><div class="fc-empty">לא נמצאו אחזקות התואמות לסינון.</div></td></tr>';return;}
+    tbody.innerHTML=rows.map(row=>{
+      const c=fcComputed(row); const cls=c.upside>1?'':c.upside<-1?'dn':'flat';
+      const target=c.targetPrice>0?fcNativePrice(c.targetPrice,row.currency,2):'אין כיסוי';
+      const conf=Math.round(row.confidence||0);
+      const onclick=`forecastOpenAsset(${JSON.stringify(row.sym)})`;
+      return `<tr onclick='${onclick}'>
+        <td data-label="מניה"><div class="fc-asset"><div class="fc-asset-icon">${row.icon||'<i class="ph-thin ph-chart-line-up"></i>'}</div><div><div class="fc-asset-symbol">${fcHtml(row.sym)}</div><div class="fc-asset-name">${fcHtml(row.name)} · ${fcHtml(row.sector)}</div></div></div></td>
+        <td data-label="כמות"><span class="fc-money">${fcQty(row.qty)}</span></td>
+        <td data-label="שווי היום"><span class="fc-money">${fcMoney(row.currentValueILS)}</span></td>
+        <td data-label="מחיר נוכחי"><span class="fc-money">${fcNativePrice(row.price,row.currency,2)}</span></td>
+        <td data-label="יעד בתרחיש"><span class="fc-target ${c.targetPrice?'':'no'}">${target}</span>${c.isModel?'<small class="fc-source">מודל השלמה</small>':''}</td>
+        <td data-label="שווי צפוי"><span class="fc-money">${fcMoney(c.projectedValue)}</span></td>
+        <td data-label="שינוי"><span class="fc-upside ${cls}">${fcPct(c.upside)}</span></td>
+        <td data-label="קונצנזוס"><span class="fc-rating ${row.rating.cls}">${fcHtml(row.rating.label)}</span></td>
+        <td data-label="כיסוי / ביטחון"><div class="fc-confidence"><div class="fc-confidence-bar"><i style="width:${conf}%"></i></div><span>${row.analystCount||'—'}</span></div><small class="fc-source">${fcHtml(row.source)} · ${conf?conf+'%':'ללא יעד'}</small></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function fcSectorData() {
+    const total=FC.rows.reduce((a,r)=>a+Number(r.currentValueILS||0),0)||1;
+    const map={}; FC.rows.forEach(r=>map[r.sector]=(map[r.sector]||0)+Number(r.currentValueILS||0));
+    return Object.entries(map).map(([name,value])=>({name,value,pct:value/total*100})).sort((a,b)=>b.value-a.value);
+  }
+  function fcInsightCard(type,icon,title,text,tag){return `<div class="fc-insight ${type}"><div class="fc-insight-icon"><i class="ph-thin ${icon}"></i></div><div class="fc-insight-title">${fcHtml(title)}</div><div class="fc-insight-text">${fcHtml(text)}</div><div class="fc-insight-tag">${fcHtml(tag)}</div></div>`;}
+  function fcBuildInsights() {
+    const total=FC.rows.reduce((a,r)=>a+Number(r.currentValueILS||0),0)||1;
+    const sorted=[...FC.rows].sort((a,b)=>b.currentValueILS-a.currentValueILS);
+    const top=sorted[0], topPct=top?top.currentValueILS/total*100:0;
+    const sectors=fcSectorData(), sec=sectors[0]||{name:'—',pct:0};
+    const betaRows=FC.rows.filter(r=>r.beta>0); const betaWeight=betaRows.reduce((a,r)=>a+r.currentValueILS,0)||1;
+    const avgBeta=betaRows.reduce((a,r)=>a+r.beta*r.currentValueILS,0)/betaWeight;
+    const totals=fcTotalsAt(FC.scenario); const coveragePct=totals.coveredValue/total*100;
+    const dispersionRows=FC.rows.filter(r=>r.high>0&&r.low>0&&r.mean>0);
+    const dispersion=dispersionRows.length?dispersionRows.reduce((a,r)=>a+((r.high-r.low)/r.mean)*r.currentValueILS,0)/(dispersionRows.reduce((a,r)=>a+r.currentValueILS,0)||1):0;
+    const cards=[];
+    cards.push(fcInsightCard(sec.pct>55?'risk':sec.pct>40?'warn':'good','ph-circles-three-plus',sec.pct>55?'ריכוז סקטוריאלי גבוה':'פיזור סקטוריאלי',`${sec.name} מהווה ${sec.pct.toFixed(0)}% משווי המניות. ${sec.pct>55?'התחזית כולה רגישה מאוד לאותו מנוע שוק.':'אין כרגע סקטור יחיד שחוצה רמת ריכוז קיצונית.'}`,`TOP SECTOR · ${sec.pct.toFixed(1)}%`));
+    cards.push(fcInsightCard(topPct>30?'risk':topPct>20?'warn':'good','ph-crosshair',topPct>30?'תלות גבוהה בפוזיציה אחת':'משקל הפוזיציה הגדולה',top?`${top.sym} מחזיקה ${topPct.toFixed(0)}% מהתיק המנייתי. ${topPct>30?'שינוי ביעד שלה משפיע באופן חריג על כל התחזית.':'ההשפעה שלה משמעותית אך אינה דומיננטית לחלוטין.'}`:'אין נתונים.',`TOP HOLDING · ${topPct.toFixed(1)}%`));
+    cards.push(fcInsightCard(avgBeta>1.45?'risk':avgBeta>1.15?'warn':'good','ph-wave-sine',avgBeta>1.45?'תנודתיות צפויה גבוהה':'פרופיל תנודתיות',betaRows.length?`הבטא המשוקללת היא ${avgBeta.toFixed(2)}. ${avgBeta>1.45?'התיק עשוי להגיב בעוצמה גבוהה יותר מתנועת השוק.':'רמת הרגישות לשוק נראית סבירה ביחס לתיק מנייתי.'}`:'אין מספיק נתוני בטא לחישוב מהימן.',`WEIGHTED BETA · ${betaRows.length?avgBeta.toFixed(2):'N/A'}`));
+    cards.push(fcInsightCard(coveragePct<55?'risk':coveragePct<80?'warn':'good','ph-users-three',coveragePct<55?'פער כיסוי מהותי':'איכות כיסוי אנליסטים',`${coveragePct.toFixed(0)}% משווי המניות מקבל יעד מחיר זמין. ${coveragePct<80?'יש לקרוא את השווי הצפוי בזהירות בגלל אחזקות ללא קונצנזוס.':'רוב השווי בתיק נתמך בכיסוי אנליסטים.'}`,`COVERAGE · ${coveragePct.toFixed(1)}%`));
+    if(dispersion>0.42) cards[3]=fcInsightCard('warn','ph-arrows-left-right','פער גדול בין אנליסטים',`הפער המשוקלל בין היעד הנמוך לגבוה הוא כ־${(dispersion*100).toFixed(0)}%. המשמעות היא שקיימת אי־ודאות גבוהה גם בתוך הקונצנזוס.`,`DISPERSION · ${(dispersion*100).toFixed(0)}%`);
+    return cards;
+  }
+  function fcRenderInsights() {
+    const grid=document.getElementById('fcInsightsGrid'); if(grid) grid.innerHTML=fcBuildInsights().join('');
+    const list=document.getElementById('fcSectorList');
+    if(list){ const sectors=fcSectorData(); list.innerHTML=sectors.length?sectors.slice(0,8).map(s=>`<div class="fc-sector-row"><span class="fc-sector-name">${fcHtml(s.name)}</span><div class="fc-sector-track"><i class="fc-sector-fill" style="width:${s.pct}%"></i></div><span class="fc-sector-pct">${s.pct.toFixed(1)}%</span></div>`).join(''):'<div class="fc-empty">אין נתוני סקטורים זמינים.</div>'; }
+  }
+  function fcRenderAll() {
+    if(!FC.loaded) return;
+    fcRenderSummary(); fcRenderConsensus(); fcRenderTable(); fcRenderInsights();
+    const sw=document.getElementById('fcModelSwitch'); if(sw)sw.classList.toggle('on',FC.modelFallback);
+    const wrap=document.getElementById('fcTableWrap'), state=document.getElementById('fcTableState'); if(wrap)wrap.style.display=''; if(state)state.style.display='none';
+    const pdf=document.getElementById('fcPdfBtn'); if(pdf)pdf.disabled=!FC.rows.length;
+  }
+
+  function fcSetLoading(active, progress=0, text='') {
+    FC.loading=active;
+    const btn=document.getElementById('fcRefreshBtn'); if(btn){btn.disabled=active;btn.classList.toggle('loading',active);}
+    const state=document.getElementById('fcTableState'), wrap=document.getElementById('fcTableWrap');
+    if(active && !FC.rows.length){if(state)state.style.display='';if(wrap)wrap.style.display='none';}
+    const bar=document.getElementById('fcProgressBar'); if(bar)bar.style.width=fcClamp(progress,0,100)+'%';
+    const txt=document.getElementById('fcLoadingText'); if(txt&&text)txt.textContent=text;
+  }
+
+  async function fcFetchFresh() {
+    const symbols=[...new Set((S.stocks||[]).map(s=>String(s.sym||'').toUpperCase()).filter(Boolean))];
+    if(!symbols.length){FC.api={};FC.lastFetchAt=Date.now();fcMergeRows();return;}
+    const yahoo=await fcYahooBatch(symbols).catch(()=>({}));
+    const finnhub={}; let cursor=0,done=0;
+    const workers=Array.from({length:Math.min(3,symbols.length)},()=> (async()=>{
+      while(cursor<symbols.length){const sym=symbols[cursor++]; finnhub[sym]=await fcFinnhubOne(sym).catch(()=>({})); done++; fcSetLoading(true,Math.round(done/symbols.length*100),`נותחו ${done} מתוך ${symbols.length} מניות`);}
+    })());
+    await Promise.all(workers);
+    const now=Date.now(); const api={};
+    symbols.forEach(sym=>api[sym]={yahoo:yahoo[sym]||null,finnhub:finnhub[sym]||null,updatedAt:now});
+    FC.api=api;FC.lastFetchAt=now;fcSaveCache();fcMergeRows();
+  }
+
+  window.renderForecastPage = function(){
+    if(!FC.initialized){
+      FC.initialized=true;
+      const cache=fcLoadCache();
+      if(cache){FC.api=cache.api||{};FC.lastFetchAt=Number(cache.at||0);fcMergeRows();fcRenderAll();}
+    } else if(FC.loaded) { fcMergeRows(); fcRenderAll(); }
+    const symbols=[...new Set((S.stocks||[]).map(s=>String(s.sym||'').toUpperCase()).filter(Boolean))];
+    const cacheComplete=symbols.every(sym=>FC.api[sym]);
+    const cacheFresh=cacheComplete && FC.lastFetchAt && Date.now()-FC.lastFetchAt<FC_CACHE_TTL;
+    if(!FC.loading && (!FC.loaded || !cacheFresh)) window.forecastRefresh(false);
+  };
+
+  window.forecastRefresh = async function(force){
+    if(FC.loading)return;
+    fcSetLoading(true,3,'מרענן מחירי שוק ונתוני אנליסטים…');
+    try{
+      if(force && typeof doRefresh==='function') await Promise.race([Promise.resolve(doRefresh()),new Promise(r=>setTimeout(r,7000))]).catch(()=>{});
+      await fcFetchFresh();
+      fcRenderAll();
+    }catch(err){
+      console.warn('[Forecast] refresh failed',err);
+      if(!FC.rows.length){const s=document.getElementById('fcTableState');if(s)s.innerHTML='<div class="fc-empty"><i class="ph-thin ph-warning-circle" style="font-size:28px;color:var(--gd)"></i><br>לא הצלחנו לקבל כרגע נתוני אנליסטים. נסו שוב בעוד מספר דקות.</div>';}
+    }finally{fcSetLoading(false,100);}
+  };
+  window.forecastSetScenario = function(value){FC.scenario=fcClamp(value,-100,100);const s=document.getElementById('fcScenarioSlider');if(s&&Number(s.value)!==FC.scenario)s.value=FC.scenario;document.querySelectorAll('#fcScenarioTabs button').forEach((b,i)=>b.classList.toggle('on',i===(FC.scenario<=-50?0:FC.scenario>=50?2:1)));fcRenderAll();};
+  window.forecastChooseScenario = function(value){window.forecastSetScenario(value);};
+  window.forecastSetHorizon = function(years,btn){FC.years=[1,3,5].includes(Number(years))?Number(years):1;document.querySelectorAll('#fcHorizons button').forEach(b=>b.classList.toggle('on',Number(b.dataset.years)===FC.years));fcRenderAll();};
+  window.forecastFilterChanged = function(){fcRenderTable();};
+  window.forecastSort = function(key,btn){if(FC.sort===key)FC.sortDir*=-1;else{FC.sort=key;FC.sortDir=key==='name'?1:-1;}document.querySelectorAll('.fc-sort').forEach(b=>{b.classList.toggle('on',b.dataset.sort===FC.sort);const i=b.querySelector('i');if(i)i.className='ph-thin '+(b.dataset.sort===FC.sort?(FC.sortDir>0?'ph-caret-up':'ph-caret-down'):'ph-caret-up-down');});fcRenderTable();};
+  window.forecastToggleModel = function(){FC.modelFallback=!FC.modelFallback;try{localStorage.setItem('vector_forecast_model',FC.modelFallback?'1':'0');}catch(_){}fcRenderAll();};
+
+  window.forecastOpenAsset = function(sym){
+    const row=FC.rows.find(r=>r.sym===String(sym).toUpperCase());if(!row)return;
+    const c=fcComputed(row), rec=row.rating?.counts||{}, total=Object.values(rec).reduce((a,b)=>a+Number(b||0),0)||1;
+    const content=document.getElementById('detContent'),ov=document.getElementById('detOv');if(!content||!ov)return;
+    const recRows=[['קנייה חזקה',rec.strongBuy||0,'var(--gr)'],['קנייה',rec.buy||0,'var(--gr)'],['החזקה',rec.hold||0,'var(--gd)'],['מכירה',rec.sell||0,'var(--rd)'],['מכירה חזקה',rec.strongSell||0,'var(--rd)']];
+    content.innerHTML=`<div class="fc-detail"><div class="fc-detail-hero"><div class="fc-detail-head"><div class="fc-detail-title"><div class="fc-asset-icon">${row.icon||''}</div><div><div class="fc-asset-symbol" style="font-size:20px">${fcHtml(row.sym)}</div><div class="fc-asset-name" style="max-width:none">${fcHtml(row.name)} · ${fcHtml(row.sector)}</div></div></div><span class="fc-rating ${row.rating.cls}">${fcHtml(row.rating.label)}</span></div><div class="fc-projection-main" style="margin:20px 0 0"><div><div class="fc-section-sub">שווי נוכחי</div><div class="fc-projection-amount" style="font-size:28px">${fcMoney(row.currentValueILS)}</div></div><div style="text-align:end"><div class="fc-section-sub">שווי בתרחיש</div><div class="fc-projection-amount" style="font-size:28px;color:${c.upside>=0?'var(--gr)':'var(--rd)'}">${fcMoney(c.projectedValue)}</div><span class="fc-upside ${c.upside<0?'dn':''}">${fcPct(c.upside)}</span></div></div></div>
+      <div class="fc-detail-targets"><div class="fc-detail-target"><span>יעד נמוך</span><strong>${fcNativePrice(row.low,row.currency)}</strong></div><div class="fc-detail-target"><span>יעד ממוצע</span><strong style="color:var(--gr)">${fcNativePrice(row.mean,row.currency)}</strong></div><div class="fc-detail-target"><span>יעד גבוה</span><strong>${fcNativePrice(row.high,row.currency)}</strong></div></div>
+      <div class="fc-detail-metrics"><div class="fc-detail-metric"><span>מחיר נוכחי</span><strong>${fcNativePrice(row.price,row.currency)}</strong></div><div class="fc-detail-metric"><span>מספר אנליסטים</span><strong>${row.analystCount||'—'}</strong></div><div class="fc-detail-metric"><span>בטא</span><strong>${row.beta?row.beta.toFixed(2):'—'}</strong></div><div class="fc-detail-metric"><span>P/E</span><strong>${row.pe?row.pe.toFixed(1):'—'}</strong></div><div class="fc-detail-metric"><span>שיא 52 שבועות</span><strong>${fcNativePrice(row.hi52,row.currency)}</strong></div><div class="fc-detail-metric"><span>שפל 52 שבועות</span><strong>${fcNativePrice(row.lo52,row.currency)}</strong></div></div>
+      <div class="fc-card" style="margin-top:10px;padding:16px"><div class="fc-section-title" style="margin-bottom:12px"><i class="ph-thin ph-users-three"></i> התפלגות המלצות</div><div class="fc-rec-list">${recRows.map(r=>`<div class="fc-rec-row"><span>${r[0]}</span><div class="fc-rec-track"><i class="fc-rec-fill" style="width:${r[1]/total*100}%;background:${r[2]}"></i></div><strong>${r[1]}</strong></div>`).join('')}</div><div class="fc-footnote" style="padding-top:12px;text-align:start">מקור: ${fcHtml(row.source)} · עודכן ${fcDateTime(row.updatedAt)}. הנתונים אינם ייעוץ השקעות.</div></div></div>`;
+    ov.classList.add('open');document.body.style.overflow='hidden';
+  };
+
+  function fcLoadScript(url,test){return new Promise((resolve,reject)=>{if(test())return resolve();const old=[...document.scripts].find(s=>s.src===url);if(old){old.addEventListener('load',resolve,{once:true});old.addEventListener('error',reject,{once:true});return;}const s=document.createElement('script');s.src=url;s.async=true;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});}
+  function fcPdfTableRows(rows){return rows.map(r=>{const c=fcComputed(r);return `<tr><td><strong>${fcHtml(r.sym)}</strong><br><span style="color:#7b8290">${fcHtml(r.name)}</span></td><td>${fcQty(r.qty)}</td><td>${fcMoney(r.currentValueILS)}</td><td>${fcNativePrice(r.price,r.currency)}</td><td class="fpdf-green">${c.targetPrice?fcNativePrice(c.targetPrice,r.currency):'אין כיסוי'}</td><td>${fcMoney(c.projectedValue)}</td><td class="${c.upside>=0?'fpdf-green':'fpdf-red'}">${fcPct(c.upside)}</td><td>${fcHtml(r.rating.label)}</td></tr>`;}).join('');}
+  function fcBuildPdfPages(){
+    const stage=document.getElementById('forecastPdfStage')||(()=>{const d=document.createElement('div');d.id='forecastPdfStage';d.className='fc-pdf-stage';document.body.appendChild(d);return d;})();
+    const totals=fcTotalsAt(FC.scenario),bear=fcTotalsAt(-100),base=fcTotalsAt(0),bull=fcTotalsAt(100);const year=new Date().getFullYear()+FC.years;
+    const user=window.firebaseUser?.displayName||window.firebaseUser?.email?.split('@')[0]||'המשתמש';
+    const sorted=[...FC.rows].sort((a,b)=>b.currentValueILS-a.currentValueILS),first=sorted.slice(0,7),rest=sorted.slice(7),chunks=[];for(let i=0;i<rest.length;i+=12)chunks.push(rest.slice(i,i+12));
+    const note='המידע בדו״ח מבוסס על קונצנזוס אנליסטים ותרחיש מתמטי לצורכי מחקר בלבד. אין מדובר בייעוץ השקעות, הבטחת תשואה או המלצה לביצוע פעולה. יעדי מחיר עשויים להשתנות ולהיות חסרים או מאוחרים.';
+    const page1=`<div class="fpdf-page"><div class="fpdf-brand">VECTOR FORECAST · PORTFOLIO SCENARIOS</div><div class="fpdf-title">תחזית התיק של ${fcHtml(user)},<br>עד ${year}</div><div class="fpdf-sub">מנוע התרחישים מחבר את האחזקות בפועל לקונצנזוס יעדי המחיר והמלצות האנליסטים. התרחיש הנבחר: ${fcHtml(fcScenarioText(FC.scenario))}.</div><div class="fpdf-rule"></div><div class="fpdf-kpis"><div class="fpdf-kpi"><span>שווי נוכחי</span><strong>${fcMoney(totals.current)}</strong></div><div class="fpdf-kpi"><span>שווי בתרחיש</span><strong>${fcMoney(totals.projected)}</strong></div><div class="fpdf-kpi"><span>פוטנציאל</span><strong class="${totals.upside>=0?'fpdf-green':'fpdf-red'}">${fcPct(totals.upside)}</strong></div><div class="fpdf-kpi"><span>כיסוי</span><strong>${Math.round(totals.coveredValue/Math.max(totals.current,1)*100)}%</strong></div></div><div class="fpdf-scenario"><div class="fpdf-scenario-head"><div><span style="color:#7a8291;font-size:10px">שווי צפוי בתרחיש הנבחר</span><div class="fpdf-big">${fcMoney(totals.projected)}</div></div><div class="fpdf-change">${fcPct(totals.upside)}</div></div><div class="fpdf-bar"><i class="fpdf-dot" style="left:${(FC.scenario+100)/2}%"></i></div><div class="fpdf-three"><div><span>דובי</span><strong>${fcMoney(bear.projected)}</strong></div><div><span>בסיס</span><strong>${fcMoney(base.projected)}</strong></div><div><span>שורי</span><strong>${fcMoney(bull.projected)}</strong></div></div></div><div class="fpdf-section-title" style="margin-top:24px">האחזקות המרכזיות</div><table class="fpdf-table"><thead><tr><th>מניה</th><th>כמות</th><th>שווי היום</th><th>מחיר</th><th>יעד</th><th>שווי צפוי</th><th>שינוי</th><th>דירוג</th></tr></thead><tbody>${fcPdfTableRows(first)}</tbody></table><div class="fpdf-note">${note}</div></div>`;
+    const tablePages=chunks.map((chunk,i)=>`<div class="fpdf-page"><div class="fpdf-brand">VECTOR FORECAST · HOLDINGS ${i+2}</div><div class="fpdf-section-title" style="font-size:28px;margin:18px 0 20px">פירוט תחזית לפי אחזקה</div><table class="fpdf-table"><thead><tr><th>מניה</th><th>כמות</th><th>שווי היום</th><th>מחיר</th><th>יעד</th><th>שווי צפוי</th><th>שינוי</th><th>דירוג</th></tr></thead><tbody>${fcPdfTableRows(chunk)}</tbody></table><div class="fpdf-note">${note}</div></div>`).join('');
+    const insights=fcBuildInsights().map(html=>{const tmp=document.createElement('div');tmp.innerHTML=html;const title=tmp.querySelector('.fc-insight-title')?.textContent||'';const text=tmp.querySelector('.fc-insight-text')?.textContent||'';return `<div class="fpdf-insight"><strong>${fcHtml(title)}</strong><p>${fcHtml(text)}</p></div>`;}).join('');
+    const sectors=fcSectorData().slice(0,8).map(s=>`<div style="display:grid;grid-template-columns:120px 1fr 45px;gap:10px;align-items:center;margin:11px 0;font-size:10px"><span>${fcHtml(s.name)}</span><div style="height:8px;border-radius:999px;background:#e3e4df;overflow:hidden"><i style="display:block;width:${s.pct}%;height:100%;background:#3b6bff;border-radius:999px"></i></div><strong>${s.pct.toFixed(1)}%</strong></div>`).join('');
+    const last=`<div class="fpdf-page"><div class="fpdf-brand">VECTOR FORECAST · SMART INSIGHTS</div><div class="fpdf-section-title" style="font-size:30px;margin:18px 0 20px">תובנות חכמות ופיזור</div><div class="fpdf-insights">${insights}</div><div class="fpdf-section-title" style="margin-top:28px">פיזור סקטוריאלי</div><div style="background:#fff;border:1px solid #dedfd9;border-radius:16px;padding:16px 20px">${sectors}</div><div style="margin-top:25px;background:#0b1020;color:#fff;border-radius:14px;padding:17px;font-size:10px;line-height:1.65"><strong>הערה מתודולוגית:</strong> יעד 12 חודשים מבוסס על קונצנזוס. טווחי 3 ו־5 שנים הם אקסטרפולציה מתמתנת של השנה הראשונה ואינם יעד אנליסטים רשמי. נכסים ללא כיסוי אינם מקבלים תשואה חזויה, אלא אם הופעל במפורש מודל ההשלמה.</div><div class="fpdf-note">${note}</div></div>`;
+    stage.innerHTML=page1+tablePages+last;return stage;
+  }
+  function fcPrintFallback(){document.body.classList.add('forecast-printing');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('forecast-printing'),700);},100);}
+  window.forecastDownloadPdf = async function(){
+    if(FC.pdfBusy||!FC.rows.length)return;FC.pdfBusy=true;const btn=document.getElementById('fcPdfBtn');const old=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='<i class="ph-thin ph-spinner-gap" style="animation:rot .7s linear infinite"></i><span>מכין PDF…</span>';}
+    try{
+      await Promise.all([
+        fcLoadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',()=>!!window.html2canvas),
+        fcLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf?.jsPDF),
+      ]);
+      if(document.fonts?.ready)await document.fonts.ready;
+      const stage=fcBuildPdfPages(),pages=[...stage.querySelectorAll('.fpdf-page')];const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'portrait',unit:'pt',format:'a4',compress:true});
+      for(let i=0;i<pages.length;i++){
+        if(i>0)pdf.addPage();
+        const canvas=await window.html2canvas(pages[i],{scale:2,backgroundColor:'#f5f3ec',useCORS:true,logging:false,width:794,height:1123,windowWidth:794});
+        const img=canvas.toDataURL('image/jpeg',.94);pdf.addImage(img,'JPEG',0,0,595.28,841.89,undefined,'FAST');
+        if(btn)btn.innerHTML=`<i class="ph-thin ph-file-pdf"></i><span>עמוד ${i+1}/${pages.length}</span>`;
+      }
+      const stamp=new Date().toISOString().slice(0,10);pdf.save(`vector-forecast-${stamp}.pdf`);stage.innerHTML='';
+    }catch(err){console.warn('[Forecast PDF]',err);fcPrintFallback();}
+    finally{FC.pdfBusy=false;if(btn){btn.disabled=false;btn.innerHTML=old||'<i class="ph-thin ph-file-pdf"></i><span>הורד PDF</span>';}}
+  };
+
+  // Keep the forecast amounts synchronized when the user changes display currency.
+  if(typeof window.setCurrency==='function'){
+    const originalSetCurrency=window.setCurrency;
+    window.setCurrency=function(){const result=originalSetCurrency.apply(this,arguments);setTimeout(()=>{if(FC.loaded)fcRenderAll();},0);return result;};
+  }
+})();
+
 </script>
 
 <canvas id="confettiCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:9999;display:none"></canvas>
