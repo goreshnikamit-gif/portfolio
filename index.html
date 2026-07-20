@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-20-forecast-live-consensus-v2">
+<meta name="app-version" content="2026-07-20-extended-hours-v1">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-20-forecast-live-consensus-v2");
+console.info("Vector build: 2026-07-20-extended-hours-v1");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -1074,6 +1074,62 @@ body.light .total::before { display:none; }
 .badge.dn { background: color-mix(in srgb, var(--rd) 14%, transparent); color: var(--rd); border: 1px solid color-mix(in srgb, var(--rd) 22%, transparent); }
 .t-sub { font-size: 16px; color: var(--t2); font-family: 'Geist', 'Assistant', 'Rubik', sans-serif; font-weight: 300; }
 .t-pnl { font-size: 26px; font-weight: 700; font-family: var(--font-mono); }
+
+
+/* ── PRE-MARKET / AFTER-HOURS — informational layer, never mixed into official P&L ── */
+.ext-session {
+  display: none;
+  margin-top: 17px;
+  padding: 14px 15px;
+  border: 1px solid color-mix(in srgb, var(--gd) 28%, var(--b1));
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--gd) 8%, var(--s2)),
+    color-mix(in srgb, var(--ac) 5%, var(--s2)));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--t1) 5%, transparent);
+}
+.ext-session.show { display: block; animation: extSlideIn .24s ease; }
+@keyframes extSlideIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+.ext-session-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.ext-session-title-wrap { display:flex; align-items:center; gap:8px; min-width:0; }
+.ext-session-badge {
+  flex:0 0 auto; padding:3px 8px; border-radius:999px;
+  font-family:var(--font-mono); font-size:9px; font-weight:800; letter-spacing:.08em;
+  color:var(--gd); background:color-mix(in srgb,var(--gd) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--gd) 32%,transparent);
+}
+.ext-session-badge.post { color:var(--ac); background:color-mix(in srgb,var(--ac) 12%,transparent); border-color:color-mix(in srgb,var(--ac) 32%,transparent); }
+.ext-session-title { font-size:12px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ext-session-toggle { display:inline-flex; align-items:center; gap:5px; border:0; background:transparent; color:var(--t2); font-family:var(--font-body); font-size:10.5px; cursor:pointer; padding:4px; }
+.ext-session-toggle i { transition:transform .18s ease; }
+.ext-session.details-open .ext-session-toggle i { transform:rotate(180deg); }
+.ext-session-numbers { display:flex; align-items:baseline; gap:9px; margin-top:9px; direction:ltr; justify-content:flex-end; }
+.ext-session-pnl { font-family:var(--font-mono); font-size:21px; font-weight:800; direction:ltr; }
+.ext-session-pct { font-family:var(--font-mono); font-size:12px; font-weight:700; padding:3px 8px; border-radius:999px; }
+.ext-session-pct.up { color:var(--gr); background:color-mix(in srgb,var(--gr) 12%,transparent); }
+.ext-session-pct.dn { color:var(--rd); background:color-mix(in srgb,var(--rd) 12%,transparent); }
+.ext-session-meta { margin-top:6px; display:flex; flex-wrap:wrap; align-items:center; gap:5px 9px; color:var(--t3); font-size:9.5px; line-height:1.45; }
+.ext-session-meta b { color:var(--t2); font-weight:600; }
+.ext-session-note { color:var(--gd); }
+.ext-session-details { display:none; margin-top:11px; border-top:1px solid var(--b1); padding-top:8px; gap:3px; }
+.ext-session.details-open .ext-session-details { display:grid; }
+.ext-detail-row { display:grid; grid-template-columns:minmax(54px,.65fr) minmax(80px,1fr) minmax(72px,.8fr); align-items:center; gap:8px; padding:7px 6px; border-radius:8px; font-size:10px; }
+.ext-detail-row:hover { background:color-mix(in srgb,var(--t1) 3%,transparent); }
+.ext-detail-symbol { font-family:var(--font-mono); font-weight:800; color:var(--t1); direction:ltr; text-align:left; }
+.ext-detail-price { color:var(--t2); direction:ltr; text-align:center; font-family:var(--font-mono); }
+.ext-detail-impact { font-family:var(--font-mono); font-weight:700; direction:ltr; text-align:right; }
+.card-ext-chip { align-self:flex-end; display:inline-flex; align-items:center; gap:4px; margin-bottom:3px; padding:2px 6px; border-radius:999px; font-family:var(--font-mono); font-size:8.5px; font-weight:800; line-height:1.2; background:color-mix(in srgb,var(--gd) 11%,transparent); border:1px solid color-mix(in srgb,var(--gd) 28%,transparent); color:var(--gd); direction:ltr; }
+.card-ext-chip.post { color:var(--ac); background:color-mix(in srgb,var(--ac) 10%,transparent); border-color:color-mix(in srgb,var(--ac) 28%,transparent); }
+.card-ext-chip.up .card-ext-change { color:var(--gr); }
+.card-ext-chip.dn .card-ext-change { color:var(--rd); }
+@media (max-width:640px) {
+  .ext-session { margin-top:14px; padding:12px; }
+  .ext-session-title { font-size:11px; }
+  .ext-session-pnl { font-size:18px; }
+  .ext-session-meta { font-size:9px; }
+  .ext-detail-row { grid-template-columns:52px 1fr 80px; padding-inline:2px; }
+  .card-ext-chip { font-size:8px; margin-bottom:1px; }
+}
 
 /* ── STAT GRID ── */
 .stat-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; width: 100%; }
@@ -2994,6 +3050,24 @@ onAuthStateChanged(auth, async user => {
             <div class="t-pnl" id="chgAbs" style="color:var(--gr)">---</div>
           </div>
         </div>
+
+        <div class="ext-session" id="extendedSessionCard" aria-live="polite">
+          <div class="ext-session-head">
+            <div class="ext-session-title-wrap">
+              <span class="ext-session-badge" id="extendedSessionBadge">PRE</span>
+              <span class="ext-session-title" id="extendedSessionTitle">מסחר מוקדם — שינוי משוער בתיק</span>
+            </div>
+            <button class="ext-session-toggle" id="extendedSessionToggle" onclick="toggleExtendedDetails()" aria-expanded="false">
+              <span>פירוט</span><i class="ph-thin ph-caret-down"></i>
+            </button>
+          </div>
+          <div class="ext-session-numbers">
+            <div class="ext-session-pnl" id="extendedSessionPnl">—</div>
+            <div class="ext-session-pct up" id="extendedSessionPct">—</div>
+          </div>
+          <div class="ext-session-meta" id="extendedSessionMeta"></div>
+          <div class="ext-session-details" id="extendedSessionDetails"></div>
+        </div>
       </div>
 
 
@@ -4732,6 +4806,298 @@ async function getStocks() {
   }));
 }
 
+
+// ═══════════════════════════════════════════
+// EXTENDED HOURS — PRE-MARKET / AFTER-HOURS
+// Separate informational layer. It never overwrites official daily P&L with an
+// extended-session move and never counts that move twice in the main total.
+// ═══════════════════════════════════════════
+function usExtendedSessionNow(value = Date.now()) {
+  const p = datePartsInTimeZone(value, 'America/New_York');
+  if (!p) return null;
+  const weekday = new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay();
+  if (weekday === 0 || weekday === 6) return null;
+  const minutes = p.hour * 60 + p.minute;
+  if (minutes >= 4 * 60 && minutes < 9 * 60 + 30) return 'pre';
+  if (minutes >= 16 * 60 && minutes < 20 * 60) return 'post';
+  return null;
+}
+
+function isUsExtendedSymbol(sym) {
+  // A dot can be part of a US class symbol (BRK.B), so reject only known exchange
+  // suffixes rather than every symbol containing a dot.
+  const s = String(sym || '').toUpperCase();
+  if (!s) return false;
+  return !/\.(TA|L|IL|IR|DE|F|BE|MU|HM|DU|SG|PA|MI|AS|MC|BR|LS|VI|HE|AT|SW|ST|OL|CO|IC|WA|PR|BD|IS|RG|TL|VS|T|HK|SS|SZ|TW|TWO|KS|KQ|AX|NZ|SI|JK|BK|BO|NS|SA|MX|TO|V|NE|CN|SR|QA|JO|CA|KL|SN|BA)$/.test(s);
+}
+
+function parseYahooExtendedBatchPayload(payload) {
+  let json = payload;
+  if (typeof payload === 'string') {
+    try { json = JSON.parse(payload); } catch (_) { return null; }
+  }
+  if (typeof json?.contents === 'string') {
+    try { json = JSON.parse(json.contents); } catch (_) { return null; }
+  }
+  const rows = json?.quoteResponse?.result;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const out = {};
+  rows.forEach(row => {
+    const sym = String(row?.symbol || '').toUpperCase();
+    if (!sym) return;
+    out[sym] = {
+      symbol: sym,
+      currency: row.currency || 'USD',
+      marketState: row.marketState || null,
+      regularMarketPrice: Number(row.regularMarketPrice) || null,
+      regularMarketPreviousClose: Number(row.regularMarketPreviousClose) || null,
+      regularMarketTime: normalizeEpochMs(row.regularMarketTime),
+      preMarketPrice: Number(row.preMarketPrice) || null,
+      preMarketTime: normalizeEpochMs(row.preMarketTime),
+      postMarketPrice: Number(row.postMarketPrice) || null,
+      postMarketTime: normalizeEpochMs(row.postMarketTime),
+      _source: 'yahoo-quote',
+    };
+  });
+  return Object.keys(out).length ? out : null;
+}
+
+async function fetchYahooExtendedBatch(symbols) {
+  const clean = [...new Set((symbols || []).map(s => String(s || '').trim().toUpperCase()).filter(Boolean))];
+  if (!clean.length) return {};
+  const origin = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(clean.join(','))}`;
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  const tasks = [];
+  if (worker) tasks.push((async () => parseYahooExtendedBatchPayload(await fetchTextFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3200)))());
+  tasks.push(delayedTask(worker ? 220 : 0, async () => parseYahooExtendedBatchPayload(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4300))));
+  tasks.push(delayedTask(worker ? 360 : 120, async () => parseYahooExtendedBatchPayload(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4300))));
+  tasks.push(delayedTask(worker ? 500 : 240, async () => parseYahooExtendedBatchPayload(await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5000))));
+  return (await firstValidResult(tasks, v => v && Object.keys(v).length)) || {};
+}
+
+function parseYahooExtendedChartPayload(payload, sym) {
+  let json = payload;
+  if (typeof payload === 'string') {
+    try { json = JSON.parse(payload); } catch (_) { return null; }
+  }
+  if (typeof json?.contents === 'string') {
+    try { json = JSON.parse(json.contents); } catch (_) { return null; }
+  }
+  const result = json?.chart?.result?.[0];
+  const meta = result?.meta;
+  if (!meta) return null;
+  const timestamps = result?.timestamp || [];
+  const closes = result?.indicators?.quote?.[0]?.close || [];
+  const session = usExtendedSessionNow();
+  const todayNY = dateKeyInTimeZone(Date.now(), 'America/New_York');
+  let derivedPrice = null, derivedTime = null;
+  if (session) {
+    timestamps.forEach((ts, i) => {
+      const ms = normalizeEpochMs(ts);
+      const price = Number(closes[i]);
+      if (!(ms > 0) || !(price > 0) || dateKeyInTimeZone(ms, 'America/New_York') !== todayNY) return;
+      const parts = datePartsInTimeZone(ms, 'America/New_York');
+      const mins = parts ? parts.hour * 60 + parts.minute : -1;
+      const pointSession = mins >= 4 * 60 && mins < 9 * 60 + 30 ? 'pre'
+                         : mins >= 16 * 60 && mins < 20 * 60 ? 'post' : null;
+      if (pointSession === session && (!derivedTime || ms > derivedTime)) {
+        derivedTime = ms; derivedPrice = price;
+      }
+    });
+  }
+  return {
+    symbol: String(sym || '').toUpperCase(),
+    currency: meta.currency || 'USD',
+    marketState: meta.marketState || null,
+    regularMarketPrice: Number(meta.regularMarketPrice) || null,
+    regularMarketPreviousClose: Number(meta.regularMarketPreviousClose ?? meta.chartPreviousClose) || null,
+    regularMarketTime: normalizeEpochMs(meta.regularMarketTime),
+    preMarketPrice: Number(meta.preMarketPrice) || (session === 'pre' ? derivedPrice : null),
+    preMarketTime: normalizeEpochMs(meta.preMarketTime) || (session === 'pre' ? derivedTime : null),
+    postMarketPrice: Number(meta.postMarketPrice) || (session === 'post' ? derivedPrice : null),
+    postMarketTime: normalizeEpochMs(meta.postMarketTime) || (session === 'post' ? derivedTime : null),
+    _source: 'yahoo-chart',
+  };
+}
+
+async function fetchYahooExtendedChart(sym) {
+  const origin = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&includePrePost=true&events=div%2Csplits`;
+  const worker = String(MY_PROXY || '').replace(/\/$/, '');
+  const tasks = [];
+  if (worker) tasks.push((async () => parseYahooExtendedChartPayload(await fetchTextFast(`${worker}/?url=${encodeURIComponent(origin)}`, 3400), sym))());
+  tasks.push(delayedTask(worker ? 250 : 0, async () => parseYahooExtendedChartPayload(await fetchTextFast(`https://corsproxy.io/?url=${encodeURIComponent(origin)}`, 4800), sym)));
+  tasks.push(delayedTask(worker ? 400 : 130, async () => parseYahooExtendedChartPayload(await fetchTextFast(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(origin)}`, 4800), sym)));
+  tasks.push(delayedTask(worker ? 550 : 260, async () => parseYahooExtendedChartPayload(await fetchJsonFast(`https://api.allorigins.win/get?url=${encodeURIComponent(origin)}`, 5400), sym)));
+  return firstValidResult(tasks, v => v && (v.preMarketPrice > 0 || v.postMarketPrice > 0 || v.regularMarketPrice > 0));
+}
+
+function clearExtendedHoursData() {
+  (S.stocks || []).forEach(s => { if (S.sp?.[s.sym]) delete S.sp[s.sym].extended; });
+}
+
+async function getExtendedHours() {
+  const session = usExtendedSessionNow();
+  const eligible = (S.stocks || []).filter(s => isUsExtendedSymbol(s.sym));
+  if (!session || !eligible.length) {
+    clearExtendedHoursData();
+    renderExtendedSession();
+    return;
+  }
+
+  let batch = {};
+  try { batch = await fetchYahooExtendedBatch(eligible.map(s => s.sym)); } catch (_) {}
+  const missing = eligible.filter(s => !batch[String(s.sym).toUpperCase()]);
+  // The batch endpoint is fastest. Chart fallbacks run only for symbols the batch
+  // omitted, and are capped to avoid a proxy storm on very large portfolios.
+  await Promise.all(missing.slice(0, 12).map(async s => {
+    try {
+      const q = await fetchYahooExtendedChart(s.sym);
+      if (q) batch[String(s.sym).toUpperCase()] = q;
+    } catch (_) {}
+  }));
+
+  const todayNY = dateKeyInTimeZone(Date.now(), 'America/New_York');
+  eligible.forEach(s => {
+    const key = String(s.sym).toUpperCase();
+    const q = batch[key];
+    const p = S.sp[s.sym] || (S.sp[s.sym] = {});
+    delete p.extended;
+    if (!q) return;
+
+    // During PRE/POST force the official layer back to Yahoo's REGULAR price.
+    // This prevents a provider that includes extended trades in its "current" field
+    // from silently changing the main portfolio value or official daily P&L.
+    const regular = Number(q.regularMarketPrice);
+    const previous = Number(q.regularMarketPreviousClose);
+    if (regular > 0) {
+      p.price = regular;
+      if (previous > 0) p.prevClose = previous;
+      if (p.prevClose > 0) {
+        p.change = ((p.price - p.prevClose) / p.prevClose) * 100;
+        p.changeAmt = p.price - p.prevClose;
+      }
+      p.currency = q.currency || p.currency || 'USD';
+      p.quoteTime = normalizeEpochMs(q.regularMarketTime) || p.quoteTime || null;
+      p.marketState = q.marketState || p.marketState || null;
+    }
+
+    const extPrice = Number(session === 'pre' ? q.preMarketPrice : q.postMarketPrice);
+    const extTime = normalizeEpochMs(session === 'pre' ? q.preMarketTime : q.postMarketTime);
+    const basePrice = regular > 0 ? regular : Number(p.price);
+    if (!(extPrice > 0) || !(basePrice > 0)) return;
+    if (extTime && dateKeyInTimeZone(extTime, 'America/New_York') !== todayNY) return;
+    const changePct = ((extPrice - basePrice) / basePrice) * 100;
+    // Reject malformed proxy payloads, but keep normal earnings-day gaps.
+    if (!Number.isFinite(changePct) || Math.abs(changePct) > 45) return;
+    p.extended = {
+      session,
+      price: extPrice,
+      basePrice,
+      change: extPrice - basePrice,
+      changePct,
+      time: extTime || Date.now(),
+      currency: q.currency || p.currency || 'USD',
+      source: q._source || 'yahoo',
+    };
+  });
+  renderExtendedSession();
+}
+
+function extendedPortfolioSummary() {
+  const activeSession = usExtendedSessionNow();
+  if (!activeSession) return null;
+  const todayNY = dateKeyInTimeZone(Date.now(), 'America/New_York');
+  const rows = [];
+  let pnlILS = 0, baseILS = 0, latestTime = 0, session = null;
+  (S.stocks || []).forEach(s => {
+    const ext = S.sp?.[s.sym]?.extended;
+    if (!ext || ext.session !== activeSession || !(ext.price > 0) || !(ext.basePrice > 0)) return;
+    const extTime = normalizeEpochMs(ext.time);
+    if (extTime && dateKeyInTimeZone(extTime, 'America/New_York') !== todayNY) return;
+    const shares = getShares(s);
+    if (!(shares > 0)) return;
+    const currency = ext.currency || S.sp?.[s.sym]?.currency || 'USD';
+    const stockPnl = nativeToILS(shares * (ext.price - ext.basePrice), currency);
+    const stockBase = nativeToILS(shares * ext.basePrice, currency);
+    if (!Number.isFinite(stockPnl) || !(stockBase > 0)) return;
+    pnlILS += stockPnl;
+    baseILS += stockBase;
+    latestTime = Math.max(latestTime, normalizeEpochMs(ext.time) || 0);
+    session = session || ext.session;
+    rows.push({ sym:s.sym, name:s.name || s.sym, pnlILS:stockPnl, baseILS:stockBase, pct:(stockPnl / stockBase) * 100, ext });
+  });
+  if (!rows.length || !session) return null;
+  const total = tots().g;
+  return {
+    session, rows, pnlILS, baseILS, latestTime,
+    portfolioPct: total > 0 ? (pnlILS / total) * 100 : 0,
+    projectedTotal: total + pnlILS,
+    eligibleCount: (S.stocks || []).filter(s => isUsExtendedSymbol(s.sym)).length,
+  };
+}
+
+function toggleExtendedDetails() {
+  const card = document.getElementById('extendedSessionCard');
+  if (!card) return;
+  const open = card.classList.toggle('details-open');
+  const btn = document.getElementById('extendedSessionToggle');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  try { localStorage.setItem('extendedDetailsOpen', open ? '1' : '0'); } catch (_) {}
+}
+window.toggleExtendedDetails = toggleExtendedDetails;
+
+function renderExtendedSession() {
+  const card = document.getElementById('extendedSessionCard');
+  if (!card) return;
+  const data = extendedPortfolioSummary();
+  if (!data) {
+    card.classList.remove('show');
+    return;
+  }
+  card.classList.add('show');
+  try { card.classList.toggle('details-open', localStorage.getItem('extendedDetailsOpen') === '1'); } catch (_) {}
+  const toggleBtn = document.getElementById('extendedSessionToggle');
+  if (toggleBtn) toggleBtn.setAttribute('aria-expanded', card.classList.contains('details-open') ? 'true' : 'false');
+  const isPre = data.session === 'pre';
+  const badge = document.getElementById('extendedSessionBadge');
+  if (badge) { badge.textContent = isPre ? 'PRE' : 'AFTER'; badge.className = 'ext-session-badge' + (isPre ? '' : ' post'); }
+  const title = document.getElementById('extendedSessionTitle');
+  if (title) title.textContent = i18nGetText(isPre ? 'מסחר מוקדם — שינוי משוער בתיק' : 'מסחר מאוחר — שינוי מאז הנעילה');
+
+  const up = data.pnlILS >= 0;
+  const pnl = document.getElementById('extendedSessionPnl');
+  if (pnl) {
+    pnl.textContent = (up ? '+' : '') + fILS(data.pnlILS);
+    pnl.style.color = up ? 'var(--gr)' : 'var(--rd)';
+  }
+  const pct = document.getElementById('extendedSessionPct');
+  if (pct) {
+    pct.textContent = `${data.portfolioPct >= 0 ? '+' : ''}${data.portfolioPct.toFixed(2)}%`;
+    pct.className = 'ext-session-pct ' + (up ? 'up' : 'dn');
+  }
+  const updated = data.latestTime ? new Date(data.latestTime).toLocaleTimeString(_dateLocale(), {hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:APP_TIME_ZONE}) : '—';
+  const meta = document.getElementById('extendedSessionMeta');
+  if (meta) meta.innerHTML = `
+    <span><b>${i18nGetText('שווי משוער')}:</b> <span id="extProjectedTotal">${fILS(data.projectedTotal)}</span></span>
+    <span>·</span><span>${data.rows.length}/${data.eligibleCount} ${i18nGetText('מניות עם נתון')}</span>
+    <span>·</span><span>${i18nGetText('עודכן')} ${updated}</span>
+    <span class="ext-session-note">${i18nGetText('לא נכלל ברווח היומי או בשווי הרשמי')}</span>`;
+
+  const details = document.getElementById('extendedSessionDetails');
+  if (details) {
+    details.innerHTML = data.rows.slice().sort((a,b) => Math.abs(b.pnlILS)-Math.abs(a.pnlILS)).map(r => {
+      const rup = r.pnlILS >= 0;
+      const price = fPriceNative(r.ext.price, r.ext.currency, 2);
+      return `<div class="ext-detail-row">
+        <div class="ext-detail-symbol">${r.sym}</div>
+        <div class="ext-detail-price">${price} · ${r.pct >= 0 ? '+' : ''}${r.pct.toFixed(2)}%</div>
+        <div class="ext-detail-impact" style="color:${rup?'var(--gr)':'var(--rd)'}">${rup?'+':''}${fILS(r.pnlILS)}</div>
+      </div>`;
+    }).join('');
+  }
+  applyBalanceHidden();
+}
+
 async function fetchYahooIntraday(sym) {
   return getStockHist(sym, '1d');
 }
@@ -5995,6 +6361,14 @@ const I18N = {
 
   // ── Unsaved-changes prompt ──
   'יש שינויים שלא נשמרו — לשמור אותם?':'You have unsaved changes — save them?',
+  // extended-hours portfolio layer
+  'מסחר מוקדם — שינוי משוער בתיק':'Pre-market — estimated portfolio move',
+  'מסחר מאוחר — שינוי מאז הנעילה':'After-hours — move since close',
+  'פירוט':'Details',
+  'שווי משוער':'Estimated value',
+  'לא נכלל ברווח היומי או בשווי הרשמי':'Not included in official value or daily P&L',
+  'מניות עם נתון':'stocks with data',
+  'עודכן':'Updated',
 
 };
 const I18N_KEYS = Object.keys(I18N).sort((a, b) => b.length - a.length);
@@ -10234,6 +10608,8 @@ function cardHTML(o) {
   const {sym, name, icon, color, type, value, qtyLabel, priceStr, priceUSD, change, pnlDay, pnlTotal, id} = o;
   const up = change >= 0, pup = (pnlDay || 0) >= 0;
   const meta = type === 'stock' ? S.sp[sym] : S.cp[id];
+  const ext = type === 'stock' ? meta?.extended : null;
+  const extChip = ext ? `<div class="card-ext-chip ${ext.session==='post'?'post':''} ${ext.changePct>=0?'up':'dn'}"><span>${ext.session==='pre'?'PRE':'AFTER'}</span><span class="card-ext-change">${ext.changePct>=0?'+':''}${ext.changePct.toFixed(2)}%</span></div>` : '';
   const unavailable = meta?._unavailable;          // gave up after 3 retries
   const loading = (priceUSD == null) && !unavailable;
   return `<div class="card${loading?' card-loading':''}${unavailable?' card-unavailable':''}" onclick="openDet('${sym}','${type}')" onpointerenter="${type==='stock'?`prefetchStockChart('${sym}')`:''}" onpointerdown="${type==='stock'?`prefetchStockChart('${sym}')`:''}">
@@ -10247,6 +10623,7 @@ function cardHTML(o) {
     <div class="spk" id="spk_${sym}"></div>
     <div class="cb">
       <div class="pb">
+        ${extChip}
         <div class="pp ${up?'up':'dn'}" style="color:${up?'var(--gr)':'var(--rd)'}">${up?'▲':'▼'} ${change!=null?Math.abs(change).toFixed(2):'--'}%</div>
         ${pnlDay!=null?`<div class="pn ${pup?'up':'dn'}" style="color:${pup?'var(--gr)':'var(--rd)'}">${pup?'+':''}${fILS(pnlDay)}</div>`:''}
         <div class="pl">P&L יומי</div>
@@ -10832,7 +11209,7 @@ function balanceHidden() { return localStorage.getItem('balanceHidden') === '1';
 // KPI tiles that display MONEY amounts and must be masked together with the main
 // balance. Rate (fxKpi), % performers and asset-count tiles stay visible — they
 // don't reveal portfolio size.
-const MONEY_KPI_IDS = ['sKpi','cKpi','commoditiesKpi','bondsKpi','etfsKpi','totalPnlKpi'];
+const MONEY_KPI_IDS = ['sKpi','cKpi','commoditiesKpi','bondsKpi','etfsKpi','totalPnlKpi','extendedSessionPnl','extProjectedTotal'];
 function applyBalanceHidden() {
   const hidden = balanceHidden();
   const wrap = document.getElementById('grandNumWrap');
@@ -10854,7 +11231,11 @@ function applyBalanceHidden() {
     const el = document.getElementById(id);
     if (!el) return;
     if (hidden) { if (!el.dataset.real) el.dataset.real = el.textContent; el.textContent = '••••'; }
-    else if (el.dataset.real !== undefined) { delete el.dataset.real; /* refreshed by updateKPIs */ }
+    else if (el.dataset.real !== undefined) { delete el.dataset.real; /* fresh value was already written by the render */ }
+  });
+  document.querySelectorAll('.ext-detail-impact').forEach(el => {
+    if (hidden) { if (!el.dataset.real) el.dataset.real = el.textContent; el.textContent = '••••'; }
+    else if (el.dataset.real !== undefined) { delete el.dataset.real; /* fresh value was already written by the render */ }
   });
 }
 function toggleBalanceHidden() {
@@ -10992,6 +11373,7 @@ function updateKPIs() {
   if (countEl) countEl.textContent = assetCount;
 
   applyWidgetTiles();
+  renderExtendedSession();
   renderAlloc(c, st);
   fitStatValues();   // ⚡ shrink any KPI value that would overflow its card (no clipping)
   // Patch the "today" panel numbers in the SAME tick, from the SAME figures the hero
@@ -15164,7 +15546,7 @@ async function doRefresh() {
       await Promise.allSettled([
         getFX().then(() => { try { updateFxKpi?.(); updateKPIs?.(); } catch(_){} }),
         getCrypto().then(() => { try { renderDashCrypto?.(); if (S.curPage==='crypto') renderCryptoPage?.(); updateKPIs?.(); } catch(_){} }),
-        getStocks().then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); renderManualCategories?.(); if (['etfs','bonds'].includes(S.curPage)) renderManualPage?.(S.curPage); updateKPIs?.(); } catch(_){} }),
+        getStocks().then(() => getExtendedHours()).then(() => { try { renderDashStocks?.(); if (S.curPage==='stocks') renderStocksPage?.(); renderManualCategories?.(); if (['etfs','bonds'].includes(S.curPage)) renderManualPage?.(S.curPage); updateKPIs?.(); } catch(_){} }),
         getCommodities().then(() => { try { renderManualCategories?.(); if (['commodities','bonds','etfs'].includes(S.curPage)) renderManualPage?.(S.curPage); updateKPIs?.(); } catch(_){} }),
       ]);
       // ⚡ Make sure EUR/GBP/JPY rates are in before the final render, so non-US
@@ -15214,7 +15596,7 @@ const _catchupTimer = setInterval(() => {
   if (document.visibilityState !== 'visible' || refreshInFlight) return;
   const stillMissing = (S.stocks || []).some(s => !(S.sp[s.sym]?.price > 0));
   if (stillMissing && typeof getStocks === 'function') {
-    getStocks().then(() => { renderDashStocks?.(); updateKPIs?.(); }).catch(() => {});
+    getStocks().then(() => getExtendedHours()).then(() => { renderDashStocks?.(); updateKPIs?.(); }).catch(() => {});
   } else if (!stillMissing) {
     clearInterval(_catchupTimer);
   }
@@ -15254,7 +15636,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260720-forecast-live-consensus-v2');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260720-extended-hours-v1');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -15443,7 +15825,7 @@ window.proceedToApp = async function() {
   setTimeout(() => { if (document.getElementById('assetNews')) renderAssetNews(); }, 1500);
   if (appRefreshTimer) clearTimeout(appRefreshTimer);
   const scheduleRefresh = () => {
-    const delay = isUsRegularMarketOpenNow() ? 60000 : 180000;
+    const delay = isUsRegularMarketOpenNow() ? 60000 : (usExtendedSessionNow() ? 90000 : 180000);
     appRefreshTimer = setTimeout(async () => {
       if (document.visibilityState === 'visible') await doRefresh();
       scheduleRefresh();
