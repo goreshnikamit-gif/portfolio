@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-19-google-auth-ios-forecast-premium-v1">
+<meta name="app-version" content="2026-07-20-forecast-live-consensus-v2">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-19-google-auth-ios-forecast-premium-v1");
+console.info("Vector build: 2026-07-20-forecast-live-consensus-v2");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -15254,7 +15254,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDet()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js?v=20260719-google-auth-ios-v1');
+      const registration = await navigator.serviceWorker.register('./sw.js?v=20260720-forecast-live-consensus-v2');
       await registration.update();
     } catch (error) {
       console.warn('Service worker update failed:', error);
@@ -16407,7 +16407,7 @@ function launchConfetti() {
 (function(){
   'use strict';
 
-  const FC_CACHE_KEY = 'vector_forecast_consensus_v3';
+  const FC_CACHE_KEY = 'vector_forecast_consensus_v5';
   const FC_CACHE_TTL = 6 * 60 * 60 * 1000;
   const FC = {
     api: {}, rows: [], loaded: false, loading: false, initialized: false,
@@ -16452,27 +16452,109 @@ function launchConfetti() {
     if (typeof j?.contents === 'string') { try { j = JSON.parse(j.contents); } catch(_) { return null; } }
     return j;
   }
-  async function fcFetchJson(origin, { finnhub=false, timeout=8500 } = {}) {
+  async function fcFetchJson(origin, { finnhub=false, timeout=8500, fast=false } = {}) {
     const worker = String(typeof MY_PROXY !== 'undefined' ? MY_PROXY : '').replace(/\/$/,'');
     const urls = [];
     if (worker) urls.push(worker + '/?url=' + encodeURIComponent(origin));
     if (!finnhub) {
+      // Public analyst endpoints can change their CORS policy. Try the app Worker first,
+      // then a direct request and finally public CORS relays instead of silently returning zeroes.
+      if (fast) urls.push(origin);
       urls.push('https://corsproxy.io/?url=' + encodeURIComponent(origin));
-      urls.push('https://api.allorigins.win/get?url=' + encodeURIComponent(origin));
+      if (!fast) urls.push('https://api.allorigins.win/get?url=' + encodeURIComponent(origin));
     }
     if (!urls.length) urls.push(origin);
-    for (const url of urls) {
+    for (const url of [...new Set(urls)]) {
+      let tm = null;
       try {
         const ctl = new AbortController();
-        const tm = setTimeout(() => ctl.abort(), timeout);
-        const r = await fetch(url,{cache:'no-store',signal:ctl.signal});
+        tm = setTimeout(() => ctl.abort(), timeout);
+        const r = await fetch(url,{cache:'no-store',signal:ctl.signal,headers:{'Accept':'application/json,text/plain,*/*'}});
         clearTimeout(tm);
         if (!r.ok) continue;
         const parsed = fcParsePayload(await r.text());
-        if (parsed && !parsed.error) return parsed;
-      } catch(_) {}
+        if (parsed && !parsed.error && !parsed.finance?.error) return parsed;
+      } catch(_) { if (tm) clearTimeout(tm); }
     }
     return null;
+  }
+
+  function fcRaw(v) {
+    if (v == null) return null;
+    if (typeof v === 'object') {
+      if (Object.prototype.hasOwnProperty.call(v,'raw')) return fcRaw(v.raw);
+      if (Object.prototype.hasOwnProperty.call(v,'fmt')) return fcRaw(v.fmt);
+    }
+    return v;
+  }
+  function fcNumberish(v) {
+    v = fcRaw(v);
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (v == null) return null;
+    let text = String(v).trim();
+    if (!text || /^(?:—|--|n\/?a|null|undefined)$/i.test(text)) return null;
+    const negative = /^\(.*\)$/.test(text);
+    text = text.replace(/[^0-9.,+\-]/g,'').replace(/,/g,'');
+    const n = Number(text);
+    return Number.isFinite(n) ? (negative ? -Math.abs(n) : n) : null;
+  }
+
+  function fcYahooSummaryFlat(payload) {
+    const root = payload?.quoteSummary?.result?.[0] || payload?.data?.quoteSummary?.result?.[0] || null;
+    if (!root) return null;
+    const fd = root.financialData || {}, ks = root.defaultKeyStatistics || {}, sd = root.summaryDetail || {}, pr = root.price || {};
+    const out = {
+      targetPriceLow:fcNumberish(fd.targetLowPrice),
+      targetPriceMean:fcNumberish(fd.targetMeanPrice),
+      targetPriceHigh:fcNumberish(fd.targetHighPrice),
+      targetPriceMedian:fcNumberish(fd.targetMedianPrice),
+      numberOfAnalystOpinions:fcNumberish(fd.numberOfAnalystOpinions),
+      recommendationMean:fcNumberish(fd.recommendationMean),
+      recommendationKey:String(fcRaw(fd.recommendationKey) || ''),
+      beta:fcNumberish(ks.beta),
+      trailingPE:fcNumberish(sd.trailingPE),
+      forwardPE:fcNumberish(fd.forwardPE),
+      fiftyTwoWeekHigh:fcNumberish(sd.fiftyTwoWeekHigh),
+      fiftyTwoWeekLow:fcNumberish(sd.fiftyTwoWeekLow),
+      marketCap:fcNumberish(pr.marketCap),
+      currency:String(fcRaw(pr.currency) || ''),
+      shortName:String(fcRaw(pr.shortName) || fcRaw(pr.longName) || ''),
+    };
+    return Object.values(out).some(v => v !== null && v !== '') ? out : null;
+  }
+
+  async function fcYahooSummaryOne(sym) {
+    const modules = 'financialData,defaultKeyStatistics,summaryDetail,price';
+    const origins = [
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=${modules}`,
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=${modules}`,
+    ];
+    for (const origin of origins) {
+      const parsed = fcYahooSummaryFlat(await fcFetchJson(origin,{timeout:5500,fast:true}));
+      if (parsed && (parsed.targetPriceMean > 0 || parsed.numberOfAnalystOpinions > 0 || parsed.recommendationKey)) return parsed;
+    }
+    return null;
+  }
+
+  function fcNasdaqFlat(payload) {
+    const root = payload?.data?.consensusOverview || payload?.body?.consensusOverview || payload?.consensusOverview || null;
+    if (!root) return null;
+    const low = fcNumberish(root.lowPriceTarget ?? root.lowTarget ?? root.low),
+          mean = fcNumberish(root.priceTarget ?? root.averagePriceTarget ?? root.meanPriceTarget ?? root.average ?? root.mean),
+          high = fcNumberish(root.highPriceTarget ?? root.highTarget ?? root.high);
+    const buy = Math.max(0,Math.round(fcNumberish(root.buy ?? root.buyCount) || 0));
+    const hold = Math.max(0,Math.round(fcNumberish(root.hold ?? root.holdCount) || 0));
+    const sell = Math.max(0,Math.round(fcNumberish(root.sell ?? root.sellCount) || 0));
+    const total = Math.max(0,Math.round(fcNumberish(root.total ?? root.analystCount) || (buy+hold+sell)));
+    const consensus = String(fcRaw(root.consensus ?? root.consensusRating ?? root.rating) || '').toLowerCase();
+    if (!(low > 0 || mean > 0 || high > 0 || total > 0 || consensus)) return null;
+    return {low,mean,high,buy,hold,sell,total,consensus};
+  }
+
+  async function fcNasdaqOne(sym) {
+    // Nasdaq exposes a no-key consensus snapshot for US-listed common stocks.
+    const origin = `https://api.nasdaq.com/api/analyst/${encodeURIComponent(String(sym).toLowerCase())}/targetprice`;
+    return fcNasdaqFlat(await fcFetchJson(origin,{timeout:6000,fast:true}));
   }
 
   async function fcYahooBatch(symbols) {
@@ -16578,13 +16660,17 @@ function launchConfetti() {
       if (price > 0 && qty > 0) currentValueILS = typeof nativeToILS === 'function' ? nativeToILS(price * qty, currency) : price * qty * Number(S.fx || 1);
       else if (typeof sv === 'function') currentValueILS = Number(sv(stock) || 0);
       const pt = fh.pt || {};
-      const low = fcPositive(pt.targetLow, yq.targetPriceLow);
-      const mean = fcPositive(pt.targetMean, yq.targetPriceMean, pt.targetMedian, yq.targetPriceMedian);
-      const high = fcPositive(pt.targetHigh, yq.targetPriceHigh);
-      const median = fcPositive(pt.targetMedian, yq.targetPriceMedian);
+      const nq = api.nasdaq || {};
+      const low = fcPositive(pt.targetLow, yq.targetPriceLow, nq.low);
+      const mean = fcPositive(pt.targetMean, yq.targetPriceMean, pt.targetMedian, yq.targetPriceMedian, nq.mean);
+      const high = fcPositive(pt.targetHigh, yq.targetPriceHigh, nq.high);
+      const median = fcPositive(pt.targetMedian, yq.targetPriceMedian, nq.mean);
       const latestRec = fcLatestRecommendation(fh.rec);
-      const rating = fcRecommendationInfo(latestRec, yq);
-      const analystCount = Math.max(0, Math.round(fcPositive(yq.numberOfAnalystOpinions, rating.total) || 0));
+      const nasdaqRec = nq.total > 0 ? {strongBuy:0,buy:nq.buy||0,hold:nq.hold||0,sell:nq.sell||0,strongSell:0} : null;
+      const yqForRating = Object.assign({},yq);
+      if (!yqForRating.recommendationKey && nq.consensus) yqForRating.recommendationKey = nq.consensus;
+      const rating = fcRecommendationInfo(latestRec || nasdaqRec, yqForRating);
+      const analystCount = Math.max(0, Math.round(fcPositive(yq.numberOfAnalystOpinions, nq.total, rating.total) || 0));
       const metric = fh.metric || {};
       const profile = fh.profile || {};
       const beta = fcPositive(metric.beta, yq.beta);
@@ -16594,8 +16680,9 @@ function launchConfetti() {
       const lo52 = fcPositive(metric['52WeekLow'], yq.fiftyTwoWeekLow, live.low52w);
       const sector = fcSector(profile.finnhubIndustry, sym, stock.name || profile.name || yq.shortName);
       const sources = [];
-      if (low || mean || high || latestRec) sources.push('Finnhub');
-      if (yq && Object.keys(yq).length) sources.push('Yahoo Finance');
+      if (fcPositive(pt.targetLow,pt.targetMean,pt.targetHigh) || latestRec) sources.push('Finnhub');
+      if (fcPositive(yq.targetPriceLow,yq.targetPriceMean,yq.targetPriceHigh) || yq.recommendationKey || yq.numberOfAnalystOpinions) sources.push('Yahoo Finance');
+      if (fcPositive(nq.low,nq.mean,nq.high) || nq.total > 0) sources.push('Nasdaq Analyst Research');
       const covered = !!(price > 0 && mean > 0);
       let confidence = 0;
       if (covered) {
@@ -16818,14 +16905,29 @@ function launchConfetti() {
   async function fcFetchFresh() {
     const symbols=[...new Set((S.stocks||[]).map(s=>String(s.sym||'').toUpperCase()).filter(Boolean))];
     if(!symbols.length){FC.api={};FC.lastFetchAt=Date.now();fcMergeRows();return;}
-    const yahoo=await fcYahooBatch(symbols).catch(()=>({}));
-    const finnhub={}; let cursor=0,done=0;
-    const workers=Array.from({length:Math.min(3,symbols.length)},()=> (async()=>{
-      while(cursor<symbols.length){const sym=symbols[cursor++]; finnhub[sym]=await fcFinnhubOne(sym).catch(()=>({})); done++; fcSetLoading(true,Math.round(done/symbols.length*100),`נותחו ${done} מתוך ${symbols.length} מניות`);}
+    const yahooQuotes=await fcYahooBatch(symbols).catch(()=>({}));
+    const finnhub={}, yahooSummary={}, nasdaq={}; let cursor=0,done=0;
+    // Two symbol workers avoid hammering free providers while still keeping the page responsive.
+    const workers=Array.from({length:Math.min(2,symbols.length)},()=> (async()=>{
+      while(cursor<symbols.length){
+        const sym=symbols[cursor++];
+        const [fh,ys,nd]=await Promise.all([
+          fcFinnhubOne(sym).catch(()=>({})),
+          fcYahooSummaryOne(sym).catch(()=>null),
+          fcNasdaqOne(sym).catch(()=>null),
+        ]);
+        finnhub[sym]=fh||{}; yahooSummary[sym]=ys||null; nasdaq[sym]=nd||null;
+        done++; fcSetLoading(true,Math.round(done/symbols.length*100),`נותחו ${done} מתוך ${symbols.length} מניות`);
+      }
     })());
     await Promise.all(workers);
     const now=Date.now(); const api={};
-    symbols.forEach(sym=>api[sym]={yahoo:yahoo[sym]||null,finnhub:finnhub[sym]||null,updatedAt:now});
+    symbols.forEach(sym=>api[sym]={
+      yahoo:Object.assign({},yahooQuotes[sym]||{},yahooSummary[sym]||{}),
+      finnhub:finnhub[sym]||null,
+      nasdaq:nasdaq[sym]||null,
+      updatedAt:now
+    });
     FC.api=api;FC.lastFetchAt=now;fcSaveCache();fcMergeRows();
   }
 
