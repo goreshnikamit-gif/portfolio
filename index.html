@@ -17617,8 +17617,16 @@ function launchConfetti() {
   function lineHasDateOrTime(line){return /(?:\b\d{1,2}[:/]\d{1,2}(?:[/]\d{2,4})?|\b20\d{2}\b)/.test(String(line?.text||''));}
   function spatialTickerCandidate(line,width,known){
     const text=String(line?.text||'').trim();if(!text||UI_NOISE_RE.test(text))return null;
+    const alias=lineAliasSymbol(text);
+    const words=line.words||[];
+    const hasAliasTicker=!!alias&&words.some(w=>normalizeSymbol(w.text)===alias);
+    // A company-name line such as “INTEL CORP”, “MICRON TECHNOLOGY” or
+    // “SK HYNIX INC” is not a second security row. Previously those words were
+    // interpreted as tickers (INTEL / MICRON / SK), splitting the holding row
+    // before its “50 יח׳ / 38 יח׳” quantity line.
+    if(alias&&!hasAliasTicker)return null;
     const options=[];
-    for(const w of line.words||[]){
+    for(const w of words){
       const raw=String(w.text||'').trim();
       const sym=normalizeSymbol(raw);
       if(!sym||STOP.has(sym)||sym.length<2||sym.length>8)continue;
@@ -17626,9 +17634,9 @@ function launchConfetti() {
       if(!listed||(!isKnown&&!lettersOnly))continue;
       if(/\d/.test(sym)&&!isKnown)continue;
       const cx=(w.x0+w.x1)/2,rightness=cx/Math.max(1,width);
-      let score=(isKnown?100:0)+(rightness>.54?28:rightness>.38?10:-15)+Math.min(12,Number(w.confidence||0)/8)+(sym.length<=5?8:2);
+      let score=(isKnown?120:0)+(rightness>.54?28:rightness>.38?10:-15)+Math.min(12,Number(w.confidence||0)/8)+(sym.length<=5?8:2);
       if(raw!==raw.toUpperCase()&&!isKnown)score-=35;
-      options.push({sym,word:w,score});
+      options.push({sym,word:w,score,isKnown});
     }
     options.sort((a,b)=>b.score-a.score);
     return options[0]&&options[0].score>=18?options[0]:null;
@@ -17755,7 +17763,12 @@ function launchConfetti() {
       const meta=await validateSecuritySymbol(row.sym);
       if(meta.status==='invalid')continue;
       if(meta.status==='valid'){
-        row.sym=meta.sym;row.name=meta.name||assetName(meta.sym);row.type=meta.type||row.type;row.confidence=Math.min(100,Math.max(row.confidence||0,96));row.validated=true;out.push(row);
+        row.sym=meta.sym;row.name=meta.name||assetName(meta.sym);row.type=meta.type||row.type;
+        // Symbol validation proves the identity, not the number of shares.
+        // Show 100% only when the quantity was positionally verified by the
+        // digits-only pass; otherwise keep the row visibly reviewable.
+        row.confidence=row.quantityVerified?Math.min(100,Math.max(row.confidence||0,96)):Math.min(row.confidence||72,84);
+        row.validated=true;out.push(row);
       }else{
         row.name=assetName(row.sym);row.include=false;row.confidence=Math.min(row.confidence||55,55);row.validationPending=true;out.push(row);
       }
@@ -17796,7 +17809,7 @@ function launchConfetti() {
       if(!Number.isFinite(qty))qty=fallbackQuantity(block);
       const nameLine=blockLines.find(x=>!symbolFromLine(x)&&!/^[\s\d₪$€£%.,'׳״-]+$/.test(x)&&!UNIT_HINT_RE.test(x)&&x.length>2&&x.length<90);
       if(Number.isFinite(qty)&&qty>0){
-        found.push({include:true,type:guessType(sym,block),sym,name:nameLine||assetName(sym),qty,avgPrice:Number.isFinite(avg)&&avg>0?avg:'',currency:inferredTradingCurrency(sym,block),date:TODAY(),confidence:explicitQty?96:74,source:'ocr'});
+        found.push({include:true,type:guessType(sym,block),sym,name:nameLine||assetName(sym),qty,avgPrice:Number.isFinite(avg)&&avg>0?avg:'',currency:inferredTradingCurrency(sym,block),date:TODAY(),confidence:explicitQty?92:60,quantityVerified:explicitQty,source:explicitQty?'ocr-explicit':'ocr-fallback'});
       }
     }
     const map=new Map();for(const r of found){const old=map.get(r.sym);if(!old||r.confidence>old.confidence)map.set(r.sym,r);}return [...map.values()];
@@ -17831,9 +17844,15 @@ function launchConfetti() {
       candidates.sort((a,b)=>a.y-b.y);
       const compact=[];
       for(const c of candidates){
-        const prev=compact[compact.length-1];
-        if(prev&&prev.sym===c.sym&&Math.abs(prev.y-c.y)<Math.max(70,height*.048)){
-          if(c.score>prev.score){prev.word=c.word;prev.score=c.score;prev.index=c.index;}prev.y=(prev.y+c.y)/2;
+        const prev=compact[compact.length-1],dy=prev?Math.abs(prev.y-c.y):Infinity;
+        const sameVisualHeader=prev&&dy<Math.max(48,height*.034);
+        if(prev&&(prev.sym===c.sym||sameVisualHeader)){
+          const prevKnown=known.has(prev.sym),curKnown=known.has(c.sym);
+          // Within one holding header, keep the validated ticker and discard a
+          // nearby company-name token. Never let it create a new row boundary.
+          const takeCurrent=(curKnown&&!prevKnown)||(curKnown===prevKnown&&c.score>prev.score);
+          if(takeCurrent){prev.sym=c.sym;prev.word=c.word;prev.score=c.score;prev.index=c.index;}
+          if(prev.sym===c.sym)prev.y=(prev.y+c.y)/2;
         }else compact.push(c);
       }
       candidates=compact;
@@ -17845,10 +17864,12 @@ function launchConfetti() {
         if(!Number.isFinite(qty)||qty<=0)continue;
         const valueEvidence=rowLines.some(lineHasMoney),knownSymbol=known.has(c.sym);
         if(!knownSymbol&&!valueEvidence&&!q.explicit)continue;
-        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:q.exact?100:(q.explicit?99:(knownSymbol&&valueEvidence?94:86)),quantityVerified:!!q.exact,source:q.source||'ocr-spatial'});
+        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:q.exact?100:(q.explicit?88:(knownSymbol&&valueEvidence?76:68)),quantityVerified:!!q.exact,source:q.source||'ocr-spatial'});
       }
     }
-    const fallback=parseText(fallbackText),map=new Map();
+    // For images, only merge text-fallback rows when a quantity was explicitly
+    // tied to a unit label. A market value must never become a share quantity.
+    const fallback=parseText(fallbackText).filter(r=>r.quantityVerified===true),map=new Map();
     for(const r of [...fallback,...found]){
       const old=map.get(r.sym);
       const score=(r.confidence||0)+(r.source==='ocr-spatial'?8:0);
@@ -17860,7 +17881,7 @@ function launchConfetti() {
   function parseRows(text,delimiter){const out=[];let row=[],cell='',quote=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'){if(quote&&n==='"'){cell+='"';i++;}else quote=!quote;}else if(c===delimiter&&!quote){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quote){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>String(x).trim()))out.push(row);row=[];cell='';}else cell+=c;}row.push(cell);if(row.some(x=>String(x).trim()))out.push(row);return out;}
   function normHead(v){return String(v||'').toLowerCase().replace(/[\s_\-./()"׳״]/g,'');}
   function parseCSV(text){const first=String(text).split(/\r?\n/)[0]||'';const delims=[',',';','\t'];const delimiter=delims.sort((a,b)=>(first.split(b).length-first.split(a).length))[0];const rows=parseRows(text,delimiter);if(!rows.length)return[];const heads=rows[0].map(normHead);const aliases={sym:['symbol','ticker','securitysymbol','סימול','סימולנייר','טיקר','מספרנייר','נייר'],name:['name','securityname','assetname','שם','שםנייר','שםניירערך','תיאור'],qty:['quantity','qty','shares','units','holding','כמות','כמותנוכחית','כמותמוחזקת','יחידות','יתרה'],avg:['averageprice','avgprice','costbasis','buyprice','מחירממוצע','שערממוצע','שערעלות','מחירעלות','מחירקניה','עלותממוצעת'],cur:['currency','curr','מטבע'],type:['type','assettype','securitytype','סוג'],date:['date','buydate','purchasedate','תאריך','תאריךקניה']};const idx={};for(const [k,arr] of Object.entries(aliases))idx[k]=heads.findIndex(h=>arr.some(a=>h===a||h.includes(a)));const hasHeader=idx.sym>=0||idx.qty>=0;const data=hasHeader?rows.slice(1):rows;const result=[];
-    for(const r of data){let sym=idx.sym>=0?normalizeSymbol(r[idx.sym]):symbolFromLine(r.join(' '));let qty=idx.qty>=0?parseNum(r[idx.qty]):NaN;if(!sym||!Number.isFinite(qty)){const fallback=parseText(r.join(' '));if(fallback.length)result.push(...fallback);continue;}const rawType=idx.type>=0?r[idx.type]:'';const cur=(idx.cur>=0?String(r[idx.cur]):r.join(' ')).toUpperCase().trim();result.push({include:true,type:guessType(sym,rawType),sym,name:(idx.name>=0&&String(r[idx.name]).trim())||assetName(sym),qty,avgPrice:idx.avg>=0&&parseNum(r[idx.avg])>0?parseNum(r[idx.avg]):'',currency:/ILS|NIS|₪/.test(cur)?'ILS':/EUR|€/.test(cur)?'EUR':/GBP|£/.test(cur)?'GBP':'USD',date:(idx.date>=0&&String(r[idx.date]).trim())||TODAY(),confidence:98,source:'csv'});}
+    for(const r of data){let sym=idx.sym>=0?normalizeSymbol(r[idx.sym]):symbolFromLine(r.join(' '));let qty=idx.qty>=0?parseNum(r[idx.qty]):NaN;if(!sym||!Number.isFinite(qty)){const fallback=parseText(r.join(' '));if(fallback.length)result.push(...fallback);continue;}const rawType=idx.type>=0?r[idx.type]:'';const cur=(idx.cur>=0?String(r[idx.cur]):r.join(' ')).toUpperCase().trim();result.push({include:true,type:guessType(sym,rawType),sym,name:(idx.name>=0&&String(r[idx.name]).trim())||assetName(sym),qty,avgPrice:idx.avg>=0&&parseNum(r[idx.avg])>0?parseNum(r[idx.avg]):'',currency:/ILS|NIS|₪/.test(cur)?'ILS':/EUR|€/.test(cur)?'EUR':/GBP|£/.test(cur)?'GBP':'USD',date:(idx.date>=0&&String(r[idx.date]).trim())||TODAY(),confidence:98,quantityVerified:true,source:'csv'});}
     return result;
   }
   async function imageCanvas(file){
