@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-21-smart-import-cloud-sync-v1">
+<meta name="app-version" content="2026-07-21-settings-email-reports-v1">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-21-smart-import-cloud-sync-v1");
+console.info("Vector build: 2026-07-21-settings-email-reports-v1");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -2182,6 +2182,57 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
 .welcome-import{margin-top:9px;display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:11px;border-radius:11px;border:1px solid color-mix(in srgb,var(--ac) 35%,var(--b1));background:color-mix(in srgb,var(--ac) 8%,var(--s2));color:var(--t1);font:700 13px var(--font-body);cursor:pointer}
 @media(max-width:720px){.pi-ov{padding:0;align-items:flex-end}.pi-modal{width:100%;max-height:96vh;border-radius:22px 22px 0 0}.pi-body{padding:15px}.pi-source-grid{grid-template-columns:1fr}.pi-source{min-height:0}.pi-summary{grid-template-columns:1fr 1fr}.pi-review-actions{align-items:stretch}.pi-mode,.pi-actions{width:100%}.pi-mode label,.pi-actions .pi-btn{flex:1}.pi-title p{display:none}}
 
+
+/* ════════════════════════════════════════════════════════════════
+   SETTINGS CENTER · notifications and future account tools
+   ════════════════════════════════════════════════════════════════ */
+.settings-gear-btn i { font-size: 16px; transition: transform .28s ease; }
+.settings-gear-btn:hover i { transform: rotate(38deg); }
+.settings-ov { position:fixed; inset:0; z-index:1200; display:none; align-items:center; justify-content:center; padding:24px; background:color-mix(in srgb,var(--bg) 76%,transparent); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+.settings-ov.open { display:flex; animation:fadeIn .18s ease; }
+.settings-shell { width:min(1050px,96vw); height:min(760px,91vh); display:grid; grid-template-columns:230px minmax(0,1fr); overflow:hidden; background:linear-gradient(145deg,color-mix(in srgb,var(--ac) 5%,var(--s1)),var(--s1)); border:1px solid var(--b2); border-radius:24px; box-shadow:0 34px 100px rgba(0,0,0,.56); }
+.settings-side { display:flex; flex-direction:column; padding:22px 16px; border-inline-end:1px solid var(--b1); background:color-mix(in srgb,var(--s2) 72%,transparent); }
+.settings-brand { display:flex; align-items:center; gap:11px; padding:4px 8px 20px; }
+.settings-brand-icon { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb,var(--ac) 16%,transparent); border:1px solid color-mix(in srgb,var(--ac) 34%,transparent); color:var(--ac); font-size:20px; }
+.settings-brand strong { display:block; font-size:15px; color:var(--t1); }
+.settings-brand span { display:block; margin-top:3px; font-size:10px; color:var(--t3); }
+.settings-nav { display:flex; flex-direction:column; gap:7px; }
+.settings-nav-btn { width:100%; display:flex; align-items:center; gap:10px; padding:11px 12px; border:1px solid transparent; border-radius:12px; background:transparent; color:var(--t2); font:600 12.5px var(--font-body); text-align:start; cursor:pointer; transition:all .15s; }
+.settings-nav-btn i { width:19px; font-size:18px; color:var(--t3); }
+.settings-nav-btn:hover { color:var(--t1); background:var(--s3); }
+.settings-nav-btn.active { color:var(--t1); background:color-mix(in srgb,var(--ac) 13%,var(--s3)); border-color:color-mix(in srgb,var(--ac) 30%,var(--b1)); }
+.settings-nav-btn.active i { color:var(--ac); }
+.settings-nav-btn.soon { opacity:.48; cursor:default; }
+.settings-nav-btn.soon em { margin-inline-start:auto; padding:2px 6px; border-radius:999px; background:var(--s3); color:var(--t3); font:700 8px var(--font-mono); font-style:normal; }
+.settings-side-foot { margin-top:auto; padding:14px 10px 2px; border-top:1px solid var(--b1); color:var(--t3); font-size:9.5px; line-height:1.55; }
+.settings-main { min-width:0; display:flex; flex-direction:column; }
+.settings-head { min-height:80px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:18px 24px; border-bottom:1px solid var(--b1); }
+.settings-head h2 { font-size:21px; font-weight:800; color:var(--t1); margin:0; }
+.settings-head p { margin:4px 0 0; color:var(--t3); font-size:11px; }
+.settings-close { width:36px; height:36px; flex:0 0 36px; border-radius:11px; border:1px solid var(--b1); background:var(--s2); color:var(--t2); cursor:pointer; font-size:16px; }
+.settings-close:hover { color:var(--t1); border-color:var(--ac); }
+.settings-scroll { flex:1; overflow:auto; padding:22px 24px 30px; }
+.settings-scroll::-webkit-scrollbar { width:4px; }.settings-scroll::-webkit-scrollbar-thumb { background:var(--s3); border-radius:99px; }
+.settings-panel { display:none; }.settings-panel.active { display:block; animation:fadeSlide .18s ease; }
+.notify-hero { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(250px,.85fr); gap:14px; margin-bottom:16px; }
+.notify-master-card,.notify-summary-card,.notify-card,.notify-email-card,.notify-info { border:1px solid var(--b1); border-radius:17px; background:color-mix(in srgb,var(--s2) 76%,transparent); }
+.notify-master-card { display:flex; align-items:center; gap:15px; min-height:126px; padding:20px; background:linear-gradient(135deg,color-mix(in srgb,var(--ac) 13%,var(--s2)),var(--s2)); }
+.notify-master-icon { width:50px; height:50px; flex:0 0 50px; border-radius:15px; display:flex; align-items:center; justify-content:center; font-size:24px; color:var(--ac); background:color-mix(in srgb,var(--ac) 15%,transparent); border:1px solid color-mix(in srgb,var(--ac) 30%,transparent); }
+.notify-master-copy { flex:1; min-width:0; }.notify-master-copy strong { display:block; font-size:16px; color:var(--t1); }.notify-master-copy span { display:block; margin-top:6px; max-width:520px; color:var(--t2); font-size:11.5px; line-height:1.55; }
+.notify-summary-card { padding:18px; }.notify-summary-label { color:var(--t3); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; }.notify-summary-count { margin-top:8px; font:800 30px var(--font-mono); color:var(--t1); }.notify-summary-count span { color:var(--ac); }.notify-summary-text { margin-top:5px; color:var(--t2); font-size:11px; }.notify-summary-bars { display:flex; gap:5px; margin-top:15px; }.notify-summary-bars i { flex:1; height:5px; border-radius:99px; background:var(--s3); }.notify-summary-bars i.on { background:var(--ac); box-shadow:0 0 12px color-mix(in srgb,var(--ac) 35%,transparent); }
+.notify-section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:20px 2px 10px; }.notify-section-title strong { font-size:13.5px; color:var(--t1); }.notify-section-title span { color:var(--t3); font-size:10px; }
+.notify-email-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:end; padding:16px; }
+.notify-field label { display:block; margin-bottom:7px; color:var(--t2); font-size:10.5px; font-weight:700; }.notify-field input { width:100%; height:42px; padding:0 12px; border:1px solid var(--b1); border-radius:11px; outline:none; background:var(--s1); color:var(--t1); font:500 12px var(--font-body); direction:ltr; text-align:left; }.notify-field input:focus { border-color:var(--ac); box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 12%,transparent); }
+.notify-account-chip { min-height:42px; display:flex; align-items:center; gap:7px; padding:0 12px; border:1px solid var(--b1); border-radius:11px; background:var(--s3); color:var(--t2); font-size:10.5px; white-space:nowrap; }.notify-account-chip i { color:var(--gr); font-size:15px; }
+.notify-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+.notify-card { position:relative; display:flex; align-items:center; gap:13px; min-height:104px; padding:15px; transition:opacity .15s,border-color .15s,transform .15s; }.notify-card:hover { border-color:color-mix(in srgb,var(--ac) 34%,var(--b1)); transform:translateY(-1px); }.notify-card.disabled-by-master { opacity:.46; }
+.notify-card-icon { width:42px; height:42px; flex:0 0 42px; border-radius:13px; display:flex; align-items:center; justify-content:center; background:var(--s3); color:var(--ac); font-size:20px; }.notify-card-copy { flex:1; min-width:0; }.notify-card-copy strong { display:block; font-size:13px; color:var(--t1); }.notify-card-copy span { display:block; margin-top:5px; color:var(--t3); font-size:10px; line-height:1.45; }.notify-card-copy em { display:inline-flex; align-items:center; gap:4px; margin-top:7px; padding:3px 7px; border-radius:999px; background:color-mix(in srgb,var(--gd) 10%,transparent); color:var(--gd); font:700 8.5px var(--font-mono); font-style:normal; }
+.v-switch { position:relative; width:44px; height:25px; flex:0 0 44px; cursor:pointer; }.v-switch input { position:absolute; opacity:0; pointer-events:none; }.v-switch-track { position:absolute; inset:0; border-radius:99px; background:var(--s3); border:1px solid var(--b2); transition:all .18s; }.v-switch-track::after { content:''; position:absolute; width:17px; height:17px; top:3px; right:3px; border-radius:50%; background:var(--t3); box-shadow:0 2px 7px rgba(0,0,0,.35); transition:all .18s; }.v-switch input:checked + .v-switch-track { background:color-mix(in srgb,var(--ac) 80%,#17295f); border-color:var(--ac); }.v-switch input:checked + .v-switch-track::after { right:22px; background:#fff; }.v-switch input:disabled + .v-switch-track { opacity:.5; cursor:not-allowed; }
+.notify-info { display:flex; gap:12px; margin-top:14px; padding:14px 16px; background:color-mix(in srgb,var(--gd) 7%,var(--s2)); border-color:color-mix(in srgb,var(--gd) 24%,var(--b1)); }.notify-info i { color:var(--gd); font-size:19px; flex:0 0 auto; }.notify-info strong { display:block; color:var(--t1); font-size:11px; }.notify-info p { margin:4px 0 0; color:var(--t2); font-size:10px; line-height:1.55; }
+.notify-actions { position:sticky; bottom:-30px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:22px -24px -30px; padding:15px 24px; border-top:1px solid var(--b1); background:color-mix(in srgb,var(--s1) 91%,transparent); backdrop-filter:blur(14px); }.notify-save-state { min-height:18px; color:var(--t3); font-size:10px; }.notify-save-state.ok { color:var(--gr); }.notify-save-state.err { color:var(--rd); }.notify-save-btn { min-width:146px; display:flex; align-items:center; justify-content:center; gap:7px; padding:11px 16px; border:1px solid var(--ac); border-radius:11px; background:var(--ac); color:#fff; font:800 12px var(--font-body); cursor:pointer; }.notify-save-btn:hover { filter:brightness(1.08); }.notify-save-btn:disabled { opacity:.6; cursor:wait; }
+body.light .settings-shell { box-shadow:0 30px 85px rgba(23,38,74,.18); }.settings-empty-panel { padding:50px 20px; text-align:center; color:var(--t3); }.settings-empty-panel i { display:block; margin-bottom:12px; font-size:38px; color:var(--ac); }.settings-empty-panel strong { display:block; color:var(--t1); font-size:17px; }.settings-empty-panel span { display:block; margin-top:8px; font-size:11px; }
+@media(max-width:760px){.settings-ov{padding:0;align-items:flex-end}.settings-shell{width:100%;height:96vh;grid-template-columns:1fr;border-radius:24px 24px 0 0}.settings-side{padding:12px 14px;border-inline-end:none;border-bottom:1px solid var(--b1)}.settings-brand{padding:2px 4px 10px}.settings-brand-icon{width:34px;height:34px}.settings-nav{flex-direction:row;overflow-x:auto}.settings-nav-btn{width:auto;white-space:nowrap;padding:9px 11px}.settings-nav-btn.soon{display:none}.settings-side-foot{display:none}.settings-head{min-height:68px;padding:14px 16px}.settings-head h2{font-size:18px}.settings-scroll{padding:16px 14px 24px}.notify-hero{grid-template-columns:1fr}.notify-master-card{min-height:112px;padding:16px}.notify-grid{grid-template-columns:1fr}.notify-email-card{grid-template-columns:1fr}.notify-account-chip{display:none}.notify-actions{margin:20px -14px -24px;padding:13px 14px}.notify-save-btn{min-width:128px}}
+
 </style>
 </head>
 <body>
@@ -2222,6 +2273,9 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
     <button class="ibtn" id="refreshBtn" onclick="doRefresh()" title="רענן נתונים">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     </button>
+    <button class="ibtn settings-gear-btn" id="settingsGearBtn" onclick="openSettings('notifications')" title="הגדרות" aria-label="הגדרות">
+      <i class="ph-thin ph-gear-six"></i>
+    </button>
     <button class="ibtn" id="themeBtn" onclick="toggleTheme()" title="החלף כיוון מותג"><i class="ph-thin ph-moon"></i></button>
     <div class="tb-extras" id="tbExtras">
       <div class="live"><div class="dot"></div>LIVE</div>
@@ -2246,6 +2300,87 @@ td { font-size: 11px; color: var(--t1); border-bottom: 1px solid var(--b1); }
       <span id="ts" class="clock-pair"><span id="tsIl">--:--</span><span class="clock-sep">·</span><span id="tsUs" class="clock-us">NY --:--</span></span>
     </div>
     <button class="ibtn" id="burgerBtn" onclick="toggleBurger(event)" title="תפריט" aria-label="תפריט"><i class="fi fi-tr-bars-staggered" style="font-size:15px"></i></button>
+  </div>
+</div>
+
+<div class="settings-ov" id="settingsOverlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-shell">
+    <aside class="settings-side">
+      <div class="settings-brand">
+        <div class="settings-brand-icon"><i class="ph-thin ph-sliders-horizontal"></i></div>
+        <div><strong>מרכז ההגדרות</strong><span>שליטה בחשבון ובדוחות</span></div>
+      </div>
+      <div class="settings-nav">
+        <button class="settings-nav-btn active" data-settings-section="notifications" onclick="selectSettingsSection('notifications',this)"><i class="ph-thin ph-bell-ringing"></i> התראות</button>
+        <button class="settings-nav-btn soon" type="button"><i class="ph-thin ph-user-circle"></i> פרופיל <em>בקרוב</em></button>
+        <button class="settings-nav-btn soon" type="button"><i class="ph-thin ph-book-open-text"></i> מדריך לאתר <em>בקרוב</em></button>
+        <button class="settings-nav-btn soon" type="button"><i class="ph-thin ph-question"></i> שאלות ותשובות <em>בקרוב</em></button>
+      </div>
+      <div class="settings-side-foot">ההעדפות נשמרות בחשבון המשתמש ומסתנכרנות בין המכשירים.</div>
+    </aside>
+    <main class="settings-main">
+      <header class="settings-head">
+        <div><h2 id="settingsTitle">התראות ודוחות</h2><p>בחרו אילו סיכומי תיק יישלחו למייל ומתי.</p></div>
+        <button class="settings-close" onclick="closeSettings()" aria-label="סגור"><i class="ph-thin ph-x"></i></button>
+      </header>
+      <div class="settings-scroll">
+        <section class="settings-panel active" id="settingsPanelNotifications">
+          <div class="notify-hero">
+            <div class="notify-master-card">
+              <div class="notify-master-icon"><i class="ph-thin ph-envelope-open"></i></div>
+              <div class="notify-master-copy"><strong>דוחות תיק אוטומטיים במייל</strong><span>קבלו תמונת מצב מסודרת של כל הנכסים, השווי, השינוי והרווח או ההפסד — עם קובץ PDF מצורף.</span></div>
+              <label class="v-switch" title="הפעלת כל ההתראות"><input id="notifyMaster" type="checkbox" onchange="notificationSettingsChanged()"><span class="v-switch-track"></span></label>
+            </div>
+            <div class="notify-summary-card">
+              <div class="notify-summary-label">דוחות פעילים</div>
+              <div class="notify-summary-count"><span id="notifyActiveCount">0</span>/4</div>
+              <div class="notify-summary-text" id="notifySummaryText">כל הדוחות כבויים</div>
+              <div class="notify-summary-bars" id="notifySummaryBars"><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+
+          <div class="notify-section-title"><strong>כתובת למשלוח</strong><span>אפשר לשנות לכתובת אחרת</span></div>
+          <div class="notify-email-card">
+            <div class="notify-field"><label for="notifyEmail">כתובת אימייל</label><input id="notifyEmail" type="email" autocomplete="email" placeholder="name@example.com" oninput="notificationSettingsChanged()"></div>
+            <div class="notify-account-chip"><i class="ph-thin ph-shield-check"></i><span>נשמר בצורה מאובטחת בחשבון</span></div>
+          </div>
+
+          <div class="notify-section-title"><strong>סוגי הדוחות</strong><span>לפי לוח המסחר בארה״ב</span></div>
+          <div class="notify-grid" id="notifyCards">
+            <div class="notify-card" data-notify-card="dailyOpen">
+              <div class="notify-card-icon"><i class="ph-thin ph-sun-horizon"></i></div>
+              <div class="notify-card-copy"><strong>פתיחת יום המסחר</strong><span>מחירי פתיחה מעודכנים, שווי התיק ומצב כל אחזקה בתחילת היום.</span><em><i class="ph-thin ph-clock"></i> בסמוך לפתיחת המסחר</em></div>
+              <label class="v-switch"><input id="notifyDailyOpen" type="checkbox" onchange="notificationSettingsChanged()"><span class="v-switch-track"></span></label>
+            </div>
+            <div class="notify-card" data-notify-card="dailyClose">
+              <div class="notify-card-icon"><i class="ph-thin ph-moon-stars"></i></div>
+              <div class="notify-card-copy"><strong>סיכום סוף יום</strong><span>תוצאה יומית סופית, רווח והפסד, הנכסים המובילים והשינוי הכולל בתיק.</span><em><i class="ph-thin ph-clock"></i> לאחר נעילת המסחר</em></div>
+              <label class="v-switch"><input id="notifyDailyClose" type="checkbox" onchange="notificationSettingsChanged()"><span class="v-switch-track"></span></label>
+            </div>
+            <div class="notify-card" data-notify-card="weekly">
+              <div class="notify-card-icon"><i class="ph-thin ph-calendar-dots"></i></div>
+              <div class="notify-card-copy"><strong>סיכום שבועי</strong><span>ניתוח השבוע, תשואה מצטברת, מנצחים ומפסידים ושינויים בחלוקת התיק.</span><em><i class="ph-thin ph-calendar-check"></i> יום המסחר האחרון בשבוע</em></div>
+              <label class="v-switch"><input id="notifyWeekly" type="checkbox" onchange="notificationSettingsChanged()"><span class="v-switch-track"></span></label>
+            </div>
+            <div class="notify-card" data-notify-card="monthly">
+              <div class="notify-card-icon"><i class="ph-thin ph-chart-line-up"></i></div>
+              <div class="notify-card-copy"><strong>סיכום חודשי</strong><span>ביצועי החודש, מגמות מרכזיות, חלוקה לפי סוג נכס והשוואה לתחילת החודש.</span><em><i class="ph-thin ph-calendar-blank"></i> יום המסחר האחרון בחודש</em></div>
+              <label class="v-switch"><input id="notifyMonthly" type="checkbox" onchange="notificationSettingsChanged()"><span class="v-switch-track"></span></label>
+            </div>
+          </div>
+
+          <div class="notify-info">
+            <i class="ph-thin ph-info"></i>
+            <div><strong>מה כולל כל דוח?</strong><p>טבלת אחזקות מלאה, כמות, מחיר, שווי, שינוי לתקופה, רווח או הפסד, חלוקה לפי סוגי נכסים וסיכום תיק — בצירוף PDF. מסך זה שומר את ההעדפות בענן; מנגנון המשלוח המתוזמן יופעל באמצעות שירות השרת של Vector.</p></div>
+          </div>
+
+          <div class="notify-actions">
+            <div class="notify-save-state" id="notifySaveState">לא בוצעו שינויים</div>
+            <button class="notify-save-btn" id="notifySaveBtn" onclick="saveNotificationSettings()"><i class="ph-thin ph-cloud-arrow-up"></i> שמור הגדרות</button>
+          </div>
+        </section>
+      </div>
+    </main>
   </div>
 </div>
 
@@ -3814,6 +3949,55 @@ function sanitizeCloudValue(value, seen = new WeakSet()) {
   seen.delete(value);
   return clean;
 }
+
+const NOTIFICATION_PREFS_KEY = 'vector_notification_prefs_v1';
+function notificationPrefsDefaults() {
+  return {
+    schemaVersion: 1,
+    enabled: false,
+    email: String(window.firebaseUser?.email || ''),
+    timezone: 'Asia/Jerusalem',
+    market: 'US',
+    attachPdf: true,
+    reports: { dailyOpen: false, dailyClose: false, weekly: false, monthly: false },
+    delivery: { dailyOpen: 'market-open', dailyClose: 'market-close', weekly: 'last-trading-day', monthly: 'last-trading-day-of-month' },
+    updatedAt: 0,
+  };
+}
+function normalizeNotificationPrefs(value) {
+  const d = notificationPrefsDefaults();
+  const v = value && typeof value === 'object' ? value : {};
+  const reports = v.reports && typeof v.reports === 'object' ? v.reports : {};
+  return {
+    ...d,
+    ...v,
+    schemaVersion: 1,
+    enabled: Boolean(v.enabled),
+    email: String(v.email || d.email || '').trim(),
+    timezone: 'Asia/Jerusalem',
+    market: 'US',
+    attachPdf: true,
+    reports: {
+      dailyOpen: Boolean(reports.dailyOpen),
+      dailyClose: Boolean(reports.dailyClose),
+      weekly: Boolean(reports.weekly),
+      monthly: Boolean(reports.monthly),
+    },
+    delivery: { ...d.delivery, ...(v.delivery || {}) },
+    updatedAt: Number(v.updatedAt) || 0,
+  };
+}
+function getNotificationPrefsForCloud() {
+  try { return normalizeNotificationPrefs(JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || 'null')); }
+  catch(_) { return notificationPrefsDefaults(); }
+}
+function persistNotificationPrefsLocally(value) {
+  const prefs = normalizeNotificationPrefs(value);
+  try { localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs)); } catch(_) {}
+  if (typeof S !== 'undefined') S.notificationPrefs = prefs;
+  return prefs;
+}
+
 function currentCloudPortfolioPayload() {
   return sanitizeCloudValue({
     crypto: S.crypto,
@@ -3822,6 +4006,7 @@ function currentCloudPortfolioPayload() {
     bonds: S.bonds || [],
     etfs: S.etfs || [],
     view: S.view || null,
+    notificationPrefs: getNotificationPrefsForCloud(),
     preferences: {
       currency: S.currency || localStorage.getItem('currency') || 'ils',
       language: localStorage.getItem('lang') || document.documentElement.lang || 'he',
@@ -15780,6 +15965,11 @@ function applyCloudPortfolio(data, { force = false } = {}) {
     saveView();
     changed = true;
   }
+  if (data.notificationPrefs && typeof data.notificationPrefs === 'object') {
+    const cloudNotificationPrefs = persistNotificationPrefsLocally(data.notificationPrefs);
+    if (typeof window.notificationPrefsChangedFromCloud === 'function') window.notificationPrefsChangedFromCloud(cloudNotificationPrefs);
+    changed = true;
+  }
   if (data.preferences && typeof data.preferences === 'object') {
     if (data.preferences.currency) {
       S.currency = data.preferences.currency;
@@ -18037,6 +18227,104 @@ function launchConfetti() {
   };
 
   document.addEventListener('DOMContentLoaded',()=>{const z=document.getElementById('piDropZone');if(!z)return;['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.add('drag')}));['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('drag')}));z.addEventListener('drop',e=>{const f=e.dataTransfer?.files?.[0];if(f)portfolioImportHandleFile(f);});});
+})();
+</script>
+
+
+<script>
+/* SETTINGS CENTER · notification preferences (UI + local/Firestore persistence) */
+(function(){
+  let settingsDirty = false;
+  const ids = {
+    master:'notifyMaster', email:'notifyEmail', dailyOpen:'notifyDailyOpen', dailyClose:'notifyDailyClose', weekly:'notifyWeekly', monthly:'notifyMonthly'
+  };
+  function el(id){ return document.getElementById(id); }
+  function currentPrefs(){
+    if (typeof getNotificationPrefsForCloud === 'function') return getNotificationPrefsForCloud();
+    try { return JSON.parse(localStorage.getItem('vector_notification_prefs_v1') || 'null') || {}; } catch(_) { return {}; }
+  }
+  function setState(message, cls=''){
+    const node=el('notifySaveState'); if(!node)return; node.textContent=message; node.className='notify-save-state'+(cls?' '+cls:'');
+  }
+  function readForm(){
+    const old=currentPrefs();
+    return {
+      ...old,
+      schemaVersion:1,
+      enabled:Boolean(el(ids.master)?.checked),
+      email:String(el(ids.email)?.value || window.firebaseUser?.email || '').trim(),
+      timezone:'Asia/Jerusalem', market:'US', attachPdf:true,
+      reports:{
+        dailyOpen:Boolean(el(ids.dailyOpen)?.checked),
+        dailyClose:Boolean(el(ids.dailyClose)?.checked),
+        weekly:Boolean(el(ids.weekly)?.checked),
+        monthly:Boolean(el(ids.monthly)?.checked),
+      },
+      delivery:{dailyOpen:'market-open',dailyClose:'market-close',weekly:'last-trading-day',monthly:'last-trading-day-of-month'},
+      updatedAt:Date.now(),
+    };
+  }
+  function writeForm(prefs){
+    const p=typeof normalizeNotificationPrefs==='function'?normalizeNotificationPrefs(prefs):prefs||{};
+    if(el(ids.master))el(ids.master).checked=Boolean(p.enabled);
+    if(el(ids.email))el(ids.email).value=p.email || window.firebaseUser?.email || '';
+    const reports=p.reports||{};
+    for(const key of ['dailyOpen','dailyClose','weekly','monthly']) if(el(ids[key])) el(ids[key]).checked=Boolean(reports[key]);
+    settingsDirty=false; updateUi(); setState('ההגדרות מסונכרנות עם החשבון');
+  }
+  function activeReportKeys(){ return ['dailyOpen','dailyClose','weekly','monthly'].filter(k=>el(ids[k])?.checked); }
+  function updateUi(){
+    const master=Boolean(el(ids.master)?.checked), active=activeReportKeys();
+    for(const key of ['dailyOpen','dailyClose','weekly','monthly']){
+      const input=el(ids[key]); if(input)input.disabled=!master;
+      document.querySelector(`[data-notify-card="${key}"]`)?.classList.toggle('disabled-by-master',!master);
+    }
+    const count=master?active.length:0;
+    if(el('notifyActiveCount'))el('notifyActiveCount').textContent=String(count);
+    if(el('notifySummaryText'))el('notifySummaryText').textContent=!master?'כל ההתראות כבויות':count===0?'לא נבחרו דוחות':count===4?'כל הדוחות פעילים':`${count} דוחות יישלחו אוטומטית`;
+    document.querySelectorAll('#notifySummaryBars i').forEach((bar,i)=>bar.classList.toggle('on',master&&i<count));
+  }
+  window.notificationSettingsChanged=function(){ settingsDirty=true; updateUi(); setState('יש שינויים שטרם נשמרו'); };
+  window.notificationPrefsChangedFromCloud=function(prefs){ if(!settingsDirty)writeForm(prefs); };
+  window.openSettings=function(section='notifications'){
+    const ov=el('settingsOverlay'); if(!ov)return;
+    writeForm(currentPrefs());
+    if(!el(ids.email)?.value && window.firebaseUser?.email) el(ids.email).value=window.firebaseUser.email;
+    selectSettingsSection(section,document.querySelector(`[data-settings-section="${section}"]`));
+    ov.classList.add('open'); document.body.style.overflow='hidden';
+    setTimeout(()=>el('settingsTitle')?.focus?.(),30);
+  };
+  window.closeSettings=function(){
+    if(settingsDirty && !confirm('לסגור בלי לשמור את השינויים בהתראות?'))return;
+    el('settingsOverlay')?.classList.remove('open'); document.body.style.overflow=''; settingsDirty=false;
+  };
+  window.selectSettingsSection=function(section,btn){
+    document.querySelectorAll('.settings-nav-btn').forEach(x=>x.classList.remove('active')); btn?.classList.add('active');
+    document.querySelectorAll('.settings-panel').forEach(x=>x.classList.remove('active'));
+    if(section==='notifications')el('settingsPanelNotifications')?.classList.add('active');
+  };
+  window.saveNotificationSettings=async function(){
+    const prefs=readForm(), emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(prefs.email);
+    if(prefs.enabled && !emailOk){ el(ids.email)?.focus(); setState('יש להזין כתובת אימייל תקינה','err'); return; }
+    const btn=el('notifySaveBtn'), old=btn?.innerHTML;
+    if(btn){btn.disabled=true;btn.innerHTML='<i class="ph-thin ph-spinner-gap" style="animation:rot .7s linear infinite"></i> שומר…';}
+    setState('שומר את ההעדפות בחשבון…');
+    try{
+      const normalized=typeof persistNotificationPrefsLocally==='function'?persistNotificationPrefsLocally(prefs):prefs;
+      let result=null;
+      if(typeof saveLS==='function') result=await saveLS();
+      else if(window.fbSave) result=await window.fbSave({notificationPrefs:normalized,updatedAt:Date.now()});
+      if(window.firebaseUser && result && result.saved===false) throw result.error||new Error('הסנכרון לענן נכשל');
+      await window.fbWaitForPendingWrites?.();
+      settingsDirty=false; writeForm(normalized); setState(window.firebaseUser?'ההגדרות נשמרו וסונכרנו בענן ✓':'ההגדרות נשמרו במכשיר זה ✓','ok');
+    }catch(err){ console.error('[Notification settings]',err); setState('שמירת ההגדרות נכשלה — נסו שוב','err'); }
+    finally{if(btn){btn.disabled=false;btn.innerHTML=old||'<i class="ph-thin ph-cloud-arrow-up"></i> שמור הגדרות';}}
+  };
+  document.addEventListener('firebase-auth-changed',()=>{
+    if(!settingsDirty){ const p=currentPrefs(); if(!p.email&&window.firebaseUser?.email){p.email=window.firebaseUser.email;if(typeof persistNotificationPrefsLocally==='function')persistNotificationPrefsLocally(p);} if(el('settingsOverlay')?.classList.contains('open'))writeForm(p); }
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&el('settingsOverlay')?.classList.contains('open'))closeSettings();});
+  document.addEventListener('DOMContentLoaded',()=>writeForm(currentPrefs()));
 })();
 </script>
 
