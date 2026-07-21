@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-21-smart-portfolio-import-ocr-v4-digit-verified">
+<meta name="app-version" content="2026-07-21-smart-import-cloud-sync-v1">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-21-smart-portfolio-import-ocr-v4-digit-verified");
+console.info("Vector build: 2026-07-21-smart-import-cloud-sync-v1");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -2880,6 +2880,19 @@ window.doBiometric = async () => {
 
 window.doLogout = async () => {
   if (!confirm('להתנתק מהמערכת המאובטחת?')) return;
+  try {
+    // Never sign out while a portfolio write is still queued. A sign-out used to
+    // race the import save and could leave the account document unchanged.
+    if (localStorage.getItem('portfolio_sync_pending') === '1' && window.firebaseUser) {
+      const syncResult = await window.syncPortfolioNow?.();
+      if (syncResult && !syncResult.saved) throw syncResult.error || new Error('cloud-sync-failed');
+    }
+    await window.fbWaitForPendingWrites?.();
+  } catch (error) {
+    console.error('Could not finish portfolio sync before sign-out:', error);
+    const leaveAnyway = confirm('שמירת התיק בענן טרם הושלמה. להתנתק בכל זאת? הנתונים החדשים עלולים לא להישמר.');
+    if (!leaveAnyway) return;
+  }
   localStorage.removeItem('google_auth_ts');
   localStorage.removeItem('google_auth_email');
   localStorage.removeItem('google_auth_uid');
@@ -3781,8 +3794,28 @@ function loadPriceSnapshot() {
     if (snap.fx > 2 && snap.fx < 6 && S.fx === 3.65) S.fx = snap.fx;
   } catch(_) {}
 }
+function sanitizeCloudValue(value, seen = new WeakSet()) {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (seen.has(value)) return undefined;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const clean = value.map(v => sanitizeCloudValue(v, seen)).filter(v => v !== undefined);
+    seen.delete(value);
+    return clean;
+  }
+  const clean = {};
+  for (const [key, val] of Object.entries(value)) {
+    const sanitized = sanitizeCloudValue(val, seen);
+    if (sanitized !== undefined) clean[key] = sanitized;
+  }
+  seen.delete(value);
+  return clean;
+}
 function currentCloudPortfolioPayload() {
-  return {
+  return sanitizeCloudValue({
     crypto: S.crypto,
     stocks: S.stocks,
     commodities: S.commodities || [],
@@ -3795,20 +3828,28 @@ function currentCloudPortfolioPayload() {
       tickerMarket: localStorage.getItem('tkMkt') || 'us',
     },
     updatedAt: Date.now(),
-  };
+  });
 }
 function saveLS() {
   markEdit();
   persistPortfolioLocally();
   try { localStorage.setItem('portfolio_sync_pending', '1'); } catch(_) {}
-  if (window.fbSave) {
-    window.fbSave(currentCloudPortfolioPayload()).then(result => {
-      if (result?.saved) {
-        try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
-      }
-      syncStatusRefresh?.();
-    });
+  if (!window.fbSave) {
+    syncStatusRefresh?.();
+    return Promise.resolve({ saved: false, reason: 'firebase-not-ready' });
   }
+  return window.fbSave(currentCloudPortfolioPayload()).then(result => {
+    if (result?.saved) {
+      try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
+    }
+    syncStatusRefresh?.();
+    return result;
+  }).catch(error => {
+    window.firebaseSyncState = 'error';
+    window.firebaseLastError = error;
+    syncStatusRefresh?.();
+    return { saved: false, reason: 'exception', error };
+  });
 }
 window.syncPortfolioNow = async () => {
   if (!window.fbSave) return { saved: false, reason: 'firebase-not-ready' };
@@ -17935,7 +17976,65 @@ function launchConfetti() {
   function mergeAsset(list,r,type){const sym=normalizeSymbol(r.sym),qty=Number(r.qty),name=String(r.name||assetName(sym)).trim()||sym;let a=list.find(x=>String(x.sym).toUpperCase()===sym);const lots=makeLot(r,type);if(!a){const color=typeof autoIconColor==='function'?autoIconColor(sym):'#3B6BFF';a=type==='crypto'?{id:(typeof CG_ID!=='undefined'&&CG_ID[sym])||sym.toLowerCase(),sym,name,qty,icon:autoIcon(sym,name,'crypto',color),color}:{sym,name,qty,shares:type==='stock'?qty:undefined,icon:autoIcon(sym,name,'stock',color),color};if(lots)a.lots=lots;if(type==='etf')a.price=lots?.[0]?.price||Number(r.avgPrice)||0;list.push(a);return;}
     const oldQty=type==='crypto'?(typeof cQty==='function'?cQty(a):Number(a.qty)||0):(typeof getShares==='function'?getShares(a):Number(a.shares||a.qty)||0);if(lots){if(!Array.isArray(a.lots)||!a.lots.length){const seedPrice=Number(r.avgPrice)||0;a.lots=oldQty>0?[{qty:oldQty,price:seedPrice,date:r.date||TODAY()}]:[];}a.lots.push(...lots);}else if(Array.isArray(a.lots)&&a.lots.length){a.lots.push({qty,price:(typeof avgEntry==='function'&&avgEntry(a))||0,date:r.date||TODAY()});}else if(type==='crypto')a.qty=oldQty+qty;else if(type==='stock')a.shares=oldQty+qty;else a.qty=oldQty+qty;a.name=a.name||name;
   }
-  window.piConfirmImport=async function(){const rows=PI.rows.filter(r=>r.include!==false&&normalizeSymbol(r.sym)&&Number(r.qty)>0);if(!rows.length){alert('אין שורות תקינות לייבוא.');return;}const mode=document.querySelector('input[name="piMode"]:checked')?.value||'merge';if(mode==='replace'&&!confirm('להחליף את כל התיק הקיים בנתונים שנבחרו?'))return;const btn=document.getElementById('piConfirmBtn');btn.disabled=true;btn.innerHTML='<i class="ph-thin ph-spinner-gap" style="animation:rot .7s linear infinite"></i> שומר…';try{if(mode==='replace'){S.stocks=[];S.crypto=[];S.etfs=[];S.commodities=[];S.bonds=[];}for(const r of rows){r.sym=normalizeSymbol(r.sym);r.name=r.name||assetName(r.sym);if(r.type==='crypto')mergeAsset(S.crypto,r,'crypto');else if(r.type==='etf')mergeAsset(S.etfs,r,'etf');else mergeAsset(S.stocks,r,'stock');}fixIcons(S.crypto,'crypto');fixIcons(S.stocks,'stock');fixIcons(S.etfs,'stock');saveLS();if(typeof renderPortfolioImmediately==='function')renderPortfolioImmediately();if(typeof doRefresh==='function')doRefresh();closePortfolioImport();launchConfetti?.();alert(`הייבוא הושלם — ${rows.length} נכסים נוספו לתיק.`);}catch(err){console.error(err);alert('שמירת התיק נכשלה: '+(err?.message||''));}finally{btn.disabled=false;btn.innerHTML='<i class="ph-thin ph-check-circle"></i>אשר וייבא';}};
+  window.piConfirmImport=async function(){
+    const rows=PI.rows.filter(r=>r.include!==false&&normalizeSymbol(r.sym)&&Number(r.qty)>0);
+    if(!rows.length){alert('אין שורות תקינות לייבוא.');return;}
+    const mode=document.querySelector('input[name="piMode"]:checked')?.value||'merge';
+    if(mode==='replace'&&!confirm('להחליף את כל התיק הקיים בנתונים שנבחרו?'))return;
+    const btn=document.getElementById('piConfirmBtn');
+    const before={
+      stocks:JSON.parse(JSON.stringify(S.stocks||[])),
+      crypto:JSON.parse(JSON.stringify(S.crypto||[])),
+      etfs:JSON.parse(JSON.stringify(S.etfs||[])),
+      commodities:JSON.parse(JSON.stringify(S.commodities||[])),
+      bonds:JSON.parse(JSON.stringify(S.bonds||[]))
+    };
+    let cloudCommitted=false;
+    btn.disabled=true;
+    btn.innerHTML='<i class="ph-thin ph-spinner-gap" style="animation:rot .7s linear infinite"></i> שומר בחשבון…';
+    try{
+      if(window.firebaseAuthReady)await window.firebaseAuthReady;
+      if(!window.firebaseUser)throw new Error('לא נמצא משתמש מחובר. יש להתחבר מחדש לפני הייבוא.');
+      if(mode==='replace'){S.stocks=[];S.crypto=[];S.etfs=[];S.commodities=[];S.bonds=[];}
+      for(const r of rows){
+        r.sym=normalizeSymbol(r.sym);r.name=r.name||assetName(r.sym);
+        if(r.type==='crypto')mergeAsset(S.crypto,r,'crypto');
+        else if(r.type==='etf')mergeAsset(S.etfs,r,'etf');
+        else mergeAsset(S.stocks,r,'stock');
+      }
+      fixIcons(S.crypto,'crypto');fixIcons(S.stocks,'stock');fixIcons(S.etfs,'stock');
+      persistPortfolioLocally();
+      if(typeof renderPortfolioImmediately==='function')renderPortfolioImmediately();
+      const firstSave=await saveLS();
+      let saveResult=firstSave;
+      if(!saveResult?.saved)saveResult=await window.syncPortfolioNow?.();
+      if(!saveResult?.saved)throw saveResult?.error||new Error('הסנכרון לענן נכשל.');
+      await window.fbWaitForPendingWrites?.();
+      cloudCommitted=true;
+      // Read back the account document once. This catches rules/configuration errors
+      // before we tell the user that the import was completed.
+      const cloudData=await window.fbLoad?.();
+      if(!cloudData||!Array.isArray(cloudData.stocks)||!Array.isArray(cloudData.crypto)||!Array.isArray(cloudData.etfs)){
+        throw new Error('התיק נשלח לענן אך לא ניתן היה לאמת את מסמך המשתמש.');
+      }
+      try { localStorage.removeItem('portfolio_sync_pending'); } catch(_) {}
+      if(typeof doRefresh==='function')doRefresh();
+      closePortfolioImport();
+      launchConfetti?.();
+      alert(`הייבוא הושלם ונשמר בחשבון — ${rows.length} נכסים נוספו לתיק.`);
+    }catch(err){
+      console.error('[Portfolio Import Save]',err);
+      if(!cloudCommitted){
+        S.stocks=before.stocks;S.crypto=before.crypto;S.etfs=before.etfs;S.commodities=before.commodities;S.bonds=before.bonds;
+        persistPortfolioLocally();
+        if(typeof renderPortfolioImmediately==='function')renderPortfolioImmediately();
+      }
+      alert('שמירת התיק בחשבון נכשלה: '+(err?.message||'שגיאה לא ידועה')+'\nהייבוא לא סומן כהושלם.');
+    }finally{
+      btn.disabled=false;
+      btn.innerHTML='<i class="ph-thin ph-check-circle"></i>אשר וייבא';
+    }
+  };
 
   document.addEventListener('DOMContentLoaded',()=>{const z=document.getElementById('piDropZone');if(!z)return;['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.add('drag')}));['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('drag')}));z.addEventListener('drop',e=>{const f=e.dataTransfer?.files?.[0];if(f)portfolioImportHandleFile(f);});});
 })();
