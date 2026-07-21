@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-21-smart-portfolio-import-ocr-v2">
+<meta name="app-version" content="2026-07-21-smart-portfolio-import-ocr-v3">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-21-smart-portfolio-import-ocr-v2");
+console.info("Vector build: 2026-07-21-smart-portfolio-import-ocr-v3");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -17474,16 +17474,23 @@ function launchConfetti() {
     AAPL:['Apple','אפל'],MSFT:['Microsoft','מיקרוסופט'],NVDA:['Nvidia','אנבידיה'],AMZN:['Amazon','אמזון'],GOOGL:['Alphabet','Google','גוגל'],GOOG:['Alphabet','Google'],META:['Meta','Facebook','מטא'],TSLA:['Tesla','טסלה'],AVGO:['Broadcom'],AMD:['AMD'],INTC:['Intel','אינטל'],MU:['Micron'],MRVL:['Marvell'],SNDK:['SanDisk'],SKHY:['SK Hynix'],NFLX:['Netflix'],JPM:['JPMorgan'],BAC:['Bank of America'],V:['Visa'],MA:['Mastercard'],XOM:['Exxon'],QQQ:['Invesco QQQ'],SPY:['SPDR S&P 500'],VOO:['Vanguard S&P 500'],VTI:['Vanguard Total Stock'],IBIT:['iShares Bitcoin Trust'],
     BTC:['Bitcoin','ביטקוין'],ETH:['Ethereum','אתריום'],SOL:['Solana','סולנה'],ADA:['Cardano'],XRP:['Ripple'],DOGE:['Dogecoin'],AVAX:['Avalanche'],BNB:['Binance Coin'],LINK:['Chainlink'],PEPE:['Pepe']
   };
+  const SECURITY_META = {
+    AAPL:{name:'Apple Inc.',type:'stock'},MSFT:{name:'Microsoft Corporation',type:'stock'},NVDA:{name:'NVIDIA Corporation',type:'stock'},AMZN:{name:'Amazon.com, Inc.',type:'stock'},GOOGL:{name:'Alphabet Inc.',type:'stock'},GOOG:{name:'Alphabet Inc.',type:'stock'},META:{name:'Meta Platforms, Inc.',type:'stock'},TSLA:{name:'Tesla, Inc.',type:'stock'},AVGO:{name:'Broadcom Inc.',type:'stock'},AMD:{name:'Advanced Micro Devices, Inc.',type:'stock'},INTC:{name:'Intel Corporation',type:'stock'},MU:{name:'Micron Technology, Inc.',type:'stock'},MRVL:{name:'Marvell Technology, Inc.',type:'stock'},SNDK:{name:'SanDisk Corporation',type:'stock'},SKHY:{name:'SK Hynix Inc.',type:'stock'},NFLX:{name:'Netflix, Inc.',type:'stock'},JPM:{name:'JPMorgan Chase & Co.',type:'stock'},BAC:{name:'Bank of America Corporation',type:'stock'},V:{name:'Visa Inc.',type:'stock'},MA:{name:'Mastercard Incorporated',type:'stock'},XOM:{name:'Exxon Mobil Corporation',type:'stock'},
+    QQQ:{name:'Invesco QQQ Trust',type:'etf'},SPY:{name:'SPDR S&P 500 ETF Trust',type:'etf'},VOO:{name:'Vanguard S&P 500 ETF',type:'etf'},VTI:{name:'Vanguard Total Stock Market ETF',type:'etf'},IBIT:{name:'iShares Bitcoin Trust ETF',type:'etf'},
+    BTC:{name:'Bitcoin',type:'crypto'},ETH:{name:'Ethereum',type:'crypto'},SOL:{name:'Solana',type:'crypto'},ADA:{name:'Cardano',type:'crypto'},XRP:{name:'XRP',type:'crypto'},DOGE:{name:'Dogecoin',type:'crypto'},AVAX:{name:'Avalanche',type:'crypto'},BNB:{name:'BNB',type:'crypto'},LINK:{name:'Chainlink',type:'crypto'},PEPE:{name:'Pepe',type:'crypto'}
+  };
+  const PI_META_CACHE = new Map();
   const CRYPTO = new Set(['BTC','ETH','SOL','ADA','XRP','DOGE','AVAX','BNB','LINK','PEPE','DOT','MATIC','POL','SHIB','LTC','BCH','TRX','TON','NEAR','ATOM','UNI','XLM','LUNA','USDT','USDC']);
   const ETFS = new Set(['SPY','QQQ','VOO','VTI','IVV','DIA','IWM','IBIT','SCHD','VGT','SOXX','SMH','ARKK','TLT','GLD','SLV']);
-  const STOP = new Set(['USD','ILS','NIS','EUR','GBP','TOTAL','VALUE','MARKET','PRICE','AVG','AVERAGE','QTY','QUANTITY','SHARES','UNITS','STOCK','ETF','NASDAQ','NYSE','TASE','BUY','SELL','PERCENT','PORTFOLIO','CASH','TODAY','PROFIT','LOSS','CORP','CORPORATION','INC','LTD','LIMITED','TECH','TECHNOLOGY','HOLDINGS','SECURITIES']);
+  const STOP = new Set(['USD','ILS','NIS','EUR','GBP','TOTAL','VALUE','MARKET','PRICE','AVG','AVERAGE','QTY','QUANTITY','SHARES','UNITS','STOCK','ETF','NASDAQ','NYSE','TASE','BUY','SELL','PERCENT','PORTFOLIO','CASH','TODAY','PROFIT','LOSS','CORP','CORPORATION','INC','LTD','LIMITED','TECH','TECHNOLOGY','HOLDINGS','SECURITIES','CBOE','CBOE1','REAL','TIME','UPDATED','UPDATE','HOME','ACCOUNT','PAYMENTS','MENU','LIVE','LTE','VOLTE']);
+  const UI_NOISE_RE = /(?:CBOE|זמן\s*אמת|מעודכן|updated|real\s*time|portfolio|ניירות\s*ערך|מניות|תשלומים|החשבון\s*שלי|\bLTE\b|\bVoLTE\b|\b5G\b)/i;
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   function setProgress(p,label,note){p=Math.max(0,Math.min(100,Number(p)||0));document.getElementById('piProgress')?.classList.add('show');const f=document.getElementById('piProgressFill'),q=document.getElementById('piProgressPct'),l=document.getElementById('piProgressLabel'),n=document.getElementById('piProgressNote');if(f)f.style.width=p+'%';if(q)q.textContent=Math.round(p)+'%';if(l&&label)l.textContent=label;if(n&&note)n.textContent=note;}
   function loadScript(url,test){return new Promise((resolve,reject)=>{if(test())return resolve();const old=[...document.scripts].find(x=>x.src===url);if(old){old.addEventListener('load',resolve,{once:true});old.addEventListener('error',reject,{once:true});return;}const sc=document.createElement('script');sc.src=url;sc.async=true;sc.onload=resolve;sc.onerror=()=>reject(new Error('לא ניתן לטעון את מנוע הזיהוי'));document.head.appendChild(sc);});}
   function normalizeSymbol(v){return String(v||'').toUpperCase().replace(/^.*?:/,'').replace(/[^A-Z0-9.\-]/g,'').slice(0,10);}
   function guessType(sym,raw=''){sym=normalizeSymbol(sym);if(CRYPTO.has(sym)||/crypto|coin|מטבע|קריפטו/i.test(raw))return 'crypto';if(ETFS.has(sym)||/\betf\b|תעודת סל|קרן סל/i.test(raw))return 'etf';return 'stock';}
-  function assetName(sym){sym=normalizeSymbol(sym);const inApp=[...(S?.stocks||[]),...(S?.crypto||[]),...(S?.etfs||[])].find(a=>String(a.sym).toUpperCase()===sym);return inApp?.name||COMMON[sym]?.[0]||sym;}
+  function assetName(sym){sym=normalizeSymbol(sym);const inApp=[...(S?.stocks||[]),...(S?.crypto||[]),...(S?.etfs||[])].find(a=>String(a.sym).toUpperCase()===sym);return inApp?.name||SECURITY_META[sym]?.name||COMMON[sym]?.[0]||sym;}
   function parseNum(value){let x=String(value??'').trim();if(!x)return NaN;const neg=/\(.*\)|^-/.test(x);x=x.replace(/[₪$€£%\s()A-Za-zא-ת]/g,'').replace(/−/g,'-');if(!x)return NaN;const commas=(x.match(/,/g)||[]).length,dots=(x.match(/\./g)||[]).length;if(commas&&dots){if(x.lastIndexOf(',')>x.lastIndexOf('.'))x=x.replace(/\./g,'').replace(',','.');else x=x.replace(/,/g,'');}else if(commas){const tail=x.split(',').pop();x=(commas===1&&tail.length<=4)?x.replace(',','.'):x.replace(/,/g,'');}else if(dots>1){x=x.replace(/\.(?=.*\.)/g,'');}const n=parseFloat(x);return Number.isFinite(n)?(neg?-Math.abs(n):n):NaN;}
   const QTY_LABEL_SRC = "(?:qty|quantity|shares?|units?|holding|כמות|יתרה|יח(?:ידות?|ידה)?[׳'״\"]?)";
   const UNIT_HINT_RE = /(?:יח(?:ידות?|ידה)?[׳'״\"]?|shares?|units?|qty|quantity|כמות|יתרה)/i;
@@ -17569,6 +17576,145 @@ function launchConfetti() {
     }
     return NaN;
   }
+  function unitishText(value){
+    const t=String(value||'').replace(/[’`]/g,"'").replace(/\s+/g,' ').trim();
+    const c=t.toLowerCase().replace(/[^a-zא-ת]/g,'');
+    return UNIT_HINT_RE.test(t)||/יח/.test(c)||/^(?:ih|yh|hi|units?|shares?|qty|quantity)$/.test(c);
+  }
+  function numericTokensFromLine(line){
+    const out=[];
+    for(const w of line?.words||[]){
+      const raw=String(w.text||'').trim();
+      if(!/\d/.test(raw)||/[/:]/.test(raw)||/%/.test(raw))continue;
+      const n=parseNum(raw);if(!Number.isFinite(n)||n<=0)continue;
+      out.push({n,raw,x0:w.x0,x1:w.x1,cx:(w.x0+w.x1)/2,confidence:w.confidence||0,integer:Math.abs(n-Math.round(n))<1e-8});
+    }
+    if(!out.length){
+      for(const m of String(line?.text||'').matchAll(/\d[\d.,]*/g)){
+        const n=parseNum(m[0]);if(Number.isFinite(n)&&n>0)out.push({n,raw:m[0],x0:line.x0,x1:line.x1,cx:(line.x0+line.x1)/2,confidence:0,integer:Math.abs(n-Math.round(n))<1e-8});
+      }
+    }
+    return out;
+  }
+  function quantityFromSpatialLine(line){
+    if(!line||!unitishText(line.text))return NaN;
+    const direct=quantityFromText(line.text);if(Number.isFinite(direct)&&direct>0)return direct;
+    const units=(line.words||[]).filter(w=>unitishText(w.text));
+    const nums=numericTokensFromLine(line).filter(v=>v.n<1e9&&!/[₪$€£]/.test(v.raw));
+    if(!nums.length)return NaN;
+    if(!units.length)return nums.sort((a,b)=>(b.integer-a.integer)||a.n-b.n)[0].n;
+    return nums.sort((a,b)=>{
+      const da=Math.min(...units.map(u=>Math.abs(a.cx-(u.x0+u.x1)/2)));
+      const db=Math.min(...units.map(u=>Math.abs(b.cx-(u.x0+u.x1)/2)));
+      return da-db||(b.integer-a.integer)||a.n-b.n;
+    })[0].n;
+  }
+  function lineHasMoney(line){
+    const text=String(line?.text||'');
+    if(/[₪$€£]|\b(?:ILS|NIS|USD|EUR|GBP)\b/i.test(text))return true;
+    return numericTokensFromLine(line).some(v=>v.n>=100&&/[.,]/.test(v.raw));
+  }
+  function lineHasDateOrTime(line){return /(?:\b\d{1,2}[:/]\d{1,2}(?:[/]\d{2,4})?|\b20\d{2}\b)/.test(String(line?.text||''));}
+  function spatialTickerCandidate(line,width,known){
+    const text=String(line?.text||'').trim();if(!text||UI_NOISE_RE.test(text))return null;
+    const options=[];
+    for(const w of line.words||[]){
+      const raw=String(w.text||'').trim();
+      const sym=normalizeSymbol(raw);
+      if(!sym||STOP.has(sym)||sym.length<2||sym.length>8)continue;
+      const isKnown=known.has(sym),lettersOnly=/^[A-Z]{2,6}$/.test(sym),listed=/^[A-Z]{1,6}(?:[.\-][A-Z0-9]{1,3})?$/.test(sym);
+      if(!listed||(!isKnown&&!lettersOnly))continue;
+      if(/\d/.test(sym)&&!isKnown)continue;
+      const cx=(w.x0+w.x1)/2,rightness=cx/Math.max(1,width);
+      let score=(isKnown?100:0)+(rightness>.54?28:rightness>.38?10:-15)+Math.min(12,Number(w.confidence||0)/8)+(sym.length<=5?8:2);
+      if(raw!==raw.toUpperCase()&&!isKnown)score-=35;
+      options.push({sym,word:w,score});
+    }
+    options.sort((a,b)=>b.score-a.score);
+    return options[0]&&options[0].score>=18?options[0]:null;
+  }
+  function spatialQuantity(rowLines,candidate,width,height,top,bottom){
+    const explicit=[];
+    for(const line of rowLines){
+      const n=quantityFromSpatialLine(line);
+      if(Number.isFinite(n)&&n>0&&n<1e9){
+        const dist=Math.abs(line.cy-candidate.y);
+        explicit.push({n,line,score:150-dist/Math.max(1,height)*400+(line.cy>=candidate.y?14:0)});
+      }
+    }
+    if(explicit.length){explicit.sort((a,b)=>b.score-a.score);return {qty:explicit[0].n,explicit:true,line:explicit[0].line};}
+
+    const rowHeight=Math.max(24,bottom-top);
+    const amountLines=rowLines.filter(lineHasMoney).sort((a,b)=>Math.abs(a.cy-candidate.y)-Math.abs(b.cy-candidate.y));
+    const amountLine=amountLines[0]||null;
+    const targetY=amountLine?amountLine.cy+rowHeight*.26:candidate.y+rowHeight*.25;
+    const pool=[];
+    for(const line of rowLines){
+      const text=String(line.text||'');
+      if(lineHasMoney(line)||lineHasDateOrTime(line)||UI_NOISE_RE.test(text))continue;
+      for(const v of numericTokensFromLine(line)){
+        if(v.n<=0||v.n>1e7||v.n>=1900&&v.n<=2100)continue;
+        if(!v.integer)continue; // Without a unit marker, never mistake a decimal market value for quantity.
+        let score=0;
+        const vertical=Math.abs(line.cy-targetY)/Math.max(1,rowHeight);
+        score+=Math.max(0,75-vertical*120);
+        if(amountLine&&line.cy>amountLine.cy+Math.max(3,amountLine.h*.15))score+=42;
+        if(line.cy>=candidate.y-rowHeight*.03)score+=18;
+        const tickerX=candidate.word?(candidate.word.x0+candidate.word.x1)/2:width*.75;
+        if(v.cx<tickerX-width*.08)score+=25;else score-=15;
+        if(v.n<=100000)score+=12;
+        if(/[.,]/.test(v.raw))score-=80;
+        pool.push({n:v.n,line,score});
+      }
+    }
+    pool.sort((a,b)=>b.score-a.score||a.n-b.n);
+    return pool[0]&&pool[0].score>=55?{qty:pool[0].n,explicit:false,line:pool[0].line}:{qty:NaN,explicit:false,line:null};
+  }
+  function quoteTypeToPi(value){const t=String(value||'').toUpperCase();if(/ETF|FUND/.test(t))return'etf';if(/CRYPTO|CURRENCY/.test(t))return'crypto';return'stock';}
+  async function piFetchJson(origin,timeout=6500){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+    try{
+      const res=await fetch(typeof viaProxy==='function'?viaProxy(origin):origin,{signal:controller.signal,headers:{Accept:'application/json'}});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      let data=await res.json();
+      if(data&&typeof data.contents==='string')data=JSON.parse(data.contents);
+      return data;
+    }finally{clearTimeout(timer);}
+  }
+  async function validateSecuritySymbol(sym){
+    sym=normalizeSymbol(sym);if(!sym)return{status:'invalid'};
+    if(PI_META_CACHE.has(sym))return PI_META_CACHE.get(sym);
+    const local=SECURITY_META[sym];
+    if(local){const hit={status:'valid',sym,name:local.name,type:local.type||guessType(sym,'')};PI_META_CACHE.set(sym,hit);return hit;}
+    let reached=false;
+    try{
+      const y=await piFetchJson('https://query2.finance.yahoo.com/v1/finance/search?q='+encodeURIComponent(sym)+'&quotesCount=12&newsCount=0&enableFuzzyQuery=false');reached=true;
+      const q=(y?.quotes||[]).find(x=>normalizeSymbol(x?.symbol)===sym&&!/INDEX|FUTURE|OPTION|CURRENCY/.test(String(x?.quoteType||'').toUpperCase()));
+      if(q){const hit={status:'valid',sym,name:String(q.longname||q.shortname||q.name||sym).trim(),type:quoteTypeToPi(q.quoteType)};PI_META_CACHE.set(sym,hit);return hit;}
+    }catch(_){ }
+    try{
+      const f=await piFetchJson('https://finnhub.io/api/v1/search?q='+encodeURIComponent(sym));reached=true;
+      const q=(f?.result||[]).find(x=>normalizeSymbol(x?.symbol)===sym&&x?.description&&!/INDEX|FOREX|FUTURE|OPTION/.test(String(x?.type||'').toUpperCase()));
+      if(q){const hit={status:'valid',sym,name:String(q.description).trim(),type:quoteTypeToPi(q.type)};PI_META_CACHE.set(sym,hit);return hit;}
+    }catch(_){ }
+    const miss={status:reached?'invalid':'unavailable',sym};PI_META_CACHE.set(sym,miss);return miss;
+  }
+  async function validateAndEnrichRows(rows){
+    const merged=new Map();
+    for(const row of rows||[]){const sym=normalizeSymbol(row?.sym);if(!sym)continue;const old=merged.get(sym);if(!old||(row.confidence||0)>(old.confidence||0))merged.set(sym,{...row,sym});}
+    const list=[...merged.values()],out=[];
+    for(let i=0;i<list.length;i++){
+      const row=list[i];setProgress(88+Math.round((i+1)/Math.max(1,list.length)*10),'מאמת סימולים ומשלים שמות…',`${i+1} מתוך ${list.length}`);
+      const meta=await validateSecuritySymbol(row.sym);
+      if(meta.status==='invalid')continue;
+      if(meta.status==='valid'){
+        row.sym=meta.sym;row.name=meta.name||assetName(meta.sym);row.type=meta.type||row.type;row.confidence=Math.min(100,Math.max(row.confidence||0,96));row.validated=true;out.push(row);
+      }else{
+        row.name=assetName(row.sym);row.include=false;row.confidence=Math.min(row.confidence||55,55);row.validationPending=true;out.push(row);
+      }
+    }
+    return out;
+  }
   function inferredTradingCurrency(sym,raw=''){
     const upper=String(raw||'').toUpperCase();
     if(/\b(?:TASE|ILS|NIS)\b/.test(upper)&&!/\b(?:NASDAQ|NYSE|AMEX|OTC|USD)\b/.test(upper))return 'ILS';
@@ -17629,53 +17775,38 @@ function launchConfetti() {
   function parseSpatialOCR(pages,fallbackText=''){
     const found=[];
     for(const pg of pages||[]){
-      const width=Number(pg.width)||1,height=Number(pg.height)||1,lines=spatialLines(pg.words||[]);
+      const width=Number(pg.width)||1,height=Number(pg.height)||1,lines=spatialLines(pg.words||[]),known=new Set(symbolUniverse());
       let candidates=[];
       for(let i=0;i<lines.length;i++){
-        const sym=symbolFromLine(lines[i].text);if(!sym)continue;
-        candidates.push({sym,y:lines[i].cy,index:i});
+        const pick=spatialTickerCandidate(lines[i],width,known);if(!pick)continue;
+        candidates.push({sym:pick.sym,y:lines[i].cy,index:i,word:pick.word,score:pick.score});
       }
       candidates.sort((a,b)=>a.y-b.y);
       const compact=[];
       for(const c of candidates){
         const prev=compact[compact.length-1];
-        if(prev&&prev.sym===c.sym&&Math.abs(prev.y-c.y)<Math.max(65,height*.045)){prev.y=(prev.y+c.y)/2;prev.index=Math.min(prev.index,c.index);}
-        else compact.push(c);
+        if(prev&&prev.sym===c.sym&&Math.abs(prev.y-c.y)<Math.max(70,height*.048)){
+          if(c.score>prev.score){prev.word=c.word;prev.score=c.score;prev.index=c.index;}prev.y=(prev.y+c.y)/2;
+        }else compact.push(c);
       }
       candidates=compact;
       for(let ci=0;ci<candidates.length;ci++){
-        const c=candidates[ci],top=ci?((candidates[ci-1].y+c.y)/2):Math.max(0,c.y-height*.055),bottom=ci<candidates.length-1?((c.y+candidates[ci+1].y)/2):Math.min(height,c.y+height*.09);
+        const c=candidates[ci],top=ci?((candidates[ci-1].y+c.y)/2):Math.max(0,c.y-height*.06),bottom=ci<candidates.length-1?((c.y+candidates[ci+1].y)/2):Math.min(height,c.y+height*.105);
         const rowLines=lines.filter(l=>l.cy>=top&&l.cy<bottom),rowText=rowLines.map(l=>l.text).join(' ');
-        let qty=quantityFromText(rowText),explicit=Number.isFinite(qty);
-        if(!explicit){
-          const unitLine=rowLines.find(l=>UNIT_HINT_RE.test(l.text)&&/\d/.test(l.text));
-          if(unitLine){qty=quantityFromText(unitLine.text);explicit=Number.isFinite(qty);}
-        }
-        if(!Number.isFinite(qty)){
-          const nums=[];
-          for(const l of rowLines){
-            const hasCurrency=/[₪$€£]|\b(?:ILS|NIS|USD|EUR|GBP)\b/i.test(l.text);
-            for(const m of l.text.matchAll(/\d[\d.,]*/g)){
-              const n=parseNum(m[0]);if(!Number.isFinite(n)||n<=0||n>1e8||n>=1900&&n<=2100)continue;
-              const numericWords=l.words.filter(w=>/\d/.test(w.text)),x=numericWords.length?Math.min(...numericWords.map(w=>w.x0)):l.x0;
-              if(x>width*.68)continue;
-              nums.push({n,y:l.cy,hasCurrency,integer:Math.abs(n-Math.round(n))<1e-8,x});
-            }
-          }
-          const clean=nums.filter(v=>!v.hasCurrency&&v.n<=100000);
-          const below=clean.filter(v=>v.y>=c.y-height*.015);
-          const pool=below.length?below:clean;
-          const ints=pool.filter(v=>v.integer);
-          const chosen=(ints.length?ints:pool).sort((a,b)=>Math.abs(a.y-(c.y+height*.035))-Math.abs(b.y-(c.y+height*.035))||a.n-b.n)[0];
-          if(chosen)qty=chosen.n;
-        }
+        const q=spatialQuantity(rowLines,c,width,height,top,bottom),qty=q.qty;
         if(!Number.isFinite(qty)||qty<=0)continue;
-        const nameLine=rowLines.find(l=>l.cy>=c.y&&l.text.length>2&&!UNIT_HINT_RE.test(l.text)&&!/^[\s\d₪$€£%.,'׳״-]+$/.test(l.text)&&(!symbolFromLine(l.text)||symbolFromLine(l.text)===c.sym));
-        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:nameLine?.text||assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:explicit?98:88,source:'ocr-spatial'});
+        const valueEvidence=rowLines.some(lineHasMoney),knownSymbol=known.has(c.sym);
+        if(!knownSymbol&&!valueEvidence&&!q.explicit)continue;
+        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:q.explicit?99:(knownSymbol&&valueEvidence?94:86),source:'ocr-spatial'});
       }
     }
     const fallback=parseText(fallbackText),map=new Map();
-    for(const r of [...fallback,...found]){const old=map.get(r.sym);if(!old||r.confidence>old.confidence)map.set(r.sym,r);}
+    for(const r of [...fallback,...found]){
+      const old=map.get(r.sym);
+      const score=(r.confidence||0)+(r.source==='ocr-spatial'?8:0);
+      const oldScore=old?((old.confidence||0)+(old.source==='ocr-spatial'?8:0)):-1;
+      if(!old||score>oldScore)map.set(r.sym,r);
+    }
     return [...map.values()];
   }
   function parseRows(text,delimiter){const out=[];let row=[],cell='',quote=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'){if(quote&&n==='"'){cell+='"';i++;}else quote=!quote;}else if(c===delimiter&&!quote){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quote){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>String(x).trim()))out.push(row);row=[];cell='';}else cell+=c;}row.push(cell);if(row.some(x=>String(x).trim()))out.push(row);return out;}
@@ -17718,7 +17849,7 @@ function launchConfetti() {
   window.closePortfolioImport=function(){if(PI.busy)return;document.getElementById('portfolioImportOv')?.classList.remove('open');document.body.style.overflow='';};
   window.portfolioImportPick=function(kind){const inp=document.getElementById('portfolioImportFile');if(!inp)return;inp.accept=kind==='image'?'image/png,image/jpeg,image/webp':kind==='pdf'?'application/pdf':'.csv,.tsv,.txt,text/csv,text/tab-separated-values';inp.dataset.kind=kind;inp.click();};
   window.piResetImport=function(){PI.rows=[];PI.rawText='';PI.busy=false;document.getElementById('piChooseStep').style.display='';document.getElementById('piProgress')?.classList.remove('show');document.getElementById('piReviewStep')?.classList.remove('show');const inp=document.getElementById('portfolioImportFile');if(inp)inp.value='';};
-  window.portfolioImportHandleFile=async function(eventOrFile){const file=eventOrFile instanceof File?eventOrFile:eventOrFile?.target?.files?.[0];if(!file||PI.busy)return;PI.busy=true;PI.fileName=file.name;PI.source='';document.getElementById('piChooseStep').style.display='none';setProgress(2,'מתחיל לקרוא את הקובץ…');try{let text='',rows=[];const lower=file.name.toLowerCase();if(file.type.startsWith('image/')||/\.(png|jpe?g|webp)$/i.test(lower)){PI.source='image';const c=await imageCanvas(file),ocr=await ocrCanvases([c,binaryOcrVariant(c)],true);text=ocr.text;rows=parseSpatialOCR(ocr.pages,text);}else if(file.type==='application/pdf'||lower.endsWith('.pdf')){PI.source='pdf';text=await readPDF(file);rows=parseText(text);}else{PI.source='csv';text=await file.text();rows=parseCSV(text);}PI.rawText=text;PI.rows=rows;setProgress(100,'הזיהוי הושלם');setTimeout(()=>piRenderReview(),180);}catch(err){console.error('[Portfolio Import]',err);alert('לא הצלחנו לקרוא את הקובץ: '+(err?.message||'שגיאה לא ידועה'));piResetImport();}finally{PI.busy=false;if(eventOrFile?.target)eventOrFile.target.value='';}};
+  window.portfolioImportHandleFile=async function(eventOrFile){const file=eventOrFile instanceof File?eventOrFile:eventOrFile?.target?.files?.[0];if(!file||PI.busy)return;PI.busy=true;PI.fileName=file.name;PI.source='';document.getElementById('piChooseStep').style.display='none';setProgress(2,'מתחיל לקרוא את הקובץ…');try{let text='',rows=[];const lower=file.name.toLowerCase();if(file.type.startsWith('image/')||/\.(png|jpe?g|webp)$/i.test(lower)){PI.source='image';const c=await imageCanvas(file),ocr=await ocrCanvases([c,binaryOcrVariant(c)],true);text=ocr.text;rows=parseSpatialOCR(ocr.pages,text);}else if(file.type==='application/pdf'||lower.endsWith('.pdf')){PI.source='pdf';text=await readPDF(file);rows=parseText(text);}else{PI.source='csv';text=await file.text();rows=parseCSV(text);}rows=await validateAndEnrichRows(rows);PI.rawText=text;PI.rows=rows;setProgress(100,'הזיהוי והאימות הושלמו');setTimeout(()=>piRenderReview(),180);}catch(err){console.error('[Portfolio Import]',err);alert('לא הצלחנו לקרוא את הקובץ: '+(err?.message||'שגיאה לא ידועה'));piResetImport();}finally{PI.busy=false;if(eventOrFile?.target)eventOrFile.target.value='';}};
   window.piRenderReview=function(){document.getElementById('piProgress')?.classList.remove('show');const step=document.getElementById('piReviewStep');step?.classList.add('show');const raw=document.getElementById('piRawText');if(raw)raw.value=PI.rawText||'';piRenderRows();};
   window.piRenderRows=function(){const body=document.getElementById('piRows');if(!body)return;body.innerHTML=PI.rows.map((r,i)=>`<tr><td><input class="pi-check" type="checkbox" ${r.include!==false?'checked':''} onchange="PI.rows[${i}].include=this.checked;piRenderSummary()"></td><td><select onchange="PI.rows[${i}].type=this.value"><option value="stock" ${r.type==='stock'?'selected':''}>מניה</option><option value="etf" ${r.type==='etf'?'selected':''}>ETF</option><option value="crypto" ${r.type==='crypto'?'selected':''}>קריפטו</option></select></td><td><input dir="ltr" value="${esc(r.sym)}" oninput="PI.rows[${i}].sym=normalizePiSymbol(this.value)"></td><td><input value="${esc(r.name)}" oninput="PI.rows[${i}].name=this.value"></td><td><input dir="ltr" type="number" step="any" min="0" value="${esc(r.qty)}" oninput="PI.rows[${i}].qty=parseNumPi(this.value);piRenderSummary()"></td><td><input dir="ltr" type="number" step="any" min="0" value="${esc(r.avgPrice)}" placeholder="אופציונלי" oninput="PI.rows[${i}].avgPrice=parseNumPi(this.value)||''"></td><td><select onchange="PI.rows[${i}].currency=this.value"><option ${r.currency==='USD'?'selected':''}>USD</option><option ${r.currency==='ILS'?'selected':''}>ILS</option><option ${r.currency==='EUR'?'selected':''}>EUR</option><option ${r.currency==='GBP'?'selected':''}>GBP</option></select></td><td><input type="date" value="${esc(r.date||TODAY())}" onchange="PI.rows[${i}].date=this.value"></td><td><span class="pi-confidence ${r.confidence<85?'mid':''}">${Math.round(r.confidence||60)}%</span></td><td><button class="pi-del" onclick="PI.rows.splice(${i},1);piRenderRows()"><i class="ph-thin ph-trash"></i></button></td></tr>`).join('');if(!PI.rows.length)body.innerHTML='<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--t3)">לא נמצאו שורות באופן אוטומטי. אפשר להוסיף שורה ידנית או לבחור קובץ ברור יותר.</td></tr>';piRenderSummary();};
   window.normalizePiSymbol=normalizeSymbol;window.parseNumPi=parseNum;window.piParseCSV=parseCSV;window.piParseText=parseText;window.piParseSpatialOCR=parseSpatialOCR;
