@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vector">
 <title>Vector · Equities — Brand Book 2026</title>
-<meta name="app-version" content="2026-07-21-smart-portfolio-import-ocr-v3">
+<meta name="app-version" content="2026-07-21-smart-portfolio-import-ocr-v4-digit-verified">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-thin-rounded/css/uicons-thin-rounded.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/thin/style.css">
 <script>
-console.info("Vector build: 2026-07-21-smart-portfolio-import-ocr-v3");
+console.info("Vector build: 2026-07-21-smart-portfolio-import-ocr-v4-digit-verified");
 // ── Safe storage shim: file:// and private modes block localStorage (opaque origin).
 // Without this, the very first localStorage call throws and halts the whole script.
 (function(){
@@ -17642,7 +17642,7 @@ function launchConfetti() {
         explicit.push({n,line,score:150-dist/Math.max(1,height)*400+(line.cy>=candidate.y?14:0)});
       }
     }
-    if(explicit.length){explicit.sort((a,b)=>b.score-a.score);return {qty:explicit[0].n,explicit:true,line:explicit[0].line};}
+    if(explicit.length){explicit.sort((a,b)=>b.score-a.score);return {qty:explicit[0].n,explicit:true,line:explicit[0].line,exact:false};}
 
     const rowHeight=Math.max(24,bottom-top);
     const amountLines=rowLines.filter(lineHasMoney).sort((a,b)=>Math.abs(a.cy-candidate.y)-Math.abs(b.cy-candidate.y));
@@ -17668,7 +17668,54 @@ function launchConfetti() {
       }
     }
     pool.sort((a,b)=>b.score-a.score||a.n-b.n);
-    return pool[0]&&pool[0].score>=55?{qty:pool[0].n,explicit:false,line:pool[0].line}:{qty:NaN,explicit:false,line:null};
+    return pool[0]&&pool[0].score>=55?{qty:pool[0].n,explicit:false,line:pool[0].line,exact:false}:{qty:NaN,explicit:false,line:null,exact:false};
+  }
+
+  // A dedicated digits-only OCR pass prevents RTL unit labels from swallowing the
+  // first digit (for example 50→0, 38→8 or 17→7). It is matched back to the
+  // exact vertical position of the unit marker or the value/quantity pair.
+  function digitVerifiedQuantity(digitLines,rowLines,candidate,width,height,top,bottom){
+    if(!digitLines?.length)return {qty:NaN,explicit:false,line:null,exact:false};
+    const rowHeight=Math.max(24,bottom-top);
+    const local=digitLines.filter(l=>l.cy>=top&&l.cy<bottom);
+    if(!local.length)return {qty:NaN,explicit:false,line:null,exact:false};
+
+    const unitLines=rowLines.filter(l=>unitishText(l.text));
+    const unitY=unitLines.length?unitLines.sort((a,b)=>Math.abs(a.cy-(candidate.y+rowHeight*.28))-Math.abs(b.cy-(candidate.y+rowHeight*.28)))[0].cy:NaN;
+    const standardAmount=rowLines.filter(lineHasMoney).sort((a,b)=>Math.abs(a.cy-candidate.y)-Math.abs(b.cy-candidate.y))[0]||null;
+    const digitAmount=local.filter(l=>numericTokensFromLine(l).some(v=>v.n>=10&&/[.,]/.test(v.raw)))
+      .sort((a,b)=>Math.abs(a.cy-candidate.y)-Math.abs(b.cy-candidate.y))[0]||null;
+    const amountY=standardAmount?.cy??digitAmount?.cy??NaN;
+    const targetY=Number.isFinite(unitY)?unitY:(Number.isFinite(amountY)?amountY+rowHeight*.27:candidate.y+rowHeight*.28);
+    const tickerX=candidate.word?(candidate.word.x0+candidate.word.x1)/2:width*.74;
+    const pool=[];
+
+    for(const line of local){
+      for(const v of numericTokensFromLine(line)){
+        if(v.n<=0||v.n>1e7||v.n>=1900&&v.n<=2100)continue;
+        if(/[/:]/.test(v.raw)||/%/.test(v.raw))continue;
+        // Quantity is normally in the value column, well to the left of the ticker.
+        if(v.cx>Math.min(width*.58,tickerX-width*.055))continue;
+        if(Number.isFinite(amountY)&&line.cy<=amountY+Math.max(4,rowHeight*.055))continue;
+        let score=0;
+        const dy=Math.abs(line.cy-targetY)/rowHeight;
+        score+=Math.max(0,150-dy*330);
+        if(Number.isFinite(unitY)){
+          const du=Math.abs(line.cy-unitY)/rowHeight;
+          score+=Math.max(0,180-du*520);
+        }
+        if(Number.isFinite(amountY)&&line.cy>amountY)score+=55;
+        if(v.integer)score+=42;else if(Number.isFinite(unitY))score+=12;else score-=30;
+        if(v.n<=100000)score+=22;
+        if(/[.,]/.test(v.raw)&&v.integer===false)score-=18;
+        if(v.cx>=width*.08&&v.cx<=width*.48)score+=24;
+        pool.push({n:v.n,line,score,unitMatched:Number.isFinite(unitY)&&Math.abs(line.cy-unitY)<=Math.max(12,rowHeight*.12)});
+      }
+    }
+    pool.sort((a,b)=>b.score-a.score||Math.abs(a.line.cy-targetY)-Math.abs(b.line.cy-targetY)||a.n-b.n);
+    const best=pool[0];
+    if(!best||best.score<125)return {qty:NaN,explicit:false,line:null,exact:false};
+    return {qty:best.n,explicit:true,line:best.line,exact:best.unitMatched||best.score>=250,source:'digit-verified'};
   }
   function quoteTypeToPi(value){const t=String(value||'').toUpperCase();if(/ETF|FUND/.test(t))return'etf';if(/CRYPTO|CURRENCY/.test(t))return'crypto';return'stock';}
   async function piFetchJson(origin,timeout=6500){
@@ -17772,8 +17819,8 @@ function launchConfetti() {
     }
     return lines.sort((a,b)=>a.cy-b.cy).map(l=>{l.words.sort((a,b)=>a.x0-b.x0);l.text=l.words.map(w=>w.text).join(' ');l.x0=Math.min(...l.words.map(w=>w.x0));l.x1=Math.max(...l.words.map(w=>w.x1));return l;});
   }
-  function parseSpatialOCR(pages,fallbackText=''){
-    const found=[];
+  function parseSpatialOCR(pages,fallbackText='',digitPage=null){
+    const found=[],digitLines=digitPage?spatialLines(digitPage.words||[]):[];
     for(const pg of pages||[]){
       const width=Number(pg.width)||1,height=Number(pg.height)||1,lines=spatialLines(pg.words||[]),known=new Set(symbolUniverse());
       let candidates=[];
@@ -17793,11 +17840,12 @@ function launchConfetti() {
       for(let ci=0;ci<candidates.length;ci++){
         const c=candidates[ci],top=ci?((candidates[ci-1].y+c.y)/2):Math.max(0,c.y-height*.06),bottom=ci<candidates.length-1?((c.y+candidates[ci+1].y)/2):Math.min(height,c.y+height*.105);
         const rowLines=lines.filter(l=>l.cy>=top&&l.cy<bottom),rowText=rowLines.map(l=>l.text).join(' ');
-        const q=spatialQuantity(rowLines,c,width,height,top,bottom),qty=q.qty;
+        const verified=digitVerifiedQuantity(digitLines,rowLines,c,width,height,top,bottom);
+        const q=Number.isFinite(verified.qty)?verified:spatialQuantity(rowLines,c,width,height,top,bottom),qty=q.qty;
         if(!Number.isFinite(qty)||qty<=0)continue;
         const valueEvidence=rowLines.some(lineHasMoney),knownSymbol=known.has(c.sym);
         if(!knownSymbol&&!valueEvidence&&!q.explicit)continue;
-        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:q.explicit?99:(knownSymbol&&valueEvidence?94:86),source:'ocr-spatial'});
+        found.push({include:true,type:guessType(c.sym,rowText),sym:c.sym,name:assetName(c.sym),qty,avgPrice:'',currency:inferredTradingCurrency(c.sym,rowText),date:TODAY(),confidence:q.exact?100:(q.explicit?99:(knownSymbol&&valueEvidence?94:86)),quantityVerified:!!q.exact,source:q.source||'ocr-spatial'});
       }
     }
     const fallback=parseText(fallbackText),map=new Map();
@@ -17829,18 +17877,25 @@ function launchConfetti() {
     const img=x.getImageData(0,0,c.width,c.height),d=img.data;
     for(let i=0;i<d.length;i+=4){const g=d[i],v=g<205?0:255;d[i]=d[i+1]=d[i+2]=v;}x.putImageData(img,0,0);return c;
   }
-  async function ocrCanvases(canvases,structured=false){
+  async function ocrCanvases(canvases,structured=false,digitSource=null){
     await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',()=>!!window.Tesseract?.createWorker);let page=0;
-    const worker=await Tesseract.createWorker(['eng','heb'],1,{langPath:'https://tessdata.projectnaptha.com/4.0.0_fast',logger:m=>{const local=Math.round((m.progress||0)*100),all=Math.round(((page+local/100)/canvases.length)*100);setProgress(Math.max(8,all),m.status==='recognizing text'?'מזהה שמות וכמויות…':'טוען מנוע זיהוי…',canvases.length>1?`מעבר זיהוי ${Math.min(page+1,canvases.length)} מתוך ${canvases.length}`:'');}});
-    let text='';const pages=[];
+    const totalPasses=Math.max(1,canvases.length+(digitSource?1:0));
+    const worker=await Tesseract.createWorker(['eng','heb'],1,{langPath:'https://tessdata.projectnaptha.com/4.0.0_fast',logger:m=>{const local=Math.round((m.progress||0)*100),all=Math.round(((page+local/100)/totalPasses)*100);setProgress(Math.max(8,all),m.status==='recognizing text'?(page>=canvases.length?'מאמת את הכמויות ספרה־ספרה…':'מזהה שמות וכמויות…'):'טוען מנוע זיהוי…',totalPasses>1?`מעבר זיהוי ${Math.min(page+1,totalPasses)} מתוך ${totalPasses}`:'');}});
+    let text='',digitPage=null;const pages=[];
     try{
       await worker.setParameters({preserve_interword_spaces:'1'}).catch(()=>{});
       for(page=0;page<canvases.length;page++){
         const canvas=canvases[page],ret=await worker.recognize(canvas),pageText=ret.data?.text||'',words=flattenOcrWords(ret.data);
         text+='\n'+pageText;pages.push({width:canvas.width,height:canvas.height,text:pageText,words});
       }
+      if(digitSource){
+        page=canvases.length;
+        await worker.setParameters({tessedit_char_whitelist:'0123456789.,',tessedit_pageseg_mode:'11',preserve_interword_spaces:'0'}).catch(()=>{});
+        const ret=await worker.recognize(digitSource),pageText=ret.data?.text||'',words=flattenOcrWords(ret.data);
+        digitPage={width:digitSource.width,height:digitSource.height,text:pageText,words};
+      }
     }finally{await worker.terminate().catch(()=>{});}
-    return structured?{text,pages}:text;
+    return structured?{text,pages,digitPage}:text;
   }
   function pdfLines(items){const rows=new Map();for(const it of items){const y=Math.round(it.transform?.[5]||0);if(!rows.has(y))rows.set(y,[]);rows.get(y).push({x:it.transform?.[4]||0,s:it.str||''});}return [...rows.entries()].sort((a,b)=>b[0]-a[0]).map(([,r])=>r.sort((a,b)=>a.x-b.x).map(x=>x.s).join(' ')).join('\n');}
   async function readPDF(file){setProgress(7,'פותח את דוח ה-PDF…');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',()=>!!window.pdfjsLib);pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;const pages=Math.min(pdf.numPages,5);let text='';for(let i=1;i<=pages;i++){setProgress(8+i/pages*35,`קורא עמוד ${i} מתוך ${pages}…`);const pg=await pdf.getPage(i);const tc=await pg.getTextContent();text+='\n'+pdfLines(tc.items);}if(text.replace(/\s/g,'').length>80)return text;const canv=[];for(let i=1;i<=Math.min(pages,3);i++){const pg=await pdf.getPage(i),vp=pg.getViewport({scale:2});const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;canv.push(c);}return ocrCanvases(canv);}
@@ -17849,7 +17904,7 @@ function launchConfetti() {
   window.closePortfolioImport=function(){if(PI.busy)return;document.getElementById('portfolioImportOv')?.classList.remove('open');document.body.style.overflow='';};
   window.portfolioImportPick=function(kind){const inp=document.getElementById('portfolioImportFile');if(!inp)return;inp.accept=kind==='image'?'image/png,image/jpeg,image/webp':kind==='pdf'?'application/pdf':'.csv,.tsv,.txt,text/csv,text/tab-separated-values';inp.dataset.kind=kind;inp.click();};
   window.piResetImport=function(){PI.rows=[];PI.rawText='';PI.busy=false;document.getElementById('piChooseStep').style.display='';document.getElementById('piProgress')?.classList.remove('show');document.getElementById('piReviewStep')?.classList.remove('show');const inp=document.getElementById('portfolioImportFile');if(inp)inp.value='';};
-  window.portfolioImportHandleFile=async function(eventOrFile){const file=eventOrFile instanceof File?eventOrFile:eventOrFile?.target?.files?.[0];if(!file||PI.busy)return;PI.busy=true;PI.fileName=file.name;PI.source='';document.getElementById('piChooseStep').style.display='none';setProgress(2,'מתחיל לקרוא את הקובץ…');try{let text='',rows=[];const lower=file.name.toLowerCase();if(file.type.startsWith('image/')||/\.(png|jpe?g|webp)$/i.test(lower)){PI.source='image';const c=await imageCanvas(file),ocr=await ocrCanvases([c,binaryOcrVariant(c)],true);text=ocr.text;rows=parseSpatialOCR(ocr.pages,text);}else if(file.type==='application/pdf'||lower.endsWith('.pdf')){PI.source='pdf';text=await readPDF(file);rows=parseText(text);}else{PI.source='csv';text=await file.text();rows=parseCSV(text);}rows=await validateAndEnrichRows(rows);PI.rawText=text;PI.rows=rows;setProgress(100,'הזיהוי והאימות הושלמו');setTimeout(()=>piRenderReview(),180);}catch(err){console.error('[Portfolio Import]',err);alert('לא הצלחנו לקרוא את הקובץ: '+(err?.message||'שגיאה לא ידועה'));piResetImport();}finally{PI.busy=false;if(eventOrFile?.target)eventOrFile.target.value='';}};
+  window.portfolioImportHandleFile=async function(eventOrFile){const file=eventOrFile instanceof File?eventOrFile:eventOrFile?.target?.files?.[0];if(!file||PI.busy)return;PI.busy=true;PI.fileName=file.name;PI.source='';document.getElementById('piChooseStep').style.display='none';setProgress(2,'מתחיל לקרוא את הקובץ…');try{let text='',rows=[];const lower=file.name.toLowerCase();if(file.type.startsWith('image/')||/\.(png|jpe?g|webp)$/i.test(lower)){PI.source='image';const c=await imageCanvas(file),ocr=await ocrCanvases([c,binaryOcrVariant(c)],true,c);text=ocr.text;rows=parseSpatialOCR(ocr.pages,text,ocr.digitPage);}else if(file.type==='application/pdf'||lower.endsWith('.pdf')){PI.source='pdf';text=await readPDF(file);rows=parseText(text);}else{PI.source='csv';text=await file.text();rows=parseCSV(text);}rows=await validateAndEnrichRows(rows);PI.rawText=text;PI.rows=rows;setProgress(100,'הזיהוי והאימות הושלמו');setTimeout(()=>piRenderReview(),180);}catch(err){console.error('[Portfolio Import]',err);alert('לא הצלחנו לקרוא את הקובץ: '+(err?.message||'שגיאה לא ידועה'));piResetImport();}finally{PI.busy=false;if(eventOrFile?.target)eventOrFile.target.value='';}};
   window.piRenderReview=function(){document.getElementById('piProgress')?.classList.remove('show');const step=document.getElementById('piReviewStep');step?.classList.add('show');const raw=document.getElementById('piRawText');if(raw)raw.value=PI.rawText||'';piRenderRows();};
   window.piRenderRows=function(){const body=document.getElementById('piRows');if(!body)return;body.innerHTML=PI.rows.map((r,i)=>`<tr><td><input class="pi-check" type="checkbox" ${r.include!==false?'checked':''} onchange="PI.rows[${i}].include=this.checked;piRenderSummary()"></td><td><select onchange="PI.rows[${i}].type=this.value"><option value="stock" ${r.type==='stock'?'selected':''}>מניה</option><option value="etf" ${r.type==='etf'?'selected':''}>ETF</option><option value="crypto" ${r.type==='crypto'?'selected':''}>קריפטו</option></select></td><td><input dir="ltr" value="${esc(r.sym)}" oninput="PI.rows[${i}].sym=normalizePiSymbol(this.value)"></td><td><input value="${esc(r.name)}" oninput="PI.rows[${i}].name=this.value"></td><td><input dir="ltr" type="number" step="any" min="0" value="${esc(r.qty)}" oninput="PI.rows[${i}].qty=parseNumPi(this.value);piRenderSummary()"></td><td><input dir="ltr" type="number" step="any" min="0" value="${esc(r.avgPrice)}" placeholder="אופציונלי" oninput="PI.rows[${i}].avgPrice=parseNumPi(this.value)||''"></td><td><select onchange="PI.rows[${i}].currency=this.value"><option ${r.currency==='USD'?'selected':''}>USD</option><option ${r.currency==='ILS'?'selected':''}>ILS</option><option ${r.currency==='EUR'?'selected':''}>EUR</option><option ${r.currency==='GBP'?'selected':''}>GBP</option></select></td><td><input type="date" value="${esc(r.date||TODAY())}" onchange="PI.rows[${i}].date=this.value"></td><td><span class="pi-confidence ${r.confidence<85?'mid':''}">${Math.round(r.confidence||60)}%</span></td><td><button class="pi-del" onclick="PI.rows.splice(${i},1);piRenderRows()"><i class="ph-thin ph-trash"></i></button></td></tr>`).join('');if(!PI.rows.length)body.innerHTML='<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--t3)">לא נמצאו שורות באופן אוטומטי. אפשר להוסיף שורה ידנית או לבחור קובץ ברור יותר.</td></tr>';piRenderSummary();};
   window.normalizePiSymbol=normalizeSymbol;window.parseNumPi=parseNum;window.piParseCSV=parseCSV;window.piParseText=parseText;window.piParseSpatialOCR=parseSpatialOCR;
